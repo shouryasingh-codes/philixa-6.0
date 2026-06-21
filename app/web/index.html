@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="PHILIXA 6.0 — AI-powered Commitment and Memory Copilot for Banking Relationship Managers. Track meetings, client memory, and commitments." />
+    <title>PHILIXA 6.0 V1</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2314b8a6'/%3E%3Ctext x='16' y='22' font-family='sans-serif' font-size='16' font-weight='900' fill='%2306231f' text-anchor='middle'%3EP6%3C/text%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand-block">
+          <div class="brand-mark">P6</div>
+          <div>
+            <h1>PHILIXA 6.0</h1>
+            <p>Commitment and Memory Copilot</p>
+          </div>
+        </div>
+
+        <label class="field-label" for="apiKey">API key</label>
+        <div class="api-row">
+          <input id="apiKey" type="password" value="dev-api-key" autocomplete="off" />
+          <button class="icon-button" id="toggleKey" type="button" title="Show or hide API key">Key</button>
+        </div>
+
+        <div class="system-strip">
+          <span class="status-dot" id="healthDot"></span>
+          <span id="healthText">Checking API</span>
+        </div>
+
+        <nav class="nav-list" aria-label="Dashboard sections">
+          <a href="#notePanel">Process Notes</a>
+          <a href="#memoryPanel">Client Memory</a>
+          <a href="#commitmentPanel">Commitments</a>
+        </nav>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">V1-MVP</p>
+            <h2>RM meeting memory workspace</h2>
+          </div>
+          <div class="topbar-actions">
+            <button id="refreshAll" type="button">Refresh</button>
+            <a class="docs-link" href="/docs" target="_blank" rel="noreferrer">Swagger</a>
+          </div>
+        </header>
+
+        <section class="metric-grid" aria-label="Dashboard summary">
+          <div class="metric">
+            <span>Clients</span>
+            <strong id="clientCount">0</strong>
+          </div>
+          <div class="metric">
+            <span>Pending commitments</span>
+            <strong id="pendingCount">0</strong>
+          </div>
+          <div class="metric">
+            <span>Selected client</span>
+            <strong id="selectedClientLabel">None</strong>
+          </div>
+        </section>
+
+        <section class="grid-layout">
+          <section class="panel primary-panel" id="notePanel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Step 1</p>
+                <h3>Paste meeting notes</h3>
+              </div>
+              <select id="knownClient">
+                <option value="">Auto identify client</option>
+              </select>
+            </div>
+
+            <textarea id="rawNotes" spellcheck="true">Met Rajesh Sharma today. Interested in business loan. Concerned about processing time. Promised documents by Friday.</textarea>
+
+            <div class="form-row">
+              <label>
+                Meeting date
+                <input id="meetingDate" type="date" />
+              </label>
+              <button class="primary-action" id="processNotes" type="button">Process notes</button>
+            </div>
+
+            <div class="result-box" id="processResult">
+              <span class="muted">Process a meeting note to see extraction results here.</span>
+            </div>
+
+            <div class="confirm-panel hidden" id="confirmPanel">
+              <div>
+                <p class="eyebrow">Confirmation required</p>
+                <h4>Attach this meeting to a client</h4>
+              </div>
+              <div class="confirm-grid">
+                <select id="confirmClientSelect">
+                  <option value="">Select existing client</option>
+                </select>
+                <input id="newClientName" type="text" placeholder="Or create new client name" />
+                <button id="confirmClient" type="button">Confirm client</button>
+              </div>
+            </div>
+          </section>
+
+          <aside class="panel client-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Clients</p>
+                <h3>Memory index</h3>
+              </div>
+              <button id="refreshClients" type="button">Reload</button>
+            </div>
+            <div class="client-list" id="clientList">
+              <span class="muted">No clients loaded.</span>
+            </div>
+          </aside>
+        </section>
+
+        <section class="grid-layout bottom-layout">
+          <section class="panel hero-panel" id="memoryPanel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Hero feature</p>
+                <h3>Client memory</h3>
+              </div>
+              <button id="loadSelectedMemory" type="button">Load memory</button>
+            </div>
+            <div id="memoryContent" class="memory-content">
+              <span class="muted">Select a client to view instant context.</span>
+            </div>
+          </section>
+
+          <section class="panel support-panel" id="commitmentPanel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Supporting view</p>
+                <h3>Commitments</h3>
+              </div>
+              <select id="commitmentFilter">
+                <option value="">All</option>
+                <option value="pending" selected>Pending</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Client</th>
+                    <th>Commitment</th>
+                    <th>Due</th>
+                    <th>Urgency</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="commitmentRows">
+                  <tr>
+                    <td colspan="6" class="muted">No commitments loaded.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
