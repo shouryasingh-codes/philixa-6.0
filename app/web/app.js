@@ -53,7 +53,7 @@ function showToast(message, isError = false) {
 }
 
 function apiKey() {
-  return els.apiKey.value.trim() || "dev-api-key";
+  return els.apiKey.value.trim() || "philixa-demo-secret-123";
 }
 
 async function api(path, options = {}) {
