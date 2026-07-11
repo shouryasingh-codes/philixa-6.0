@@ -217,6 +217,14 @@ function renderMemory(payload) {
           }
         </div>
         <div class="brief-block">
+          <span class="brief-label">Products</span>
+          ${
+            payload.products_owned && payload.products_owned.length
+              ? `<strong>${payload.products_owned.map(escapeHtml).join(", ")}</strong>`
+              : `<span class="muted">None recorded.</span>`
+          }
+        </div>
+        <div class="brief-block">
           <span class="brief-label">Concern</span>
           <strong>${escapeHtml(brief.concern || "No major concern captured")}</strong>
         </div>
