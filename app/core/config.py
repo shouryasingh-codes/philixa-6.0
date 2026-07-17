@@ -17,6 +17,7 @@ class Settings:
     ai_model: str
     ai_api_key: str
     ai_base_url: str
+    ai_timeout_seconds: int
     prompt_version: str
     raw_notes_max_chars: int
     client_name_max_chars: int
@@ -52,6 +53,7 @@ def get_settings() -> Settings:
         ai_model=os.getenv("PHILIXA_AI_MODEL", "local-heuristic-v1").strip(),
         ai_api_key=os.getenv("PHILIXA_AI_API_KEY", "").strip(),
         ai_base_url=os.getenv("PHILIXA_AI_BASE_URL", "").strip(),
+        ai_timeout_seconds=_env_int("PHILIXA_AI_TIMEOUT_SECONDS", 8),
         prompt_version=os.getenv("PHILIXA_PROMPT_VERSION", "v1-mvp-2026-06-19"),
         raw_notes_max_chars=_env_int("PHILIXA_RAW_NOTES_MAX_CHARS", 10000),
         client_name_max_chars=_env_int("PHILIXA_CLIENT_NAME_MAX_CHARS", 120),

@@ -98,6 +98,7 @@ class GroqProvider(AIProvider):
             self.base_url,
             payload,
             {"Authorization": f"Bearer {self.settings.ai_api_key}"},
+            timeout_seconds=self.settings.ai_timeout_seconds,
         )
         content = data["choices"][0]["message"]["content"]
         return json.loads(content)
@@ -140,10 +141,16 @@ class GeminiProvider(AIProvider):
             ],
             "generationConfig": {
                 "temperature": 0,
+                "maxOutputTokens": 2048,
                 "response_mime_type": "application/json",
             },
         }
-        data = _post_json(self.base_url, payload, {})
+        data = _post_json(
+            self.base_url,
+            payload,
+            {},
+            timeout_seconds=self.settings.ai_timeout_seconds,
+        )
         content = data["candidates"][0]["content"]["parts"][0]["text"]
         return json.loads(content)
 
@@ -159,7 +166,13 @@ def get_ai_provider(settings: Settings | None = None) -> AIProvider:
     raise AIExtractionError(f"Unsupported AI provider: {settings.ai_provider}")
 
 
-def _post_json(url: str, payload: dict[str, Any], headers: dict[str, str]) -> dict[str, Any]:
+def _post_json(
+    url: str,
+    payload: dict[str, Any],
+    headers: dict[str, str],
+    *,
+    timeout_seconds: int,
+) -> dict[str, Any]:
     body = json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(
         url,
@@ -168,7 +181,7 @@ def _post_json(url: str, payload: dict[str, Any], headers: dict[str, str]) -> di
         headers={"Content-Type": "application/json", **headers},
     )
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
+        with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
             return json.loads(response.read().decode("utf-8"))
     except urllib.error.URLError as exc:
         raise AIExtractionError(f"AI provider request failed: {exc}") from exc
