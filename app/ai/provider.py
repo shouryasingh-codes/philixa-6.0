@@ -154,8 +154,8 @@ class GeminiProvider(AIProvider):
         )
         try:
             content = data["candidates"][0]["content"]["parts"][0]["text"]
-            return json.loads(content)
-        except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
+            return _parse_json_object(content)
+        except (KeyError, IndexError, TypeError, json.JSONDecodeError, ValueError) as exc:
             raise AIExtractionError("Gemini returned an invalid JSON extraction.") from exc
 
 
@@ -199,6 +199,24 @@ def _post_json(
         raise AIExtractionError(f"AI provider request failed: {exc}") from exc
     except (KeyError, json.JSONDecodeError) as exc:
         raise AIExtractionError(f"AI provider returned invalid response: {exc}") from exc
+
+
+def _parse_json_object(content: str) -> dict[str, Any]:
+    cleaned = content.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.I)
+        cleaned = re.sub(r"\s*```$", "", cleaned).strip()
+    try:
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError:
+        start = cleaned.find("{")
+        end = cleaned.rfind("}")
+        if start == -1 or end == -1 or end <= start:
+            raise
+        parsed = json.loads(cleaned[start : end + 1])
+    if not isinstance(parsed, dict):
+        raise ValueError("AI response must be a JSON object.")
+    return parsed
 
 
 def _split_sentences(raw_notes: str) -> list[str]:
