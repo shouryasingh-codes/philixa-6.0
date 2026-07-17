@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import socket
 import urllib.error
 import urllib.request
 from abc import ABC, abstractmethod
@@ -151,8 +152,11 @@ class GeminiProvider(AIProvider):
             {},
             timeout_seconds=self.settings.ai_timeout_seconds,
         )
-        content = data["candidates"][0]["content"]["parts"][0]["text"]
-        return json.loads(content)
+        try:
+            content = data["candidates"][0]["content"]["parts"][0]["text"]
+            return json.loads(content)
+        except (KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
+            raise AIExtractionError("Gemini returned an invalid JSON extraction.") from exc
 
 
 def get_ai_provider(settings: Settings | None = None) -> AIProvider:
@@ -183,7 +187,15 @@ def _post_json(
     try:
         with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
             return json.loads(response.read().decode("utf-8"))
+    except (TimeoutError, socket.timeout) as exc:
+        raise AIExtractionError(
+            f"AI provider timed out after {timeout_seconds} seconds."
+        ) from exc
     except urllib.error.URLError as exc:
+        if isinstance(exc.reason, (TimeoutError, socket.timeout)) or "timed out" in str(exc).lower():
+            raise AIExtractionError(
+                f"AI provider timed out after {timeout_seconds} seconds."
+            ) from exc
         raise AIExtractionError(f"AI provider request failed: {exc}") from exc
     except (KeyError, json.JSONDecodeError) as exc:
         raise AIExtractionError(f"AI provider returned invalid response: {exc}") from exc
