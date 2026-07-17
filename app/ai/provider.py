@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import socket
+import time
 import urllib.error
 import urllib.request
 from abc import ABC, abstractmethod
@@ -110,7 +111,7 @@ class GeminiProvider(AIProvider):
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.model_name = settings.ai_model or "gemini-1.5-flash"
+        self.model_name = settings.ai_model or "gemini-3.1-flash-lite"
         default_url = (
             "https://generativelanguage.googleapis.com/v1beta/models/"
             f"{self.model_name}:generateContent?key={settings.ai_api_key}"
@@ -184,21 +185,39 @@ def _post_json(
         method="POST",
         headers={"Content-Type": "application/json", **headers},
     )
-    try:
-        with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
-            return json.loads(response.read().decode("utf-8"))
-    except (TimeoutError, socket.timeout) as exc:
-        raise AIExtractionError(
-            f"AI provider timed out after {timeout_seconds} seconds."
-        ) from exc
-    except urllib.error.URLError as exc:
-        if isinstance(exc.reason, (TimeoutError, socket.timeout)) or "timed out" in str(exc).lower():
+    retryable_statuses = {429, 500, 502, 503, 504}
+    last_error: Exception | None = None
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            last_error = exc
+            if exc.code not in retryable_statuses or attempt == 2:
+                detail = exc.read().decode("utf-8", errors="replace")[:400]
+                raise AIExtractionError(
+                    f"AI provider request failed: HTTP Error {exc.code}: {exc.reason}. {detail}"
+                ) from exc
+            retry_after = exc.headers.get("Retry-After")
+            delay = float(retry_after) if retry_after and retry_after.isdigit() else 0.8 * (attempt + 1)
+            time.sleep(delay)
+        except (TimeoutError, socket.timeout) as exc:
+            last_error = exc
             raise AIExtractionError(
                 f"AI provider timed out after {timeout_seconds} seconds."
             ) from exc
-        raise AIExtractionError(f"AI provider request failed: {exc}") from exc
-    except (KeyError, json.JSONDecodeError) as exc:
-        raise AIExtractionError(f"AI provider returned invalid response: {exc}") from exc
+        except urllib.error.URLError as exc:
+            last_error = exc
+            if isinstance(exc.reason, (TimeoutError, socket.timeout)) or "timed out" in str(exc).lower():
+                raise AIExtractionError(
+                    f"AI provider timed out after {timeout_seconds} seconds."
+                ) from exc
+            if attempt == 2:
+                raise AIExtractionError(f"AI provider request failed: {exc}") from exc
+            time.sleep(0.8 * (attempt + 1))
+        except (KeyError, json.JSONDecodeError) as exc:
+            raise AIExtractionError(f"AI provider returned invalid response: {exc}") from exc
+    raise AIExtractionError(f"AI provider request failed: {last_error}")
 
 
 def _parse_json_object(content: str) -> dict[str, Any]:
