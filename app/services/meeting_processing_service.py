@@ -6,14 +6,16 @@ from datetime import date
 from typing import Any
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.provider import AIExtractionError, AIProvider, get_ai_provider
 from app.core.config import Settings, get_settings
 from app.models.ai_extraction_log import AIExtractionLog
 from app.models.client import Client
+from app.models.enums import MeetingSourceType, MeetingStatus
 from app.models.meeting import Meeting
 from app.schemas.meeting_note import MeetingNoteProcessRequest
+from app.services.ai_routing_service import AIRoutingService
 from app.services.client_identification_service import ClientIdentificationService
 from app.services.commitment_service import CommitmentService
 from app.services.json_utils import from_json, to_json
@@ -30,73 +32,94 @@ class MeetingProcessingService:
         ai_provider: AIProvider | None = None,
     ) -> None:
         self.settings = settings or get_settings()
-        self.ai_provider = ai_provider or get_ai_provider(self.settings)
+        self.ai_provider = ai_provider or get_ai_provider(settings=self.settings)
         self.client_identifier = ClientIdentificationService(self.settings)
         self.commitments = CommitmentService()
         self.memory = MemoryService()
 
-    def process_notes(
-        self, db: Session, request: MeetingNoteProcessRequest
+    async def process_notes(
+        self, db: AsyncSession, request: MeetingNoteProcessRequest
     ) -> dict[str, Any]:
         meeting_date = request.meeting_date or date.today()
+
+        # Step 1: Persist the raw meeting immediately so that even a total
+        # AI failure is tracked in the database as manual_review_required.
+        meeting = Meeting(
+            client_id=None,
+            raw_notes=request.raw_notes,
+            meeting_date=meeting_date,
+            source_type=request.source_type.value,
+            summary="",
+            key_discussion_points_json="[]",
+            concerns_json="[]",
+            status=MeetingStatus.MANUAL_REVIEW_REQUIRED.value,
+            client_identification_status="unknown",
+            client_identification_confidence=0.0,
+        )
+        db.add(meeting)
+        await db.flush()  # obtain meeting.id for the audit log
+
+        # Step 2: Economy → Review escalation via AIRoutingService.
+        # Both failure paths are audit-logged inside the routing service.
         try:
-            extraction = self.ai_provider.extract_meeting_intelligence(
-                request.raw_notes, meeting_date
+            routing = AIRoutingService(db, self.settings)
+            extraction = await routing.route_and_extract(
+                request.raw_notes, meeting_date, meeting.id
             )
         except AIExtractionError:
-            logger.exception("AI extraction failed.")
-            raise
-        except Exception as exc:
-            logger.exception("Unexpected AI extraction failure.")
-            raise AIExtractionError("Unexpected AI extraction failure.") from exc
+            # Both models failed — keep the meeting as manual_review_required
+            # and commit so the record is visible for human triage.
+            logger.error(
+                "All AI models failed for meeting %d — saved as manual_review_required.",
+                meeting.id,
+            )
+            await db.commit()
+            return self._manual_review_payload(meeting)
 
+        # Step 3: Client identification.
         client_info = extraction.get("client_identification", {})
-        client, client_status, warnings = self.client_identifier.resolve_client(
+        client, client_status, warnings = await self.client_identifier.resolve_client(
             db,
             suggested_name=client_info.get("suggested_client_name"),
             confidence=float(client_info.get("confidence") or 0.0),
             known_client_id=request.known_client_id,
         )
         warnings.extend(extraction.get("warnings") or [])
-        meeting = Meeting(
-            client_id=client.id if client else None,
-            raw_notes=request.raw_notes,
-            meeting_date=meeting_date,
-            summary=extraction.get("meeting_summary") or "",
-            key_discussion_points_json=to_json(extraction.get("key_discussion_points") or []),
-            concerns_json=to_json(extraction.get("concerns") or []),
-            status="processed" if client else "client_identification_required",
-            client_identification_status=client_status,
-            client_identification_confidence=float(client_info.get("confidence") or 0.0),
+
+        # Step 4: Update the meeting row with extracted data and final status.
+        meeting.client_id = client.id if client else None
+        meeting.summary = extraction.get("meeting_summary") or ""
+        meeting.key_discussion_points_json = to_json(
+            extraction.get("key_discussion_points") or []
+        )
+        meeting.concerns_json = to_json(extraction.get("concerns") or [])
+        meeting.status = (
+            "processed" if client else "client_identification_required"
+        )
+        meeting.client_identification_status = client_status
+        meeting.client_identification_confidence = float(
+            client_info.get("confidence") or 0.0
         )
         db.add(meeting)
-        db.flush()
-        db.add(
-            AIExtractionLog(
-                meeting_id=meeting.id,
-                provider=self.ai_provider.provider_name,
-                model=self.ai_provider.model_name,
-                prompt_version=self.settings.prompt_version,
-                raw_response_json=to_json(extraction),
-                parsed_response_json=to_json(extraction),
-                success=True,
-            )
-        )
 
-        created = []
-        updated = []
+        # Step 5: Upsert commitments and refresh client memory.
+        created: list = []
+        updated: list = []
         if client:
             self._merge_client_products(client, extraction.get("products_owned") or [])
-            created, updated = self.commitments.upsert_commitments(
+            created, updated = await self.commitments.upsert_commitments(
                 db,
                 client_id=client.id,
                 meeting_id=meeting.id,
                 extracted_commitments=extraction.get("commitments") or [],
             )
-            self.memory.update_client_memory(db, client.id)
+            await self.memory.update_client_memory(db, client.id)
+            
+            from app.services.rules_engine_service import RulesEngineService
+            await RulesEngineService.sync_client_tasks_and_risks(db, client.id)
 
-        db.commit()
-        return self._response_payload(
+        await db.commit()
+        return await self._response_payload(
             db,
             meeting=meeting,
             client=client,
@@ -107,21 +130,21 @@ class MeetingProcessingService:
             warnings=warnings,
         )
 
-    def confirm_client(
+    async def confirm_client(
         self,
-        db: Session,
+        db: AsyncSession,
         *,
         meeting_id: int,
         client_id: int | None = None,
         new_client_name: str | None = None,
     ) -> dict[str, Any] | None:
-        meeting = db.get(Meeting, meeting_id)
+        meeting = await db.get(Meeting, meeting_id)
         if not meeting:
             return None
         if client_id and new_client_name:
             raise ValueError("Provide either client_id or new_client_name, not both.")
         if client_id:
-            client = db.get(Client, client_id)
+            client = await db.get(Client, client_id)
             if not client:
                 raise ValueError("Client not found.")
             client_status = "identified"
@@ -131,12 +154,12 @@ class MeetingProcessingService:
                 normalized_name=self._normalize_client_name(new_client_name),
             )
             db.add(client)
-            db.flush()
+            await db.flush()
             client_status = "created"
         else:
             raise ValueError("Either client_id or new_client_name is required.")
 
-        latest_log = db.scalar(
+        latest_log = await db.scalar(
             select(AIExtractionLog)
             .where(AIExtractionLog.meeting_id == meeting_id, AIExtractionLog.success.is_(True))
             .order_by(AIExtractionLog.created_at.desc())
@@ -147,15 +170,19 @@ class MeetingProcessingService:
         meeting.client_identification_status = client_status
         db.add(meeting)
         self._merge_client_products(client, extraction.get("products_owned") or [])
-        created, updated = self.commitments.upsert_commitments(
+        created, updated = await self.commitments.upsert_commitments(
             db,
             client_id=client.id,
             meeting_id=meeting.id,
             extracted_commitments=extraction.get("commitments") or [],
         )
-        self.memory.update_client_memory(db, client.id)
-        db.commit()
-        return self._response_payload(
+        await self.memory.update_client_memory(db, client.id)
+        
+        from app.services.rules_engine_service import RulesEngineService
+        await RulesEngineService.sync_client_tasks_and_risks(db, client.id)
+
+        await db.commit()
+        return await self._response_payload(
             db,
             meeting=meeting,
             client=client,
@@ -166,9 +193,50 @@ class MeetingProcessingService:
             warnings=[],
         )
 
-    def _response_payload(
+    @staticmethod
+    def _manual_review_payload(meeting: Meeting) -> dict[str, Any]:
+        """Return a structured response for meetings where all AI models failed.
+
+        The meeting has already been committed to DB with status='manual_review_required'
+        so it will appear in admin/triage views. The response mirrors the normal
+        process response shape so callers don't need special-case handling.
+        """
+        warning_msg = (
+            "AI extraction failed after all model attempts. "
+            "This meeting has been saved and requires manual review."
+        )
+        return {
+            "meeting_id": meeting.id,
+            "client_status": "unknown",
+            "client_id": None,
+            "requires_client_confirmation": False,
+            "meeting_summary": "",
+            "meeting": meeting_to_dict(meeting),
+            "extraction": {
+                "client_identification": {
+                    "status": "unknown",
+                    "matched_client_id": None,
+                    "suggested_client_name": None,
+                    "confidence": 0.0,
+                    "requires_confirmation": False,
+                },
+                "meeting_summary": "",
+                "key_discussion_points": [],
+                "products_owned": [],
+                "concerns": [],
+                "commitments": [],
+                "action_items": [],
+                "warnings": [warning_msg],
+            },
+            "commitments_created": [],
+            "commitments_updated": [],
+            "pending_commitments": [],
+            "warnings": [warning_msg],
+        }
+
+    async def _response_payload(
         self,
-        db: Session,
+        db: AsyncSession,
         *,
         meeting: Meeting,
         client: Client | None,
@@ -179,7 +247,7 @@ class MeetingProcessingService:
         warnings: list[str],
     ) -> dict[str, Any]:
         unique_warnings = list(dict.fromkeys(warnings))
-        pending = self.commitments.pending_for_client(db, client.id) if client else []
+        pending = await self.commitments.pending_for_client(db, client.id) if client else []
         return {
             "meeting_id": meeting.id,
             "client_status": client_status,
@@ -285,6 +353,7 @@ def meeting_to_dict(meeting: Meeting) -> dict[str, Any]:
         "key_discussion_points": from_json(meeting.key_discussion_points_json, []),
         "concerns": from_json(meeting.concerns_json, []),
         "status": meeting.status,
+        "source_type": meeting.source_type,
         "client_identification_status": meeting.client_identification_status,
         "client_identification_confidence": meeting.client_identification_confidence,
     }

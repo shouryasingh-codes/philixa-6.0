@@ -3,6 +3,7 @@ from datetime import date
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.core.config import get_settings
+from app.models.enums import MeetingSourceType
 from app.schemas.client import MeetingRead
 from app.schemas.common import CommitmentRead, MeetingExtractionRead
 
@@ -21,6 +22,7 @@ class MeetingNoteProcessRequest(BaseModel):
     raw_notes: str = Field(..., min_length=1)
     meeting_date: date | None = None
     known_client_id: int | None = Field(default=None, gt=0)
+    source_type: MeetingSourceType = Field(default=MeetingSourceType.PASTED_NOTE)
 
     @field_validator("raw_notes")
     @classmethod

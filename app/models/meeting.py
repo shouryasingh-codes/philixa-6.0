@@ -6,6 +6,7 @@ from sqlalchemy import Date, DateTime, Float, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
+from app.models.enums import MeetingSourceType
 
 
 def utc_now() -> datetime:
@@ -22,6 +23,9 @@ class Meeting(Base):
     summary: Mapped[str] = mapped_column(Text, default="", nullable=False)
     key_discussion_points_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
     concerns_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
+    source_type: Mapped[str] = mapped_column(
+        String(40), default=MeetingSourceType.PASTED_NOTE.value, nullable=False
+    )
     status: Mapped[str] = mapped_column(String(40), default="processed", nullable=False)
     client_identification_status: Mapped[str] = mapped_column(
         String(60), default="identified", nullable=False

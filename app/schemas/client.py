@@ -94,6 +94,7 @@ class MeetingRead(BaseModel):
                     }
                 ],
                 "status": "processed",
+                "source_type": "pasted_note",
                 "client_identification_status": "identified",
                 "client_identification_confidence": 0.92,
             }
@@ -108,5 +109,6 @@ class MeetingRead(BaseModel):
     key_discussion_points: list[str]
     concerns: list[dict]
     status: str
+    source_type: str
     client_identification_status: str
     client_identification_confidence: float

@@ -1,0 +1,52 @@
+import logging
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from redis.asyncio import Redis
+from sqlalchemy import text
+
+from app.core.config import get_settings
+from app.database.session import async_engine
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
+    settings = get_settings()
+
+    if settings.skip_startup_checks:
+        logger.info("Startup checks skipped (PHILIXA_SKIP_STARTUP_CHECKS=1).")
+        yield
+        return
+
+    # 1. Ping PostgreSQL
+    try:
+        async with async_engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        logger.info("Connected to PostgreSQL successfully.")
+    except Exception as e:
+        logger.error(f"Failed to connect to PostgreSQL: {e}")
+        raise
+
+    # 2. Ping Redis
+    try:
+        redis_client = Redis.from_url(settings.redis_url)
+        await redis_client.ping()
+        await redis_client.aclose()
+        logger.info("Connected to Redis successfully.")
+    except Exception as e:
+        logger.error(f"Failed to connect to Redis: {e}")
+        raise
+
+    # 3. MinIO (Stub for Day 9)
+    logger.info("MinIO check stubbed (will be implemented on Day 9).")
+
+    logger.info("Pre-Flight Checks Passed. App is ready to serve.")
+
+    yield
+
+    # Shutdown Sequence
+    await async_engine.dispose()
+    logger.info("PostgreSQL engine disposed safely.")

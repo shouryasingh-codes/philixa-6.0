@@ -18,3 +18,6 @@ def require_api_key(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing API key.",
         )
+
+def get_current_org_id(_api_key: None = Depends(require_api_key)) -> str:
+    return "org_1"

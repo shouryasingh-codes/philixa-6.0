@@ -24,6 +24,8 @@ class AIExtractionLog(Base):
     parsed_response_json: Mapped[str] = mapped_column(Text, default="{}", nullable=False)
     success: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    latency_ms: Mapped[int | None] = mapped_column(nullable=True)
+    cost_usd: Mapped[float | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
     meeting = relationship("Meeting", back_populates="ai_logs")

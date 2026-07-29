@@ -7,8 +7,18 @@ import time
 import urllib.error
 import urllib.request
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Any
+
+
+@dataclass
+class ExtractionResult:
+    """Wraps raw AI extraction payload with telemetry metadata."""
+    payload: dict[str, Any]
+    latency_ms: int = 0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
 
 from app.ai.prompts import MEETING_EXTRACTION_SYSTEM_PROMPT
 from app.core.config import Settings, get_settings
@@ -25,8 +35,12 @@ class AIProvider(ABC):
 
     @abstractmethod
     def extract_meeting_intelligence(
-        self, raw_notes: str, meeting_date: date
-    ) -> dict[str, Any]:
+        self, raw_notes: str, meeting_date: date, model_override: str | None = None
+    ) -> ExtractionResult:
+        raise NotImplementedError
+
+    @abstractmethod
+    def generate_json(self, model: str, prompt: str, schema: dict[str, Any]) -> str:
         raise NotImplementedError
 
 
@@ -35,8 +49,8 @@ class LocalHeuristicProvider(AIProvider):
     model_name = "local-heuristic-v1"
 
     def extract_meeting_intelligence(
-        self, raw_notes: str, meeting_date: date
-    ) -> dict[str, Any]:
+        self, raw_notes: str, meeting_date: date, model_override: str | None = None
+    ) -> ExtractionResult:
         sentences = _split_sentences(raw_notes)
         client_name, client_confidence = _extract_client_name(raw_notes)
         products_owned = _extract_products(sentences)
@@ -62,6 +76,10 @@ class LocalHeuristicProvider(AIProvider):
             "action_items": [item["description"] for item in commitments],
             "warnings": [] if client_name else ["Client identification required."],
         }
+        return ExtractionResult(payload=payload)
+
+    def generate_json(self, model: str, prompt: str, schema: dict[str, Any]) -> str:
+        return '{"answer": "Local heuristic provider cannot answer free-form queries.", "source_meetings": []}'
 
 
 class GroqProvider(AIProvider):
@@ -75,12 +93,15 @@ class GroqProvider(AIProvider):
         )
 
     def extract_meeting_intelligence(
-        self, raw_notes: str, meeting_date: date
-    ) -> dict[str, Any]:
-        if not self.settings.ai_api_key:
-            raise AIExtractionError("Groq provider selected but PHILIXA_AI_API_KEY is missing.")
+        self, raw_notes: str, meeting_date: date, model_override: str | None = None
+    ) -> ExtractionResult:
+        import time as _time
+        api_key = self.settings.ai_api_key or self.settings.groq_api_key
+        if not api_key:
+            raise AIExtractionError("Groq provider selected but PHILIXA_AI_API_KEY/PHILIXA_GROQ_API_KEY is missing.")
+        model = model_override or self.model_name
         payload = {
-            "model": self.model_name,
+            "model": model,
             "temperature": 0,
             "messages": [
                 {"role": "system", "content": MEETING_EXTRACTION_SYSTEM_PROMPT},
@@ -96,14 +117,45 @@ class GroqProvider(AIProvider):
             ],
             "response_format": {"type": "json_object"},
         }
+        t0 = _time.monotonic()
         data = _post_json(
             self.base_url,
             payload,
-            {"Authorization": f"Bearer {self.settings.ai_api_key}"},
+            {"Authorization": f"Bearer {api_key}"},
             timeout_seconds=self.settings.ai_timeout_seconds,
         )
-        content = data["choices"][0]["message"]["content"]
-        return json.loads(content)
+        latency_ms = int((_time.monotonic() - t0) * 1000)
+        usage = data.get("usage", {})
+        return ExtractionResult(
+            payload=json.loads(content),
+            latency_ms=latency_ms,
+            prompt_tokens=usage.get("prompt_tokens", 0),
+            completion_tokens=usage.get("completion_tokens", 0),
+        )
+
+    def generate_json(self, model: str, prompt: str, schema: dict[str, Any]) -> str:
+        api_key = self.settings.ai_api_key or self.settings.groq_api_key
+        if not api_key:
+            raise AIExtractionError("Groq provider selected but API key is missing.")
+        
+        system_content = "You are a helpful assistant. Return JSON strictly conforming to the requested schema.\nSchema:\n" + json.dumps(schema)
+        
+        payload = {
+            "model": model,
+            "temperature": 0,
+            "messages": [
+                {"role": "system", "content": system_content},
+                {"role": "user", "content": prompt}
+            ],
+            "response_format": {"type": "json_object"},
+        }
+        data = _post_json(
+            self.base_url,
+            payload,
+            {"Authorization": f"Bearer {api_key}"},
+            timeout_seconds=self.settings.ai_timeout_seconds,
+        )
+        return data["choices"][0]["message"]["content"]
 
 
 class GeminiProvider(AIProvider):
@@ -111,18 +163,25 @@ class GeminiProvider(AIProvider):
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.model_name = settings.ai_model or "gemini-3.1-flash-lite"
-        default_url = (
-            "https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{self.model_name}:generateContent?key={settings.ai_api_key}"
+        # Use ai_review_model (PHILIXA_AI_REVIEW_MODEL) — NOT ai_model which is Groq's model
+        self.model_name = settings.ai_review_model or "gemini-2.5-flash"
+
+    def _build_url(self, model: str) -> str:
+        api_key = self.settings.gemini_api_key or self.settings.ai_api_key
+        return (
+            f"https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{model}:generateContent?key={api_key}"
         )
-        self.base_url = settings.ai_base_url or default_url
 
     def extract_meeting_intelligence(
-        self, raw_notes: str, meeting_date: date
-    ) -> dict[str, Any]:
-        if not self.settings.ai_api_key:
-            raise AIExtractionError("Gemini provider selected but PHILIXA_AI_API_KEY is missing.")
+        self, raw_notes: str, meeting_date: date, model_override: str | None = None
+    ) -> ExtractionResult:
+        import time as _time
+        api_key = self.settings.gemini_api_key or self.settings.ai_api_key
+        if not api_key:
+            raise AIExtractionError("Gemini provider selected but PHILIXA_GEMINI_API_KEY is missing.")
+        model = model_override or self.model_name
+        url = self._build_url(model)
         prompt = {
             "system": MEETING_EXTRACTION_SYSTEM_PROMPT,
             "meeting_date": meeting_date.isoformat(),
@@ -147,28 +206,61 @@ class GeminiProvider(AIProvider):
                 "response_mime_type": "application/json",
             },
         }
+        t0 = _time.monotonic()
         data = _post_json(
-            self.base_url,
+            url,
             payload,
             {},
             timeout_seconds=self.settings.ai_timeout_seconds,
         )
+        latency_ms = int((_time.monotonic() - t0) * 1000)
         try:
             content = data["candidates"][0]["content"]["parts"][0]["text"]
-            return _parse_json_object(content)
+            return ExtractionResult(
+                payload=_parse_json_object(content),
+                latency_ms=latency_ms,
+            )
         except (KeyError, IndexError, TypeError, json.JSONDecodeError, ValueError) as exc:
             raise AIExtractionError("Gemini returned an invalid JSON extraction.") from exc
 
+    def generate_json(self, model: str, prompt: str, schema: dict[str, Any]) -> str:
+        api_key = self.settings.gemini_api_key or self.settings.ai_api_key
+        if not api_key:
+            raise AIExtractionError("Gemini API key is missing.")
+        url = self._build_url(model)
+        full_prompt = prompt + "\n\nYou MUST return a JSON object that conforms to the following schema:\n" + json.dumps(schema)
+        payload = {
+            "contents": [{"parts": [{"text": full_prompt}]}],
+            "generationConfig": {
+                "temperature": 0,
+                "response_mime_type": "application/json",
+            }
+        }
+        data = _post_json(
+            url,
+            payload,
+            {},
+            timeout_seconds=self.settings.ai_timeout_seconds,
+        )
+        return data["candidates"][0]["content"]["parts"][0]["text"]
 
-def get_ai_provider(settings: Settings | None = None) -> AIProvider:
+
+def get_ai_provider(provider_name: str | None = None, settings: Settings | None = None) -> AIProvider:
+    """Return the appropriate AIProvider instance.
+    
+    Args:
+        provider_name: Override provider name. If None, reads from settings.ai_provider.
+        settings: Optional Settings instance. If None, calls get_settings().
+    """
     settings = settings or get_settings()
-    if settings.ai_provider == "local":
+    name = (provider_name or settings.ai_provider or "local").lower().strip()
+    if name == "local":
         return LocalHeuristicProvider()
-    if settings.ai_provider == "groq":
+    if name == "groq":
         return GroqProvider(settings)
-    if settings.ai_provider == "gemini":
+    if name == "gemini":
         return GeminiProvider(settings)
-    raise AIExtractionError(f"Unsupported AI provider: {settings.ai_provider}")
+    raise AIExtractionError(f"Unsupported AI provider: {name}")
 
 
 def _post_json(
@@ -183,7 +275,11 @@ def _post_json(
         url,
         data=body,
         method="POST",
-        headers={"Content-Type": "application/json", **headers},
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (compatible; PhilixaAI/6.0; +https://philixa.ai)",
+            **headers,
+        },
     )
     retryable_statuses = {429, 500, 502, 503, 504}
     last_error: Exception | None = None

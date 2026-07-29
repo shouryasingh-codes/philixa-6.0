@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.provider import AIExtractionError
 from app.core.security import require_api_key
@@ -23,7 +23,7 @@ router = APIRouter(
 
 
 @router.post("/process", response_model=MeetingNoteProcessResponse)
-def process_meeting_note(
+async def process_meeting_note(
     request: Annotated[
         MeetingNoteProcessRequest,
         Body(
@@ -45,10 +45,10 @@ def process_meeting_note(
             }
         ),
     ],
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ) -> dict:
     try:
-        return MeetingProcessingService().process_notes(db, request)
+        return await MeetingProcessingService().process_notes(db, request)
     except AIExtractionError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -57,7 +57,7 @@ def process_meeting_note(
 
 
 @router.post("/{meeting_id}/confirm-client", response_model=ClientConfirmationResponse)
-def confirm_client(
+async def confirm_client(
     meeting_id: int,
     request: Annotated[
         ClientConfirmationRequest,
@@ -74,10 +74,10 @@ def confirm_client(
             }
         ),
     ],
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ) -> dict:
     try:
-        result = MeetingProcessingService().confirm_client(
+        result = await MeetingProcessingService().confirm_client(
             db,
             meeting_id=meeting_id,
             client_id=request.client_id,

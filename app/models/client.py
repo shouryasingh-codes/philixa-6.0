@@ -28,3 +28,5 @@ class Client(Base):
 
     meetings = relationship("Meeting", back_populates="client")
     commitments = relationship("Commitment", back_populates="client")
+    risk_signals = relationship("RiskSignal", back_populates="client")
+    follow_up_tasks = relationship("FollowUpTask", back_populates="client")

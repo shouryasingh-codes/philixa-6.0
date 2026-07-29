@@ -8,9 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY README.md .
 
-ENV PHILIXA_DATABASE_URL=sqlite:////app/data/philixa.db
-ENV PHILIXA_API_KEY=dev-api-key
-ENV PHILIXA_AI_PROVIDER=local
+# ENV vars are provided via docker-compose env_file (.env) at runtime
 
 RUN mkdir -p /app/data
 

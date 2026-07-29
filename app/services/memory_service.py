@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.client import Client
 from app.models.commitment import Commitment
@@ -14,19 +14,19 @@ class MemoryService:
     def __init__(self) -> None:
         self.commitments = CommitmentService()
 
-    def update_client_memory(self, db: Session, client_id: int) -> Client:
-        client = db.get(Client, client_id)
+    async def update_client_memory(self, db: AsyncSession, client_id: int) -> Client:
+        client = await db.get(Client, client_id)
         if not client:
             raise ValueError("Client not found.")
         meetings = list(
-            db.scalars(
+            (await db.scalars(
                 select(Meeting)
                 .where(Meeting.client_id == client_id)
                 .order_by(Meeting.meeting_date.desc(), Meeting.created_at.desc())
                 .limit(5)
-            ).all()
+            )).all()
         )
-        pending = self.commitments.pending_for_client(db, client_id)
+        pending = await self.commitments.pending_for_client(db, client_id)
         concerns = self._collect_concerns(meetings)
         latest_meeting = meetings[0] if meetings else None
         products_owned = from_json(client.products_owned_json, [])
@@ -38,28 +38,28 @@ class MemoryService:
             products_owned,
         )
         db.add(client)
-        db.flush()
+        await db.flush()
         return client
 
-    def get_client_memory(self, db: Session, client_id: int) -> dict:
-        client = db.get(Client, client_id)
+    async def get_client_memory(self, db: AsyncSession, client_id: int) -> dict:
+        client = await db.get(Client, client_id)
         if not client:
             raise ValueError("Client not found.")
-        last_meeting = db.scalar(
+        last_meeting = await db.scalar(
             select(Meeting)
             .where(Meeting.client_id == client_id)
             .order_by(Meeting.meeting_date.desc(), Meeting.created_at.desc())
         )
         recent_meetings = list(
-            db.scalars(
+            (await db.scalars(
                 select(Meeting)
                 .where(Meeting.client_id == client_id)
                 .order_by(Meeting.meeting_date.desc(), Meeting.created_at.desc())
                 .limit(5)
-            ).all()
+            )).all()
         )
         major_concerns = self._collect_concerns(recent_meetings)
-        pending_commitments = self.commitments.pending_for_client(db, client_id)
+        pending_commitments = await self.commitments.pending_for_client(db, client_id)
         products_owned = from_json(client.products_owned_json, [])
         last_meeting_summary = self._meeting_display_summary(
             client.name,

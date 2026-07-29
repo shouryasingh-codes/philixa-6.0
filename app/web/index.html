@@ -37,6 +37,7 @@
           <a href="#notePanel">Process Notes</a>
           <a href="#memoryPanel">Client Memory</a>
           <a href="#commitmentPanel">Commitments</a>
+          <a href="#day4Panel">Daily Priorities</a>
         </nav>
       </aside>
 
@@ -47,6 +48,7 @@
             <h2>RM meeting memory workspace</h2>
           </div>
           <div class="topbar-actions">
+            <button id="settingsBtn" type="button" class="icon-btn" title="Notification Settings" style="font-size: 1.2rem; background: transparent; border: none; cursor: pointer; color: var(--muted); margin-right: 10px;">⚙️</button>
             <button id="refreshAll" type="button">Refresh</button>
             <a class="docs-link" href="/docs" target="_blank" rel="noreferrer">Swagger</a>
           </div>
@@ -64,6 +66,35 @@
           <div class="metric">
             <span>Selected client</span>
             <strong id="selectedClientLabel">None</strong>
+          </div>
+        </section>
+
+        <!-- Day 4: Follow-up and Risk Engine -->
+        <section class="panel day4-panel" id="day4Panel" style="margin-bottom: 2rem;">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Day 4 — Follow-up &amp; Risk Engine</p>
+              <h3>Daily Priorities</h3>
+            </div>
+            <button id="refreshPriorities" type="button">Reload</button>
+          </div>
+
+          <div class="day4-grid">
+            <!-- Follow-up Tasks column -->
+            <div>
+              <p class="eyebrow day4-col-label">Follow-up Tasks</p>
+              <div class="task-list" id="taskList">
+                <span class="muted">No overdue or due-today tasks.</span>
+              </div>
+            </div>
+
+            <!-- Risk Signals column -->
+            <div>
+              <p class="eyebrow day4-col-label">Risk Signals</p>
+              <div class="risk-list" id="riskList">
+                <span class="muted">No high-risk signals.</span>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -134,6 +165,14 @@
             <div id="memoryContent" class="memory-content">
               <span class="muted">Select a client to view instant context.</span>
             </div>
+            
+            <div class="ask-client-section hidden" id="askClientSection">
+              <div class="ask-client-input-row">
+                <input id="askClientInput" type="text" placeholder="Ask AI about this client... (e.g. What is the latest concern?)" />
+                <button id="askClientBtn" type="button" class="primary-action">Ask</button>
+              </div>
+              <div id="askClientResult" class="ask-client-result hidden"></div>
+            </div>
           </section>
 
           <section class="panel support-panel" id="commitmentPanel">
@@ -169,10 +208,44 @@
             </div>
           </section>
         </section>
+
       </main>
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="/static/app.js"></script>
+
+    <!-- Notification Settings Modal -->
+    <div id="settingsModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Notification Preferences</h3>
+          <button id="closeSettingsBtn" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-row" style="margin-bottom: 15px;">
+            <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; font-size: 14px;">
+              <input type="checkbox" id="prefOptIn" />
+              Enable Notifications (WhatsApp / Email)
+            </label>
+          </div>
+          <div class="form-row" style="margin-bottom: 15px;">
+            <label>WhatsApp Number / Email Address
+              <input type="text" id="prefContact" placeholder="+919876543210 or user@example.com" style="width: 100%; margin-top: 5px; padding: 8px; border-radius: 6px; border: 1px solid var(--line);" />
+            </label>
+          </div>
+          <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 25px;">
+            <label style="flex: 1;">Quiet Hours Start
+              <input type="time" id="prefQuietStart" style="width: 100%; margin-top: 5px; padding: 8px; border-radius: 6px; border: 1px solid var(--line);" />
+            </label>
+            <label style="flex: 1;">Quiet Hours End
+              <input type="time" id="prefQuietEnd" style="width: 100%; margin-top: 5px; padding: 8px; border-radius: 6px; border: 1px solid var(--line);" />
+            </label>
+          </div>
+          <button id="saveSettingsBtn" type="button" class="primary-action" style="width: 100%;">Save Preferences</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/static/app.js?v=2"></script>
   </body>
 </html>

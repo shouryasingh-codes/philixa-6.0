@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
 from app.models.client import Client
@@ -12,16 +12,16 @@ class ClientIdentificationService:
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
 
-    def resolve_client(
+    async def resolve_client(
         self,
-        db: Session,
+        db: AsyncSession,
         suggested_name: str | None,
         confidence: float,
         known_client_id: int | None = None,
     ) -> tuple[Client | None, str, list[str]]:
         warnings: list[str] = []
         if known_client_id:
-            client = db.get(Client, known_client_id)
+            client = await db.get(Client, known_client_id)
             if not client:
                 warnings.append("Known client id was not found.")
                 return None, "client_identification_required", warnings
@@ -32,7 +32,7 @@ class ClientIdentificationService:
             return None, "client_identification_required", warnings
 
         normalized = normalize_text(suggested_name)
-        clients = list(db.scalars(select(Client)).all())
+        clients = list((await db.scalars(select(Client))).all())
         exact = [client for client in clients if client.normalized_name == normalized]
         if exact and confidence >= self.settings.client_auto_match_threshold:
             return exact[0], "identified", warnings
@@ -48,11 +48,8 @@ class ClientIdentificationService:
             warnings.append("Multiple similar clients found; confirmation required.")
             return None, "client_identification_required", warnings
 
-        if confidence >= self.settings.client_auto_create_threshold:
-            client = Client(name=suggested_name, normalized_name=normalized)
-            db.add(client)
-            db.flush()
-            return client, "created", warnings
-
-        warnings.append("Client confidence below auto-create threshold.")
+        # We intentionally do not auto-create clients anymore so that the user 
+        # is always prompted with the confirmation popup (where the suggested name 
+        # is auto-filled) to manually confirm the creation of a new client.
+        warnings.append("New client identified; confirmation required.")
         return None, "client_identification_required", warnings

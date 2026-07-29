@@ -5,7 +5,7 @@ Return strict JSON only matching this exact schema structure:
   "client_identification": {
     "status": "identified|unknown|ambiguous",
     "matched_client_id": null,
-    "suggested_client_name": "Name",
+    "suggested_client_name": "Extract ANY mentioned person's name here (even if just a first name). If none, use null.",
     "confidence": 0.9,
     "requires_confirmation": false
   },

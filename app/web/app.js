@@ -1,6 +1,7 @@
 const state = {
   clients: [],
   commitments: [],
+  priorities: { tasks: [], risks: [] },
   selectedClientId: null,
   pendingConfirmationMeetingId: null,
 };
@@ -29,7 +30,22 @@ const els = {
   memoryContent: document.querySelector("#memoryContent"),
   commitmentFilter: document.querySelector("#commitmentFilter"),
   commitmentRows: document.querySelector("#commitmentRows"),
+  refreshPriorities: document.querySelector("#refreshPriorities"),
+  taskList: document.querySelector("#taskList"),
+  riskList: document.querySelector("#riskList"),
   toast: document.querySelector("#toast"),
+  askClientSection: document.querySelector("#askClientSection"),
+  askClientInput: document.querySelector("#askClientInput"),
+  askClientBtn: document.querySelector("#askClientBtn"),
+  askClientResult: document.querySelector("#askClientResult"),
+  settingsBtn: document.querySelector("#settingsBtn"),
+  settingsModal: document.querySelector("#settingsModal"),
+  closeSettingsBtn: document.querySelector("#closeSettingsBtn"),
+  prefOptIn: document.querySelector("#prefOptIn"),
+  prefContact: document.querySelector("#prefContact"),
+  prefQuietStart: document.querySelector("#prefQuietStart"),
+  prefQuietEnd: document.querySelector("#prefQuietEnd"),
+  saveSettingsBtn: document.querySelector("#saveSettingsBtn"),
 };
 
 function todayIso() {
@@ -182,6 +198,10 @@ function renderProcessResult(payload) {
   if (payload.requires_client_confirmation) {
     state.pendingConfirmationMeetingId = payload.meeting_id;
     els.confirmPanel.classList.remove("hidden");
+    
+    // Auto-fill suggested client name if extracted by AI
+    const suggestedName = payload.extraction?.client_identification?.suggested_client_name || "";
+    els.newClientName.value = suggestedName;
   } else {
     state.pendingConfirmationMeetingId = null;
     els.confirmPanel.classList.add("hidden");
@@ -257,6 +277,70 @@ function renderMemory(payload) {
   `;
 }
 
+async function loadPriorities() {
+  const payload = await api("/api/v1/dashboard/priorities");
+  state.priorities.tasks = payload.tasks || [];
+  state.priorities.risks = payload.risks || [];
+  renderTasks();
+  renderRisks();
+}
+
+function renderTasks() {
+  const tasks = state.priorities.tasks;
+  if (!tasks.length) {
+    els.taskList.innerHTML = `<span class="muted">No overdue or due-today tasks.</span>`;
+    return;
+  }
+  const today = todayIso();
+  els.taskList.innerHTML = tasks
+    .map((task) => {
+      const due = task.due_date || "";
+      let variant = "upcoming";
+      let badgeLabel = due ? `Due ${due}` : "No due date";
+      if (task.is_overdue || (due && due < today)) {
+        variant = "overdue";
+        badgeLabel = `Overdue — ${due}`;
+      } else if (task.is_due_today || due === today) {
+        variant = "due-today";
+        badgeLabel = "Due today";
+      }
+      return `
+        <div class="task-card ${variant}">
+          <div class="task-card-title">${escapeHtml(task.description)}</div>
+          <div class="task-card-meta">
+            <span class="task-badge ${variant}">${escapeHtml(badgeLabel)}</span>
+            <span class="client-meta">${escapeHtml(task.client_name || `Client #${task.client_id}`)}</span>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function renderRisks() {
+  const risks = state.priorities.risks;
+  if (!risks.length) {
+    els.riskList.innerHTML = `<span class="muted">No high-risk signals.</span>`;
+    return;
+  }
+  els.riskList.innerHTML = risks
+    .map((risk) => {
+      const severity = (risk.severity_level || "medium").toLowerCase();
+      const confidence = Math.round((risk.confidence || 0) * 100);
+      return `
+        <div class="risk-card ${severity}">
+          <div class="risk-card-title">${escapeHtml(risk.description)}</div>
+          <div class="risk-card-meta">
+            <span class="risk-badge ${severity}">${escapeHtml(severity)}</span>
+            <span class="task-badge ${risk.requires_review ? "overdue" : "upcoming"}">${risk.requires_review ? "Review needed" : "Monitoring"}</span>
+            <span class="client-meta">${escapeHtml(risk.client_name || `Client #${risk.client_id}`)} &mdash; ${confidence}% confidence</span>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
 async function loadClients() {
   state.clients = await api("/api/v1/clients");
   if (!state.selectedClientId && state.clients.length) {
@@ -290,13 +374,42 @@ async function loadMemory(clientId = state.selectedClientId) {
       : client
   );
   renderMemory(payload);
+  els.askClientSection.classList.remove("hidden");
+  els.askClientInput.value = "";
+  els.askClientResult.innerHTML = "";
+  els.askClientResult.classList.add("hidden");
   renderClients();
+}
+
+async function askClient() {
+  if (!state.selectedClientId) return;
+  const query = els.askClientInput.value.trim();
+  if (!query) return;
+
+  els.askClientResult.classList.remove("hidden");
+  els.askClientResult.innerHTML = `<span class="muted">Asking AI...</span>`;
+
+  try {
+    const payload = await api(`/api/v1/clients/${state.selectedClientId}/ask`, {
+      method: "POST",
+      body: JSON.stringify({ query }),
+    });
+    
+    let answerHtml = `<p>${escapeHtml(payload.answer)}</p>`;
+    if (payload.source_meetings && payload.source_meetings.length > 0) {
+      answerHtml += `<p class="muted" style="margin-top: 0.5rem; font-size: 0.8rem;">Sources: Meetings ${payload.source_meetings.join(", ")}</p>`;
+    }
+    els.askClientResult.innerHTML = answerHtml;
+  } catch (err) {
+    els.askClientResult.innerHTML = `<span class="error" style="color: var(--danger)">${escapeHtml(err.message)}</span>`;
+  }
 }
 
 async function refreshAll() {
   await checkHealth();
   await loadClients();
   await loadCommitments();
+  await loadPriorities();
 }
 
 async function withLoading(button, label, fn) {
@@ -388,12 +501,49 @@ async function deleteClient(clientId) {
   if (state.selectedClientId === Number(clientId)) {
     state.selectedClientId = null;
     els.memoryContent.innerHTML = `<span class="muted">Select a client to view instant context.</span>`;
+    els.askClientSection.classList.add("hidden");
   }
   await refreshAll();
   if (state.selectedClientId) {
     await loadMemory(state.selectedClientId);
   }
   showToast(`${clientName} deleted.`);
+}
+
+async function openSettings() {
+  els.settingsModal.classList.remove("hidden");
+  try {
+    const payload = await api("/api/v1/preferences");
+    els.prefOptIn.checked = payload.is_opted_in;
+    els.prefContact.value = payload.whatsapp_number || "";
+    els.prefQuietStart.value = payload.quiet_hours_start || "";
+    els.prefQuietEnd.value = payload.quiet_hours_end || "";
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
+function closeSettings() {
+  els.settingsModal.classList.add("hidden");
+}
+
+async function saveSettings() {
+  const body = {
+    is_opted_in: els.prefOptIn.checked,
+    whatsapp_number: els.prefContact.value.trim() || null,
+    quiet_hours_start: els.prefQuietStart.value || null,
+    quiet_hours_end: els.prefQuietEnd.value || null,
+  };
+  try {
+    await api("/api/v1/preferences", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    });
+    showToast("Preferences saved.");
+    closeSettings();
+  } catch (err) {
+    showToast(err.message, true);
+  }
 }
 
 function bindEvents() {
@@ -416,6 +566,26 @@ function bindEvents() {
     withLoading(els.loadSelectedMemory, "Loading…", () => loadMemory()).catch((err) => showToast(err.message, true))
   );
   els.commitmentFilter.addEventListener("change", () => loadCommitments().catch((err) => showToast(err.message, true)));
+  els.refreshPriorities.addEventListener("click", () =>
+    withLoading(els.refreshPriorities, "Loading…", () => loadPriorities()).catch((err) => showToast(err.message, true))
+  );
+  els.askClientBtn.addEventListener("click", () =>
+    withLoading(els.askClientBtn, "Asking…", () => askClient()).catch((err) => showToast(err.message, true))
+  );
+  els.askClientInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      els.askClientBtn.click();
+    }
+  });
+
+  els.settingsBtn.addEventListener("click", openSettings);
+  els.closeSettingsBtn.addEventListener("click", closeSettings);
+  els.saveSettingsBtn.addEventListener("click", () =>
+    withLoading(els.saveSettingsBtn, "Saving…", () => saveSettings())
+  );
+  els.settingsModal.addEventListener("click", (e) => {
+    if (e.target === els.settingsModal) closeSettings();
+  });
 
   els.clientList.addEventListener("click", (event) => {
     const deleteButton = event.target.closest("[data-delete-client-id]");

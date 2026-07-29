@@ -2,20 +2,24 @@ from fastapi import APIRouter
 from sqlalchemy import text
 
 from app.core.config import get_settings
-from app.database.session import SessionLocal
-from app.schemas.common import HealthResponse
+from app.database.session import AsyncSessionLocal
 
+from pydantic import BaseModel
+
+class HealthResponse(BaseModel):
+    status: str
+    app_version: str
+    database: str
 
 router = APIRouter(tags=["health"])
 
-
 @router.get("/health", response_model=HealthResponse)
-def health() -> HealthResponse:
+async def health() -> HealthResponse:
     settings = get_settings()
     database_status = "ok"
     try:
-        with SessionLocal() as db:
-            db.execute(text("SELECT 1"))
+        async with AsyncSessionLocal() as db:
+            await db.execute(text("SELECT 1"))
     except Exception:
         database_status = "error"
     return HealthResponse(

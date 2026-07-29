@@ -1,0 +1,54 @@
+from sqlalchemy.ext.asyncio import AsyncSession
+import logging
+from typing import Any, Dict
+
+from arq.connections import RedisSettings
+from arq.worker import Worker
+
+from app.core.config import get_settings
+from app.core.redis import init_redis_pool, close_redis_pool
+from app.database.session import AsyncSessionLocal, async_engine
+
+logger = logging.getLogger(__name__)
+
+async def startup(ctx: Dict[str, Any]) -> None:
+    logger.info("Initializing worker startup hooks...")
+    # Initialize Redis connection pool for app usage
+    await init_redis_pool()
+    
+    # Store DB session factory in context for tasks to use
+    ctx["db_session_factory"] = AsyncSessionLocal
+    logger.info("Worker startup complete.")
+
+async def shutdown(ctx: Dict[str, Any]) -> None:
+    logger.info("Running worker shutdown hooks...")
+    # Clean up Redis pool
+    await close_redis_pool()
+    
+    # Dispose of the database engine
+    await async_engine.dispose()
+    logger.info("Worker shutdown complete.")
+
+def get_redis_settings() -> RedisSettings:
+    settings = get_settings()
+    return RedisSettings.from_dsn(settings.redis_url)
+
+from arq.cron import cron
+from app.jobs.notification_jobs import send_client_followups, send_pre_interaction_briefs
+
+class WorkerSettings:
+    """
+    ARQ Worker settings.
+    Run the worker using: `arq app.worker.WorkerSettings`
+    """
+    functions = []  # Register background task functions here
+    cron_jobs = [
+        # Example: run every day at 08:00 UTC
+        cron(send_client_followups, hour=8, minute=0),
+        cron(send_pre_interaction_briefs, hour=7, minute=0)
+    ]
+    redis_settings = get_redis_settings()
+    on_startup = startup
+    on_shutdown = shutdown
+    allow_abort_jobs = True
+    max_jobs = 10

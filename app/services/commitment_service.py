@@ -4,7 +4,7 @@ from datetime import date
 from typing import Any
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.models.commitment import Commitment, CommitmentMeetingLink
@@ -15,9 +15,9 @@ class CommitmentService:
     def __init__(self) -> None:
         self.settings = get_settings()
 
-    def upsert_commitments(
+    async def upsert_commitments(
         self,
-        db: Session,
+        db: AsyncSession,
         *,
         client_id: int,
         meeting_id: int,
@@ -30,7 +30,7 @@ class CommitmentService:
             if not description:
                 continue
             normalized = normalize_text(description)
-            existing = self._find_duplicate(db, client_id, normalized)
+            existing = await self._find_duplicate(db, client_id, normalized)
             due_date_confidence = float(item.get("due_date_confidence") or 0.0)
             due_date = self._parse_due_date(item.get("due_date"))
             if due_date_confidence < self.settings.due_date_threshold:
@@ -52,7 +52,7 @@ class CommitmentService:
                     existing.extraction_confidence,
                     float(item.get("confidence") or item.get("extraction_confidence") or 0.0),
                 )
-                self._link_meeting(db, existing.id, meeting_id)
+                await self._link_meeting(db, existing.id, meeting_id)
                 updated.append(existing)
                 continue
 
@@ -71,14 +71,14 @@ class CommitmentService:
                 ),
             )
             db.add(commitment)
-            db.flush()
-            self._link_meeting(db, commitment.id, meeting_id)
+            await db.flush()
+            await self._link_meeting(db, commitment.id, meeting_id)
             created.append(commitment)
         return created, updated
 
-    def list_commitments(
+    async def list_commitments(
         self,
-        db: Session,
+        db: AsyncSession,
         *,
         status: str | None = None,
         client_id: int | None = None,
@@ -91,36 +91,40 @@ class CommitmentService:
             query = query.where(Commitment.client_id == client_id)
         if due_before:
             query = query.where(Commitment.due_date.is_not(None), Commitment.due_date <= due_before)
-        return list(db.scalars(query).all())
+        return list((await db.scalars(query)).all())
 
-    def update_status(self, db: Session, commitment_id: int, status: str) -> Commitment | None:
-        commitment = db.get(Commitment, commitment_id)
+    async def update_status(self, db: AsyncSession, commitment_id: int, status: str) -> Commitment | None:
+        commitment = await db.get(Commitment, commitment_id)
         if not commitment:
             return None
         commitment.status = status
         db.add(commitment)
-        db.flush()
+        await db.flush()
+
+        from app.services.rules_engine_service import RulesEngineService
+        await RulesEngineService.sync_client_tasks_and_risks(db, commitment.client_id)
+        
         return commitment
 
-    def pending_for_client(self, db: Session, client_id: int) -> list[Commitment]:
+    async def pending_for_client(self, db: AsyncSession, client_id: int) -> list[Commitment]:
         return list(
-            db.scalars(
+            (await db.scalars(
                 select(Commitment)
                 .where(Commitment.client_id == client_id, Commitment.status == "pending")
                 .order_by(Commitment.due_date.is_(None), Commitment.due_date, Commitment.created_at)
-            ).all()
+            )).all()
         )
 
-    def _find_duplicate(
-        self, db: Session, client_id: int, normalized_description: str
+    async def _find_duplicate(
+        self, db: AsyncSession, client_id: int, normalized_description: str
     ) -> Commitment | None:
         candidates = list(
-            db.scalars(
+            (await db.scalars(
                 select(Commitment).where(
                     Commitment.client_id == client_id,
                     Commitment.status == "pending",
                 )
-            ).all()
+            )).all()
         )
         for candidate in candidates:
             score = similarity(candidate.normalized_description, normalized_description)
@@ -128,8 +132,8 @@ class CommitmentService:
                 return candidate
         return None
 
-    def _link_meeting(self, db: Session, commitment_id: int, meeting_id: int) -> None:
-        existing = db.scalar(
+    async def _link_meeting(self, db: AsyncSession, commitment_id: int, meeting_id: int) -> None:
+        existing = await db.scalar(
             select(CommitmentMeetingLink).where(
                 CommitmentMeetingLink.commitment_id == commitment_id,
                 CommitmentMeetingLink.meeting_id == meeting_id,
@@ -138,7 +142,7 @@ class CommitmentService:
         if existing:
             return
         db.add(CommitmentMeetingLink(commitment_id=commitment_id, meeting_id=meeting_id))
-        db.flush()
+        await db.flush()
 
     @staticmethod
     def _parse_due_date(value: str | None) -> date | None:
