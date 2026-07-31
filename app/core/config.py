@@ -47,6 +47,11 @@ class Settings:
     due_date_threshold: float
     skip_startup_checks: bool
     embedding_model: str
+    # MinIO Audio Storage (Day 9 & Day 10 Prep)
+    minio_url: str
+    minio_access_key: str
+    minio_secret_key: str
+    minio_bucket_name: str
 
 
 def _env_int(name: str, default: int) -> int:
@@ -111,4 +116,9 @@ def get_settings() -> Settings:
         due_date_threshold=_env_float("PHILIXA_DUE_DATE_THRESHOLD", 0.75),
         skip_startup_checks=os.getenv("PHILIXA_SKIP_STARTUP_CHECKS", "0") == "1",
         embedding_model=os.getenv("PHILIXA_EMBEDDING_MODEL", "intfloat/multilingual-e5-small").strip(),
+        # MinIO Audio Storage
+        minio_url=os.getenv("PHILIXA_MINIO_URL", "localhost:9000").strip(),
+        minio_access_key=os.getenv("PHILIXA_MINIO_ACCESS_KEY", "philixa_minio").strip(),
+        minio_secret_key=os.getenv("PHILIXA_MINIO_SECRET_KEY", "philixa_secret").strip(),
+        minio_bucket_name=os.getenv("PHILIXA_MINIO_BUCKET_NAME", "philixa-audio").strip(),
     )

@@ -55,6 +55,7 @@ services:
     environment:
       - PHILIXA_DATABASE_URL=postgresql+psycopg://postgres:dev_only_password@db:5432/philixa
       - PHILIXA_REDIS_URL=redis://redis:6379/0
+      - PHILIXA_MINIO_URL=minio:9000
     depends_on:
       db:
         condition: service_healthy
@@ -77,6 +78,7 @@ services:
     environment:
       - PHILIXA_DATABASE_URL=postgresql+psycopg://postgres:dev_only_password@db:5432/philixa
       - PHILIXA_REDIS_URL=redis://redis:6379/0
+      - PHILIXA_MINIO_URL=minio:9000
     depends_on:
       db:
         condition: service_healthy

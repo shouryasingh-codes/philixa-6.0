@@ -6,6 +6,9 @@ class UserRole(str, Enum):
     MEMBER = "MEMBER"
 
 class MeetingStatus(str, Enum):
+    QUEUED = "queued"
+    TRANSCRIBING = "transcribing"
+    EXTRACTING = "extracting"
     PROCESSING = "processing"
     PROCESSED = "processed"
     MANUAL_REVIEW_REQUIRED = "manual_review_required"

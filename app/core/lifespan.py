@@ -47,6 +47,12 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     # 4. Initialize ARQ Redis Pool
     await init_arq_pool()
 
+    # 5. Preload Embedding Model in background to prevent first-request cold start
+    import asyncio
+    from app.services.embedding_service import get_embedding_model
+    asyncio.create_task(asyncio.to_thread(get_embedding_model))
+    logger.info("Triggered embedding model preload in background.")
+
     logger.info("Pre-Flight Checks Passed. App is ready to serve.")
 
     yield

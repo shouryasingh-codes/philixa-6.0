@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.models.meeting import Meeting
+from app.models.enums import MeetingStatus
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,11 @@ async def process_meeting_transcription(ctx: dict, meeting_id: int, audio_file_p
             return False
             
         try:
-            # Placeholder for actual transcription logic
+            # Day 9/10 State Flow: Immediately mark as TRANSCRIBING
+            meeting.status = MeetingStatus.TRANSCRIBING.value
+            await db.commit()
+            
+            # Placeholder for actual transcription logic (WhisperX - Day 10)
             # e.g., transcript_text = await asyncio.to_thread(run_whisper, audio_file_path)
             transcript_text = "Simulated transcript for meeting."
             

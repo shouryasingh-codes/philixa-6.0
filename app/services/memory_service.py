@@ -258,11 +258,9 @@ class MemoryService:
 
     def _format_commitment_brief(self, commitment: Commitment) -> str:
         description = commitment.description
-        due = commitment.due_date_text or (
-            commitment.due_date.isoformat() if commitment.due_date else None
-        )
+        due = commitment.due_date.isoformat() if commitment.due_date else None
         if due:
-            return f"{description} {due}".replace("  ", " ").strip()
+            return f"{description} ({due})".strip()
         return description
 
     @staticmethod

@@ -23,6 +23,7 @@ class Meeting(Base):
     summary: Mapped[str] = mapped_column(Text, default="", nullable=False)
     key_discussion_points_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
     concerns_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
+    audio_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     source_type: Mapped[str] = mapped_column(
         String(40), default=MeetingSourceType.PASTED_NOTE.value, nullable=False
     )

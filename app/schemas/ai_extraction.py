@@ -20,7 +20,7 @@ class RiskSignal(BaseModel):
         ..., 
         min_length=3, 
         max_length=500,
-        description="Clear, concise description of the risk or concern."
+        description="Clear, concise description of the risk or concern. DO NOT include business opportunities, loan requirements, or general needs here. Only include actual risks, complaints, delays, negative sentiments, or technical issues."
     )
     severity: SeverityLevel = Field(
         ..., 
@@ -52,7 +52,7 @@ class CommitmentExtraction(BaseModel):
     description: str = Field(
         ..., 
         min_length=3,
-        description="Clear description of the promise or action item."
+        description="Clean description of the promise or action item. DO NOT include the time, date, or temporal conditions (e.g., 'aaj shaam tak') in this description. Keep it completely clean (e.g., 'Send loan documentation')."
     )
     owner: str = Field(
         default="RM", 
@@ -60,7 +60,7 @@ class CommitmentExtraction(BaseModel):
     )
     due_date: Optional[date] = Field(
         default=None, 
-        description="Exact due date IF AND ONLY IF clearly mentioned. If ambiguous or unclear (e.g. 'soon', 'next week'), this MUST be null."
+        description="CRITICAL: Convert ALL Hinglish/English relative times (like 'aaj shaam', 'aaj dopehar', 'monday', 'kal') into strict YYYY-MM-DD format using the provided meeting_date. NEVER output raw strings like 'aaj shaam' here. Use null only if completely unknown."
     )
     due_date_text: Optional[str] = Field(
         default=None,
@@ -146,11 +146,11 @@ class MeetingExtraction(BaseModel):
     )
     concerns: list[RiskSignal] = Field(
         default_factory=list,
-        description="Any risks, complaints, or negative sentiments raised. Must be empty if none."
+        description="CRITICAL: Extract ANY AND ALL actual risks, complaints, delays, or negative sentiments raised, including technical issues or app login problems. DO NOT extract business opportunities or standard client requirements (like a need for a loan) here. Must be empty if none."
     )
     commitments: list[CommitmentExtraction] = Field(
         default_factory=list,
-        description="Any tasks, action items, or promises made. Must be empty if none."
+        description="CRITICAL: Extract EVERY SINGLE task, action item, or promise made, including minor follow-ups and support tickets. Must be empty if none."
     )
     action_items: list[str] = Field(
         default_factory=list,
