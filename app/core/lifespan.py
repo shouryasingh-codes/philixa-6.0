@@ -8,6 +8,7 @@ from sqlalchemy import text
 
 from app.core.config import get_settings
 from app.database.session import async_engine
+from app.core.arq import init_arq_pool, close_arq_pool
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +44,14 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     # 3. MinIO (Stub for Day 9)
     logger.info("MinIO check stubbed (will be implemented on Day 9).")
 
+    # 4. Initialize ARQ Redis Pool
+    await init_arq_pool()
+
     logger.info("Pre-Flight Checks Passed. App is ready to serve.")
 
     yield
 
     # Shutdown Sequence
+    await close_arq_pool()
     await async_engine.dispose()
     logger.info("PostgreSQL engine disposed safely.")

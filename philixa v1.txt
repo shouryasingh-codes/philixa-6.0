@@ -132,7 +132,7 @@ Day 7 — pgvector semantic memory
 Build:
 
 MeetingEvidence chunk table with embedding column.
-Local Sentence Transformers embedding worker.
+Local Sentence Transformers embedding worker (Using intfloat/multilingual-e5-small).
 Embeddings only after final validated transcript/note.
 Hybrid retrieval: SQL keyword filter + semantic search.
 Mandatory filters:

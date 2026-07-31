@@ -34,18 +34,23 @@ def get_redis_settings() -> RedisSettings:
     return RedisSettings.from_dsn(settings.redis_url)
 
 from arq.cron import cron
-from app.jobs.notification_jobs import send_client_followups, send_pre_interaction_briefs
+from app.jobs.notification_jobs import send_client_followups, send_pre_interaction_briefs, retry_failed_notifications
+
+from app.jobs.embedding_jobs import generate_meeting_embeddings
+from app.jobs.transcription_jobs import process_meeting_transcription
 
 class WorkerSettings:
     """
     ARQ Worker settings.
     Run the worker using: `arq app.worker.WorkerSettings`
     """
-    functions = []  # Register background task functions here
+    functions = [generate_meeting_embeddings, process_meeting_transcription]  # Register background task functions here
     cron_jobs = [
         # Example: run every day at 08:00 UTC
         cron(send_client_followups, hour=8, minute=0),
-        cron(send_pre_interaction_briefs, hour=7, minute=0)
+        cron(send_pre_interaction_briefs, hour=7, minute=0),
+        # Run every 15 minutes to retry failed/stuck notifications
+        cron(retry_failed_notifications, minute={0, 15, 30, 45})
     ]
     redis_settings = get_redis_settings()
     on_startup = startup

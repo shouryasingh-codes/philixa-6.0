@@ -13,9 +13,11 @@ from app.api.v1.routes_health import router as health_router
 from app.api.v1.routes_meeting_notes import router as meeting_notes_router
 from app.api.v1.routes_preferences import router as preferences_router
 from app.api.v1.routes_webhooks import router as webhooks_router
+from app.api.v1.routes_jobs import router as jobs_router
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.database.session import init_db
+from app.core.lifespan import lifespan as core_lifespan
 
 
 settings = get_settings()
@@ -23,9 +25,10 @@ configure_logging()
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await init_db()
-    yield
+    async with core_lifespan(app):
+        yield
 
 
 app = FastAPI(
@@ -50,4 +53,5 @@ app.include_router(commitments_router, prefix="/api/v1")
 app.include_router(dashboard_router, prefix="/api/v1")
 app.include_router(preferences_router, prefix="/api/v1")
 app.include_router(webhooks_router, prefix="/api/v1")
+app.include_router(jobs_router, prefix="/api/v1")
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")

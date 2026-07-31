@@ -3,12 +3,12 @@ from typing import Dict, Any
 from datetime import datetime, timezone, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, or_
 
 from app.models.client import Client
 from app.models.follow_up_task import FollowUpTask
 from app.models.meeting import Meeting
-from app.models.notification import NotificationPreference
+from app.models.notification import NotificationPreference, NotificationDelivery, DeliveryStatus
 from app.services.notification_service import NotificationService
 from app.core.dependencies import get_notification_adapter
 
@@ -101,16 +101,24 @@ async def send_pre_interaction_briefs(ctx: Dict[str, Any]) -> None:
         start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
         end_of_day = start_of_day + timedelta(days=1)
         
-        # Simplified for testing: just fetch all meetings today and the first active preference
-        stmt_meetings = select(Meeting, Client).join(Client).where(Meeting.meeting_date <= now.date())
+        # Fetch all meetings today along with the client and their associated notification preference
+        stmt_meetings = (
+            select(Meeting, Client, NotificationPreference)
+            .join(Client, Client.id == Meeting.client_id)
+            .join(
+                NotificationPreference,
+                and_(
+                    NotificationPreference.organization_id == Client.organization_id,
+                    NotificationPreference.user_id == Client.user_id
+                ),
+                isouter=True
+            )
+            .where(Meeting.meeting_date <= now.date())
+        )
         result_meetings = await db.execute(stmt_meetings)
         meetings_rows = result_meetings.all()
         
-        stmt_pref = select(NotificationPreference).limit(1)
-        result_pref = await db.execute(stmt_pref)
-        preference = result_pref.scalar_one_or_none()
-        
-        for meeting, client in meetings_rows:
+        for meeting, client, preference in meetings_rows:
             if not preference:
                 continue
                 
@@ -121,8 +129,57 @@ async def send_pre_interaction_briefs(ctx: Dict[str, Any]) -> None:
                 preference_id=preference.id,
                 message_content=message,
                 idempotency_key=idempotency_key,
-                organization_id="default",
-                user_id="default"
+                organization_id=client.organization_id,
+                user_id=client.user_id
             )
             
     logger.info("Finished send_pre_interaction_briefs job")
+
+async def retry_failed_notifications(ctx: Dict[str, Any]) -> None:
+    """
+    Cron job to retry failed or stuck notifications.
+    """
+    logger.info("Starting retry_failed_notifications job")
+    
+    db_session_factory = ctx.get("db_session_factory")
+    if not db_session_factory:
+        logger.error("db_session_factory not found in context")
+        return
+
+    adapter = get_notification_adapter()
+
+    async with db_session_factory() as db:
+        notification_service = NotificationService(db, adapter)
+        now = datetime.now(timezone.utc)
+        stuck_threshold = now - timedelta(minutes=15)
+
+        stmt = select(NotificationDelivery).where(
+            or_(
+                NotificationDelivery.status == DeliveryStatus.FAILED,
+                and_(
+                    NotificationDelivery.status == DeliveryStatus.PENDING,
+                    NotificationDelivery.updated_at <= stuck_threshold
+                )
+            )
+        )
+        
+        result = await db.execute(stmt)
+        deliveries = result.scalars().all()
+        
+        for delivery in deliveries:
+            idempotency_key = delivery.metadata_payload.get("idempotency_key") if delivery.metadata_payload else None
+            if not idempotency_key:
+                logger.warning(f"Delivery {delivery.id} has no idempotency_key, skipping retry.")
+                continue
+                
+            logger.info(f"Retrying delivery {delivery.id} with status {delivery.status}")
+            
+            await notification_service.dispatch_notification(
+                preference_id=delivery.preference_id,
+                message_content=delivery.message_content,
+                idempotency_key=idempotency_key,
+                organization_id=delivery.organization_id,
+                user_id=delivery.user_id
+            )
+            
+    logger.info("Finished retry_failed_notifications job")

@@ -20,6 +20,7 @@ from app.services.client_identification_service import ClientIdentificationServi
 from app.services.commitment_service import CommitmentService
 from app.services.json_utils import from_json, to_json
 from app.services.memory_service import MemoryService
+from app.core.arq import get_arq_pool
 
 
 logger = logging.getLogger(__name__)
@@ -119,6 +120,18 @@ class MeetingProcessingService:
             await RulesEngineService.sync_client_tasks_and_risks(db, client.id)
 
         await db.commit()
+
+        # TRIGGER ARQ BACKGROUND JOB
+        pool = get_arq_pool()
+        if client and pool:
+            await pool.enqueue_job(
+                "generate_meeting_embeddings",
+                meeting.id,
+                organization_id="default",
+                user_id="default",
+                _job_id=f"generate_meeting_embeddings_{meeting.id}"
+            )
+
         return await self._response_payload(
             db,
             meeting=meeting,
@@ -182,6 +195,18 @@ class MeetingProcessingService:
         await RulesEngineService.sync_client_tasks_and_risks(db, client.id)
 
         await db.commit()
+
+        # TRIGGER ARQ BACKGROUND JOB
+        pool = get_arq_pool()
+        if pool:
+            await pool.enqueue_job(
+                "generate_meeting_embeddings",
+                meeting.id,
+                organization_id="default",
+                user_id="default",
+                _job_id=f"generate_meeting_embeddings_{meeting.id}"
+            )
+
         return await self._response_payload(
             db,
             meeting=meeting,

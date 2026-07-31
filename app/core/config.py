@@ -12,6 +12,7 @@ class Settings:
     app_name: str
     app_version: str
     database_url: str
+    redis_url: str
     api_key: str
     demo_api_key: str
     # Primary provider (legacy / single-provider path)
@@ -45,6 +46,7 @@ class Settings:
     client_auto_create_threshold: float
     due_date_threshold: float
     skip_startup_checks: bool
+    embedding_model: str
 
 
 def _env_int(name: str, default: int) -> int:
@@ -67,7 +69,8 @@ def get_settings() -> Settings:
     return Settings(
         app_name=os.getenv("PHILIXA_APP_NAME", "PHILIXA 6.0 V1-MVP"),
         app_version=os.getenv("PHILIXA_APP_VERSION", "1.0.0"),
-        database_url=os.getenv("PHILIXA_DATABASE_URL", "sqlite:///./data/philixa.db"),
+        database_url=os.getenv("PHILIXA_DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/philixa"),
+        redis_url=os.getenv("PHILIXA_REDIS_URL", "redis://localhost:6379/0"),
         api_key=os.getenv("PHILIXA_API_KEY", "dev-api-key"),
         demo_api_key=os.getenv("PHILIXA_DEMO_API_KEY", ""),
         # Primary provider
@@ -107,4 +110,5 @@ def get_settings() -> Settings:
         ),
         due_date_threshold=_env_float("PHILIXA_DUE_DATE_THRESHOLD", 0.75),
         skip_startup_checks=os.getenv("PHILIXA_SKIP_STARTUP_CHECKS", "0") == "1",
+        embedding_model=os.getenv("PHILIXA_EMBEDDING_MODEL", "intfloat/multilingual-e5-small").strip(),
     )

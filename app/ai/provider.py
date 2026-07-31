@@ -126,6 +126,7 @@ class GroqProvider(AIProvider):
         )
         latency_ms = int((_time.monotonic() - t0) * 1000)
         usage = data.get("usage", {})
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "{}")
         return ExtractionResult(
             payload=json.loads(content),
             latency_ms=latency_ms,

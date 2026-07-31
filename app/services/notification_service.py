@@ -80,25 +80,36 @@ class NotificationService:
         )
         idemp_result = await self.db.execute(idempotency_stmt)
         existing_delivery = idemp_result.scalar_one_or_none()
-        if existing_delivery:
-            logger.info(f"Notification already sent (Idempotency Hit): {idempotency_key}")
-            return existing_delivery
-
-        # 4. Create Delivery Record (PENDING)
-        delivery_id = str(uuid.uuid4())
-        metadata = {"idempotency_key": idempotency_key}
         
-        delivery = NotificationDelivery(
-            id=delivery_id,
-            preference_id=preference_id,
-            organization_id=organization_id,
-            user_id=user_id,
-            channel="whatsapp",
-            message_content=message_content,
-            status=DeliveryStatus.PENDING,
-            metadata_payload=metadata
-        )
-        self.db.add(delivery)
+        delivery = None
+        if existing_delivery:
+            if existing_delivery.status in (DeliveryStatus.SENT, DeliveryStatus.DELIVERED, DeliveryStatus.READ):
+                logger.info(f"Notification already sent (Idempotency Hit): {idempotency_key}")
+                return existing_delivery
+            else:
+                logger.info(f"Retrying failed/pending notification for idempotency key: {idempotency_key}")
+                delivery = existing_delivery
+                # Reset status and error message before retry
+                delivery.status = DeliveryStatus.PENDING
+                delivery.error_message = None
+
+        if not delivery:
+            # 4. Create Delivery Record (PENDING)
+            delivery_id = str(uuid.uuid4())
+            metadata = {"idempotency_key": idempotency_key}
+            
+            delivery = NotificationDelivery(
+                id=delivery_id,
+                preference_id=preference_id,
+                organization_id=organization_id,
+                user_id=user_id,
+                channel="whatsapp",
+                message_content=message_content,
+                status=DeliveryStatus.PENDING,
+                metadata_payload=metadata
+            )
+            self.db.add(delivery)
+            
         await self.db.commit()
         await self.db.refresh(delivery)
 
