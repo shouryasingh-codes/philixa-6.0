@@ -1,7 +1,8 @@
 import logging
 from typing import Any
+from datetime import date
 
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.session import get_db
@@ -20,6 +21,8 @@ MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 @router.post("/upload")
 async def upload_audio_meeting(
     file: UploadFile = File(...),
+    meeting_date: date = Form(...),
+    known_client_id: int | None = Form(None),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """
@@ -68,6 +71,7 @@ async def upload_audio_meeting(
         new_meeting = Meeting(
             raw_notes="",  # Empty initially, WhisperX will fill this on Day 10
             summary="",
+            meeting_date=meeting_date,
             source_type=MeetingSourceType.AUDIO_UPLOAD.value,
             status=MeetingStatus.QUEUED.value,
             audio_path=object_name,
@@ -94,7 +98,8 @@ async def upload_audio_meeting(
         await redis_pool.enqueue_job(
             "process_meeting_transcription", 
             meeting_id=new_meeting.id,
-            audio_file_path=object_name 
+            audio_file_path=object_name,
+            known_client_id=known_client_id
         )
         logger.info(f"Enqueued process_meeting_transcription job for meeting {new_meeting.id}")
     except Exception as e:

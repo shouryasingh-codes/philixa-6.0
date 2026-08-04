@@ -18,6 +18,13 @@ async def startup(ctx: Dict[str, Any]) -> None:
     
     # Store DB session factory in context for tasks to use
     ctx["db_session_factory"] = AsyncSessionLocal
+    
+    # Preload the heavy AI model into RAM on server startup (Cold Start Optimization)
+    # This ensures the user doesn't have to wait for the 1.5GB download on their first voice note!
+    logger.info("Preloading AI Transcription Model...")
+    from app.services.transcription_service import transcription_service
+    # The singleton __init__ will automatically download and load the model here.
+    
     logger.info("Worker startup complete.")
 
 async def shutdown(ctx: Dict[str, Any]) -> None:

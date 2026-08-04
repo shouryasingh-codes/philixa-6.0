@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
-from sqlalchemy import Date, DateTime, Float, ForeignKey, String, Text
+from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
@@ -24,6 +24,8 @@ class Meeting(Base):
     key_discussion_points_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
     concerns_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
     audio_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    audio_duration_seconds: Mapped[int] = mapped_column(Integer, default=0)
+    suggested_client_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     source_type: Mapped[str] = mapped_column(
         String(40), default=MeetingSourceType.PASTED_NOTE.value, nullable=False
     )

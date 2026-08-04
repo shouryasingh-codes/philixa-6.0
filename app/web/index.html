@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/styles.css" />
+    <link rel="stylesheet" href="/static/styles.css?v=3" />
   </head>
   <body>
     <div class="app-shell">
@@ -100,27 +100,60 @@
 
         <section class="grid-layout">
           <section class="panel primary-panel" id="notePanel">
-            <div class="panel-heading">
+            <div class="panel-heading" style="padding-bottom: 0; border-bottom: none; margin-bottom: 10px;">
               <div>
                 <p class="eyebrow">Step 1</p>
-                <h3>Paste meeting notes</h3>
+                <h3>Input Meeting Data</h3>
               </div>
               <select id="knownClient">
                 <option value="">Auto identify client</option>
               </select>
             </div>
 
-            <textarea id="rawNotes" spellcheck="true">Met Rajesh Sharma today. Interested in business loan. Concerned about processing time. Promised documents by Friday.</textarea>
-
-            <div class="form-row">
-              <label>
-                Meeting date
-                <input id="meetingDate" type="date" />
-              </label>
-              <button class="primary-action" id="processNotes" type="button">Process notes</button>
+            <div class="tabs-header">
+              <button class="tab-btn active" id="tabTextBtn">Paste Notes</button>
+              <button class="tab-btn" id="tabAudioBtn">Upload Audio</button>
             </div>
 
-            <div class="result-box" id="processResult">
+            <!-- Tab: Text -->
+            <div id="viewText" class="tab-content active">
+              <textarea id="rawNotes" spellcheck="true">Met Rajesh Sharma today. Interested in business loan. Concerned about processing time. Promised documents by Friday.</textarea>
+              <div class="form-row">
+                <label>
+                  Meeting date
+                  <input id="meetingDate" type="date" />
+                </label>
+                <button class="primary-action" id="processNotes" type="button">Process notes</button>
+              </div>
+            </div>
+
+            <!-- Tab: Audio -->
+            <div id="viewAudio" class="tab-content hidden">
+              <div class="upload-box" id="uploadBox">
+                <input type="file" id="audioFileInput" accept=".mp3, .m4a, .wav" class="file-input-hidden" />
+                <label for="audioFileInput" class="file-input-label">
+                  <span style="font-size: 24px; display: block; margin-bottom: 8px;">📁</span>
+                  <span id="uploadFileName">Click to select audio file</span>
+                  <span class="muted" style="display: block; font-size: 12px; margin-top: 4px;">.mp3, .m4a, .wav (Max 50MB)</span>
+                </label>
+              </div>
+              <div class="form-row">
+                <label>
+                  Meeting date
+                  <input id="meetingDateAudio" type="date" />
+                </label>
+                <button class="primary-action" id="processAudio" type="button" disabled>Upload & Process</button>
+              </div>
+              <div id="audioStatusBox" class="result-box hidden" style="margin-top: 15px; background: var(--bg); border: 1px solid var(--line);">
+                 <div style="display: flex; align-items: center; gap: 10px;">
+                   <span class="status-dot pulsing" id="audioStatusDot" style="background: var(--blue);"></span>
+                   <strong id="audioStatusText" style="color: var(--blue);">Uploading...</strong>
+                 </div>
+                 <p class="muted" style="font-size: 12px; margin-top: 8px;" id="audioStatusDetails">Please wait while the file is sent to the server.</p>
+              </div>
+            </div>
+
+            <div class="result-box" id="processResult" style="margin-top: 15px;">
               <span class="muted">Process a meeting note to see extraction results here.</span>
             </div>
 
@@ -246,6 +279,6 @@
       </div>
     </div>
 
-    <script src="/static/app.js?v=2"></script>
+    <script src="/static/app.js?v=8"></script>
   </body>
 </html>

@@ -933,3 +933,58 @@ th:last-child {
     transform: translateY(0);
   }
 }
+
+/* --- Tab UI --- */
+.tabs-header {
+  display: flex;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 20px;
+}
+.tab-btn {
+  background: transparent;
+  border: none;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.tab-btn:hover {
+  color: var(--ink);
+}
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom: 2px solid var(--accent);
+}
+.tab-content {
+  display: none;
+}
+.tab-content.active {
+  display: block;
+}
+
+/* --- Audio Upload UI --- */
+.upload-box {
+  border: 2px dashed var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  text-align: center;
+  transition: all 0.2s;
+  margin-bottom: 20px;
+}
+.upload-box:hover, .upload-box.dragover {
+  border-color: var(--accent);
+  background: rgba(15, 118, 110, 0.04);
+}
+.file-input-hidden {
+  display: none;
+}
+.file-input-label {
+  display: block;
+  padding: 40px 20px;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--ink);
+}

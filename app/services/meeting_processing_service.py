@@ -60,12 +60,23 @@ class MeetingProcessingService:
         db.add(meeting)
         await db.flush()  # obtain meeting.id for the audit log
 
-        # Step 2: Economy → Review escalation via AIRoutingService.
+        return await self._process_extracted_meeting(db, meeting, request.known_client_id)
+
+    async def process_existing_meeting(
+        self, db: AsyncSession, meeting: Meeting, known_client_id: int | None = None
+    ) -> dict[str, Any]:
+        """Process an already created meeting, like one created from an audio upload."""
+        return await self._process_extracted_meeting(db, meeting, known_client_id)
+
+    async def _process_extracted_meeting(
+        self, db: AsyncSession, meeting: Meeting, known_client_id: int | None
+    ) -> dict[str, Any]:
+        meeting_date = meeting.meeting_date or date.today()
         # Both failure paths are audit-logged inside the routing service.
         try:
             routing = AIRoutingService(db, self.settings)
             extraction = await routing.route_and_extract(
-                request.raw_notes, meeting_date, meeting.id
+                meeting.raw_notes, meeting_date, meeting.id
             )
         except AIExtractionError:
             # Both models failed — keep the meeting as manual_review_required
@@ -83,7 +94,7 @@ class MeetingProcessingService:
             db,
             suggested_name=client_info.get("suggested_client_name"),
             confidence=float(client_info.get("confidence") or 0.0),
-            known_client_id=request.known_client_id,
+            known_client_id=known_client_id,
         )
         warnings.extend(extraction.get("warnings") or [])
 
@@ -98,6 +109,7 @@ class MeetingProcessingService:
             "processed" if client else "client_identification_required"
         )
         meeting.client_identification_status = client_status
+        meeting.suggested_client_name = client_info.get("suggested_client_name")
         meeting.client_identification_confidence = float(
             client_info.get("confidence") or 0.0
         )

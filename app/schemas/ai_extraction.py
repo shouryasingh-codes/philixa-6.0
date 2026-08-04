@@ -56,7 +56,7 @@ class CommitmentExtraction(BaseModel):
     )
     owner: str = Field(
         default="RM", 
-        description="Who is responsible (e.g., 'RM', 'Client', 'Operations')."
+        description="Who is responsible (e.g., 'RM', 'Client', 'Operations'). IMPORTANT: Do not rely solely on Speaker Tags (e.g. Speaker 1/2). Use conversational context (e.g. 'I will check my schedule' usually indicates the Client) to identify the true owner."
     )
     due_date: Optional[date] = Field(
         default=None, 
@@ -124,6 +124,12 @@ class MeetingExtraction(BaseModel):
     The master output schema for the LLM processing a meeting transcript.
     This is the ONLY contract the LLM is allowed to return.
     Extra fields from Gemini (e.g. matched_client_id) are silently ignored.
+    
+    1. You are an expert CRM assistant parsing meeting transcripts and raw voice notes.
+    2. Your ONLY job is to extract actionable information based strictly on the provided text.
+    3. If an explicit due date is not mentioned, calculate it if relative (e.g., "next week") or omit it.
+    4. If a client name is mentioned, normalize it. If not, output "Unknown Client".
+    5. IMPORTANT GUARDRAIL: Do not rely solely on Speaker Tags (e.g. Speaker 1, Speaker 2) if they are present. Use conversational context (e.g., "I will check my schedule" usually indicates the Client) to identify who made a commitment or stated a fact.
     """
     model_config = ConfigDict(extra="ignore")
 

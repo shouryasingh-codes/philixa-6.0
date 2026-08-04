@@ -69,13 +69,12 @@ class NotificationService:
                 logger.info(f"Suppressed notification due to quiet hours: {preference_id}")
                 return None
 
-        # 3. Idempotency Check using JSONB containment
+        # 3. Idempotency Check
         # Checking if a delivery with this idempotency key already exists for this preference
-        idempotency_json = {"idempotency_key": idempotency_key}
         idempotency_stmt = select(NotificationDelivery).where(
             and_(
                 NotificationDelivery.preference_id == preference_id,
-                NotificationDelivery.metadata_payload.contains(idempotency_json)
+                NotificationDelivery.metadata_payload.op("->>")("idempotency_key") == idempotency_key
             )
         )
         idemp_result = await self.db.execute(idempotency_stmt)

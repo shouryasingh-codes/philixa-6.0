@@ -126,9 +126,13 @@ class MemoryService:
         if products_owned:
             parts.append(f"Tracked products include {', '.join(products_owned[:3])}.")
         if concerns:
-            concern_text = self._format_concern(concerns[0].get("description"))
-            if concern_text:
-                parts.append(f"The main concern remains {concern_text}.")
+            first_concern = self._format_concern(concerns[0].get("description"))
+            if first_concern:
+                if len(concerns) > 1:
+                    second_concern = self._format_concern(concerns[1].get("description"))
+                    parts.append(f"Key concerns include: {first_concern} and {second_concern}.")
+                else:
+                    parts.append(f"A key concern is: {first_concern}.")
         if pending:
             if len(pending) == 1:
                 parts.append(

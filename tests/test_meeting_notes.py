@@ -49,7 +49,7 @@ def test_process_clear_client_note_updates_memory(
     )
     assert (
         memory_payload["rolling_summary"]
-        == "Rajesh Sharma discussed a business loan. Rajesh Sharma expressed concerns about processing time. One follow-up commitment was created: Send documents by Friday. Tracked products include Business Loan. The main concern remains processing time. One follow-up commitment is still open: Send documents by Friday."
+        == "Rajesh Sharma discussed a business loan. Rajesh Sharma expressed concerns about processing time. One follow-up commitment was created: Send documents by Friday. Tracked products include Business Loan. A key concern is: processing time. One follow-up commitment is still open: Send documents by Friday."
     )
     assert memory_payload["pre_meeting_brief"]["last_meeting"] == "Business Loan Discussion"
     assert memory_payload["pre_meeting_brief"]["pending"] == ["Send documents by Friday"]

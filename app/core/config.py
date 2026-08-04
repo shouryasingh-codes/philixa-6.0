@@ -52,7 +52,10 @@ class Settings:
     minio_access_key: str
     minio_secret_key: str
     minio_bucket_name: str
-
+    
+    # HuggingFace
+    hf_token: str
+    
 
 def _env_int(name: str, default: int) -> int:
     value = os.getenv(name)
@@ -121,4 +124,6 @@ def get_settings() -> Settings:
         minio_access_key=os.getenv("PHILIXA_MINIO_ACCESS_KEY", "philixa_minio").strip(),
         minio_secret_key=os.getenv("PHILIXA_MINIO_SECRET_KEY", "philixa_secret").strip(),
         minio_bucket_name=os.getenv("PHILIXA_MINIO_BUCKET_NAME", "philixa-audio").strip(),
+        # HuggingFace Token
+        hf_token=os.getenv("PHILIXA_HF_TOKEN", "").strip(),
     )

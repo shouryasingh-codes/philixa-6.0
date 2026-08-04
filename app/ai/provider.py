@@ -40,6 +40,10 @@ class AIProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def translate_transcript(self, raw_notes: str) -> str:
+        raise NotImplementedError
+
+    @abstractmethod
     def generate_json(self, model: str, prompt: str, schema: dict[str, Any]) -> str:
         raise NotImplementedError
 
@@ -81,6 +85,9 @@ class LocalHeuristicProvider(AIProvider):
     def generate_json(self, model: str, prompt: str, schema: dict[str, Any]) -> str:
         return '{"answer": "Local heuristic provider cannot answer free-form queries.", "source_meetings": []}'
 
+    def translate_transcript(self, raw_notes: str) -> str:
+        return raw_notes
+
 
 class GroqProvider(AIProvider):
     provider_name = "groq"
@@ -100,6 +107,12 @@ class GroqProvider(AIProvider):
         if not api_key:
             raise AIExtractionError("Groq provider selected but PHILIXA_AI_API_KEY/PHILIXA_GROQ_API_KEY is missing.")
         model = model_override or self.model_name
+        from datetime import timedelta
+        calendar_ref = {"tomorrow": (meeting_date + timedelta(days=1)).isoformat()}
+        for i in range(1, 8):
+            day_name = (meeting_date + timedelta(days=i)).strftime("%A").lower()
+            calendar_ref[f"next_{day_name}"] = (meeting_date + timedelta(days=i)).isoformat()
+
         payload = {
             "model": model,
             "temperature": 0,
@@ -109,7 +122,8 @@ class GroqProvider(AIProvider):
                     "role": "user",
                     "content": json.dumps(
                         {
-                            "meeting_date": meeting_date.isoformat(),
+                            "meeting_date": f"{meeting_date.isoformat()} ({meeting_date.strftime('%A')})",
+                            "calendar_reference": calendar_ref,
                             "raw_notes": raw_notes,
                         }
                     ),
@@ -158,6 +172,41 @@ class GroqProvider(AIProvider):
         )
         return data["choices"][0]["message"]["content"]
 
+    def translate_transcript(self, raw_notes: str) -> str:
+        api_key = self.settings.ai_api_key or self.settings.groq_api_key
+        if not api_key:
+            return raw_notes
+            
+        system_content = (
+            "You are an expert transcriber. This is an ASR transcript of a Hinglish business meeting. "
+            "It may contain phonetic STT errors (e.g. 'Dil' instead of 'Deal', 'Mande' instead of 'Monday'). "
+            "Your ONLY job is to translate this transcript into clean, professional English, correcting any phonetic mistakes based on the business context. "
+            "CRITICAL: Preserve Indian names accurately using standard English spelling. Do NOT anglicize names (e.g., if the phonetic Hindi is 'दक्स', write 'Daksh', not 'Dex'). "
+            "CRITICAL: Ensure ALL named entities (like competitor banks, companies, people) mentioned in the notes are preserved in the English translation. Do not summarize or omit anything. "
+            "Return ONLY the translated English text, nothing else."
+        )
+        
+        payload = {
+            "model": self.model_name,
+            "temperature": 0,
+            "messages": [
+                {"role": "system", "content": system_content},
+                {"role": "user", "content": raw_notes}
+            ]
+        }
+        try:
+            data = _post_json(
+                self.base_url,
+                payload,
+                {"Authorization": f"Bearer {api_key}"},
+                timeout_seconds=self.settings.ai_timeout_seconds,
+            )
+            return data.get("choices", [{}])[0].get("message", {}).get("content", raw_notes)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Groq translation failed: {e}")
+            return raw_notes
+
 
 class GeminiProvider(AIProvider):
     provider_name = "gemini"
@@ -183,9 +232,16 @@ class GeminiProvider(AIProvider):
             raise AIExtractionError("Gemini provider selected but PHILIXA_GEMINI_API_KEY is missing.")
         model = model_override or self.model_name
         url = self._build_url(model)
+        from datetime import timedelta
+        calendar_ref = {"tomorrow": (meeting_date + timedelta(days=1)).isoformat()}
+        for i in range(1, 8):
+            day_name = (meeting_date + timedelta(days=i)).strftime("%A").lower()
+            calendar_ref[f"next_{day_name}"] = (meeting_date + timedelta(days=i)).isoformat()
+
         prompt = {
             "system": MEETING_EXTRACTION_SYSTEM_PROMPT,
-            "meeting_date": meeting_date.isoformat(),
+            "meeting_date": f"{meeting_date.isoformat()} ({meeting_date.strftime('%A')})",
+            "calendar_reference": calendar_ref,
             "raw_notes": raw_notes,
         }
         payload = {
@@ -244,6 +300,40 @@ class GeminiProvider(AIProvider):
             timeout_seconds=self.settings.ai_timeout_seconds,
         )
         return data["candidates"][0]["content"]["parts"][0]["text"]
+
+    def translate_transcript(self, raw_notes: str) -> str:
+        api_key = self.settings.gemini_api_key or self.settings.ai_api_key
+        if not api_key:
+            return raw_notes
+            
+        system_content = (
+            "You are an expert transcriber. This is an ASR transcript of a Hinglish business meeting. "
+            "It may contain phonetic STT errors (e.g. 'Dil' instead of 'Deal', 'Mande' instead of 'Monday'). "
+            "Your ONLY job is to translate this transcript into clean, professional English, correcting any phonetic mistakes based on the business context. "
+            "CRITICAL: Preserve Indian names accurately using standard English spelling. Do NOT anglicize names (e.g., if the phonetic Hindi is 'दक्स', write 'Daksh', not 'Dex'). "
+            "CRITICAL: Ensure ALL named entities (like competitor banks, companies, people) mentioned in the notes are preserved in the English translation. Do not summarize or omit anything. "
+            "Return ONLY the translated English text, nothing else."
+        )
+        url = self._build_url(self.model_name)
+        payload = {
+            "system_instruction": {"parts": [{"text": system_content}]},
+            "contents": [{"parts": [{"text": raw_notes}]}],
+            "generationConfig": {
+                "temperature": 0,
+            }
+        }
+        try:
+            data = _post_json(
+                url,
+                payload,
+                {},
+                timeout_seconds=self.settings.ai_timeout_seconds,
+            )
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Gemini translation failed: {e}")
+            return raw_notes
 
 
 def get_ai_provider(provider_name: str | None = None, settings: Settings | None = None) -> AIProvider:

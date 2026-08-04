@@ -46,6 +46,19 @@ const els = {
   prefQuietStart: document.querySelector("#prefQuietStart"),
   prefQuietEnd: document.querySelector("#prefQuietEnd"),
   saveSettingsBtn: document.querySelector("#saveSettingsBtn"),
+  tabTextBtn: document.querySelector("#tabTextBtn"),
+  tabAudioBtn: document.querySelector("#tabAudioBtn"),
+  viewText: document.querySelector("#viewText"),
+  viewAudio: document.querySelector("#viewAudio"),
+  audioFileInput: document.querySelector("#audioFileInput"),
+  uploadFileName: document.querySelector("#uploadFileName"),
+  processAudio: document.querySelector("#processAudio"),
+  meetingDateAudio: document.querySelector("#meetingDateAudio"),
+  audioStatusBox: document.querySelector("#audioStatusBox"),
+  audioStatusText: document.querySelector("#audioStatusText"),
+  audioStatusDetails: document.querySelector("#audioStatusDetails"),
+  uploadBox: document.querySelector("#uploadBox"),
+  meetingDateAudio: document.querySelector("#meetingDateAudio"),
 };
 
 function todayIso() {
@@ -587,6 +600,72 @@ function bindEvents() {
     if (e.target === els.settingsModal) closeSettings();
   });
 
+  // --- Audio Upload Events ---
+  els.tabTextBtn.addEventListener("click", () => {
+    els.tabTextBtn.classList.add("active");
+    els.tabAudioBtn.classList.remove("active");
+    els.viewText.classList.add("active");
+    els.viewText.classList.remove("hidden");
+    els.viewAudio.classList.remove("active");
+    els.viewAudio.classList.add("hidden");
+  });
+  
+  els.tabAudioBtn.addEventListener("click", () => {
+    els.tabAudioBtn.classList.add("active");
+    els.tabTextBtn.classList.remove("active");
+    els.viewAudio.classList.add("active");
+    els.viewAudio.classList.remove("hidden");
+    els.viewText.classList.remove("active");
+    els.viewText.classList.add("hidden");
+  });
+
+  els.audioFileInput.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      els.uploadFileName.textContent = file.name;
+      els.processAudio.disabled = false;
+    } else {
+      els.uploadFileName.textContent = "Click to select audio file";
+      els.processAudio.disabled = true;
+    }
+  });
+
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    els.uploadBox.addEventListener(eventName, preventDefaults, false);
+  });
+  
+  function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  ['dragenter', 'dragover'].forEach(eventName => {
+    els.uploadBox.addEventListener(eventName, () => els.uploadBox.classList.add('dragover'), false);
+  });
+  
+  ['dragleave', 'drop'].forEach(eventName => {
+    els.uploadBox.addEventListener(eventName, () => els.uploadBox.classList.remove('dragover'), false);
+  });
+  
+  els.uploadBox.addEventListener('drop', (e) => {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    if(files.length > 0) {
+      els.audioFileInput.files = files;
+      els.audioFileInput.dispatchEvent(new Event('change'));
+    }
+  });
+
+  els.processAudio.addEventListener("click", () => {
+    processAudio().catch((err) => {
+      showToast(err.message, true);
+      els.processAudio.disabled = false;
+      els.processAudio.textContent = "Upload & Process";
+      els.audioStatusBox.classList.add("hidden");
+    });
+  });
+
+
   els.clientList.addEventListener("click", (event) => {
     const deleteButton = event.target.closest("[data-delete-client-id]");
     if (deleteButton) {
@@ -609,8 +688,144 @@ function bindEvents() {
   });
 }
 
+async function processAudio() {
+  const file = els.audioFileInput.files[0];
+  if (!file) {
+    throw new Error("Please select an audio file first.");
+  }
+  
+  if (file.size > 50 * 1024 * 1024) {
+    throw new Error("File is too large. Maximum size is 50MB.");
+  }
+
+  const dateValue = els.meetingDateAudio.value;
+  if (!dateValue) {
+    throw new Error("Please select a meeting date.");
+  }
+
+  els.processAudio.disabled = true;
+  els.processAudio.textContent = "Uploading...";
+  els.audioStatusBox.classList.remove("hidden");
+  els.audioStatusText.textContent = "Uploading...";
+  els.audioStatusDetails.textContent = "Please wait while the file is sent to the server.";
+  
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("meeting_date", dateValue);
+  
+  const knownClientId = els.knownClient ? els.knownClient.value : "";
+  if (knownClientId) {
+    formData.append("known_client_id", knownClientId);
+  }
+
+  try {
+    const response = await fetch("/api/v1/audio/upload", {
+      method: "POST",
+      headers: {
+        "X-API-Key": apiKey(),
+      },
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      let detail = `Upload failed with ${response.status}`;
+      try {
+        const payload = await response.json();
+        detail = payload.detail || detail;
+      } catch {
+        detail = response.statusText || detail;
+      }
+      throw new Error(detail);
+    }
+    
+    const result = await response.json();
+    
+    els.audioStatusText.textContent = "Audio Uploaded & Queued!";
+    els.audioStatusDetails.textContent = `Meeting ID: ${result.meeting_id} is now ${result.status}. The AI is processing it in the background. Please wait...`;
+    
+    // Clear input
+    els.audioFileInput.value = "";
+    els.uploadFileName.textContent = "Click to select audio file";
+    els.processAudio.textContent = "Upload & Process";
+    
+    showToast("Audio queued for processing.");
+    
+    // Polling loop
+    const meetingId = result.meeting_id;
+    const pollInterval = setInterval(async () => {
+      try {
+        const meetingResponse = await fetch(`/api/v1/meeting-notes/${meetingId}`, {
+          headers: { "X-API-Key": apiKey() }
+        });
+        if (meetingResponse.ok) {
+          const meeting = await meetingResponse.json();
+          if (meeting.status === 'processed') {
+            clearInterval(pollInterval);
+            els.audioStatusText.textContent = "Audio Processed!";
+            els.audioStatusDetails.textContent = "Processing complete. Your summary and follow-ups are shown below.";
+            els.processAudio.disabled = false;
+
+            // The upload endpoint returns immediately, so render the result
+            // from the completed polling response rather than leaving the
+            // pasted-note result card blank.
+            renderProcessResult({
+              meeting_id: meeting.id,
+              client_status: meeting.client_identification_status || "identified",
+              client_id: meeting.client_id,
+              requires_client_confirmation: false,
+              meeting_summary: meeting.summary,
+              commitments_created: [],
+              commitments_updated: [],
+              pending_commitments: meeting.commitments || [],
+              warnings: [],
+            });
+            
+            await refreshAll();
+            if (meeting.client_id) {
+              await loadMemory(meeting.client_id);
+            }
+          } else if (meeting.status === 'client_identification_required') {
+            clearInterval(pollInterval);
+            els.audioStatusText.textContent = "Client Identification Required!";
+            els.audioStatusDetails.textContent = "Please confirm the client name to continue.";
+            els.processAudio.disabled = false;
+            
+            state.pendingConfirmationMeetingId = meetingId;
+            els.newClientName.value = meeting.suggested_name || "";
+            els.confirmPanel.classList.remove("hidden");
+            await refreshAll();
+          } else if (meeting.status === 'manual_review_required' || meeting.status === 'failed') {
+            clearInterval(pollInterval);
+            els.audioStatusText.textContent = "Audio Needs Review";
+            els.audioStatusDetails.textContent = "PHILIXA could not detect usable speech or safely create a summary. Check the recording and try again.";
+            els.processAudio.disabled = false;
+            renderProcessResult({
+              meeting_id: meeting.id,
+              client_status: "manual review required",
+              client_id: meeting.client_id,
+              requires_client_confirmation: false,
+              meeting_summary: meeting.summary,
+              commitments_created: [],
+              commitments_updated: [],
+              pending_commitments: [],
+              warnings: ["No usable meeting summary or follow-ups were saved."],
+            });
+            showToast("Audio transcript needs manual review.", true);
+          }
+        }
+      } catch (err) {
+        console.error("Polling error", err);
+      }
+    }, 5000);
+    
+  } catch (error) {
+    throw error;
+  }
+}
+
 async function init() {
   els.meetingDate.value = todayIso();
+  if (els.meetingDateAudio) els.meetingDateAudio.value = todayIso();
   bindEvents();
   await refreshAll();
   if (state.selectedClientId) {

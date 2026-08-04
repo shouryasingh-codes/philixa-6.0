@@ -24,25 +24,37 @@ class AIRoutingService:
         Returns the validated raw payload dict if successful.
         Raises AIExtractionError if BOTH models fail.
         """
+        import asyncio
+        
+        # Pre-processing: LLM Translation Layer to normalize Hinglish to English
+        try:
+            trans_provider = get_ai_provider(self.settings.ai_economy_provider, self.settings)
+            logger.info("Starting LLM pre-processing translation layer...")
+            clean_notes = await asyncio.to_thread(trans_provider.translate_transcript, raw_notes)
+        except Exception as e:
+            logger.warning(f"Translation layer failed: {e}. Falling back to raw notes.")
+            clean_notes = raw_notes
+
         # Attempt 1: Economy Model
         try:
-            result = await self._call_and_validate(raw_notes, meeting_date, self.settings.ai_economy_provider, self.settings.ai_economy_model, meeting_id)
+            result = await self._call_and_validate(clean_notes, meeting_date, self.settings.ai_economy_provider, self.settings.ai_economy_model, meeting_id)
             return result.payload
         except (AIExtractionError, ValidationError) as e:
             logger.warning(f"Economy model failed: {e}. Escalating to Review model.")
 
         # Attempt 2: Escalation to Review Model
         try:
-            result = await self._call_and_validate(raw_notes, meeting_date, self.settings.ai_review_provider, self.settings.ai_review_model, meeting_id)
+            result = await self._call_and_validate(clean_notes, meeting_date, self.settings.ai_review_provider, self.settings.ai_review_model, meeting_id)
             return result.payload
         except (AIExtractionError, ValidationError) as e:
             logger.error(f"Review model also failed: {e}. Manual review required.")
             raise AIExtractionError("All AI models failed to produce a valid extraction.") from e
 
     async def _call_and_validate(self, raw_notes: str, meeting_date: date, provider_name: str, model_name: str, meeting_id: int) -> ExtractionResult:
+        import asyncio
         try:
             provider = get_ai_provider(provider_name, self.settings)
-            result = provider.extract_meeting_intelligence(raw_notes, meeting_date, model_name)
+            result = await asyncio.to_thread(provider.extract_meeting_intelligence, raw_notes, meeting_date, model_name)
             
             # Schema validation check:
             MeetingExtraction.model_validate(result.payload)
