@@ -110,7 +110,13 @@ async def process_meeting_transcription(ctx: dict, meeting_id: int, audio_file_p
                 suffix = ".mp3"
                 
             from app.services.transcription_service import transcription_service
-                
+
+            # Change D: Fetch all known client names to help Whisper avoid
+            # phonetic hallucinations on Indian names (e.g. "Raj Sharma").
+            from app.models.client import Client as ClientModel
+            _names_result = await db.scalars(select(ClientModel.name))
+            client_names = [n for n in _names_result.all() if n]
+
             with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_audio_file:
                 temp_file_path = temp_audio_file.name
                 # Download stream from MinIO
@@ -144,9 +150,11 @@ async def process_meeting_transcription(ctx: dict, meeting_id: int, audio_file_p
                 logger.info(f"Passing {temp_file_path} to TranscriptionService")
                 
                 # Run the heavy transcription in a separate thread
+                # Change E: Pass client_names so Whisper uses them in initial_prompt
                 transcript_text = await asyncio.to_thread(
-                    transcription_service.transcribe_audio, 
-                    temp_file_path
+                    transcription_service.transcribe_audio,
+                    temp_file_path,
+                    client_names
                 )
             finally:
                 # MUST CLEAN UP TEMP FILE TO PREVENT STORAGE LEAK

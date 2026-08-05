@@ -76,7 +76,19 @@ class TranscriptionService:
                 
         return best_speaker
 
-    def transcribe_audio(self, file_path: str) -> str:
+    def _build_initial_prompt(self, client_names: list[str] | None) -> str:
+        """Builds a dynamic Whisper initial_prompt injecting known client names
+        to prevent phonetic hallucinations on Indian names."""
+        base = (
+            "This is a financial meeting discussing business loans in Hinglish. "
+            "Words: loan, crore, Monday, cancel, deal, HDFC, bank, client."
+        )
+        if client_names:
+            names_str = ", ".join(client_names[:20])  # cap at 20 to stay within prompt limit
+            return f"{base} Names: {names_str}."
+        return base
+
+    def transcribe_audio(self, file_path: str, client_names: list[str] | None = None, diarize: bool = True) -> str:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f'Audio file not found at {file_path}')
 
@@ -94,6 +106,7 @@ class TranscriptionService:
             subprocess.run(
                 [
                     "ffmpeg", "-y", "-i", file_path,
+                    "-af", "afftdn=nf=-30,highpass=f=200,lowpass=f=3000",
                     "-vn", "-ac", "1", "-ar", "16000",
                     "-c:a", "pcm_s16le", normalized_audio_path,
                 ],
@@ -110,21 +123,23 @@ class TranscriptionService:
             segments_generator, info = self.model.transcribe(
                 normalized_audio_path,
                 beam_size=5,
-                language="hi",
+                language=None,   # Auto-detect: Hinglish ke liye best — Monday/names English mein, Hindi sentences Hindi mein
                 task="transcribe",
                 condition_on_previous_text=False,
                 vad_filter=True,
                 vad_parameters=dict(threshold=0.5, min_speech_duration_ms=250, min_silence_duration_ms=500, speech_pad_ms=400),
-                initial_prompt="This is a financial meeting discussing business loans in Hinglish. Words: loan, crore, Monday, cancel, deal, HDFC, bank, client."
+                initial_prompt=self._build_initial_prompt(client_names)
             )
             logger.info(f'Detected language {info.language} with probability {info.language_probability}')
             segments = list(segments_generator)
             
-            # 2. PyAnnote Diarization
+            # 2. PyAnnote Diarization (only if diarize=True)
             diarization = None
-            if self.diarization_pipeline:
+            if diarize and self.diarization_pipeline:
                 logger.info('Running PyAnnote Diarization on normalized audio...')
                 diarization = self.diarization_pipeline(normalized_audio_path)
+            elif not diarize:
+                logger.info('Diarization skipped (Solo mode — single speaker).')
             
             # 3. Merge Logic
             transcript_text = ''
@@ -133,8 +148,13 @@ class TranscriptionService:
                     continue
                 if segment.compression_ratio > 2.4:
                     continue
-                speaker = self._get_speaker_for_segment(segment.start, segment.end, diarization)
-                transcript_text += f"[{speaker}]: {segment.text.strip()}\n"
+                if diarize and diarization:
+                    # Meeting mode — speaker labels lagao
+                    speaker = self._get_speaker_for_segment(segment.start, segment.end, diarization)
+                    transcript_text += f"[{speaker}]: {segment.text.strip()}\n"
+                else:
+                    # Solo mode — sirf clean text, koi prefix nahi
+                    transcript_text += f"{segment.text.strip()}\n"
                 
             final_text = transcript_text.strip()
             logger.info('Transcription & Diarization completed.')

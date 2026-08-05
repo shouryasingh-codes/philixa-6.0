@@ -7,6 +7,9 @@ const state = {
 };
 
 const els = {
+  editTranscriptPanel: document.querySelector("#editTranscriptPanel"),
+  editTranscriptText: document.querySelector("#editTranscriptText"),
+  saveTranscriptBtn: document.querySelector("#saveTranscriptBtn"),
   apiKey: document.querySelector("#apiKey"),
   toggleKey: document.querySelector("#toggleKey"),
   healthDot: document.querySelector("#healthDot"),
@@ -439,6 +442,7 @@ async function withLoading(button, label, fn) {
 }
 
 async function processNotes() {
+  els.editTranscriptPanel.classList.add("hidden");
   const rawNotes = els.rawNotes.value.trim();
   if (!rawNotes) {
     showToast("Paste meeting notes first.", true);
@@ -559,7 +563,90 @@ async function saveSettings() {
   }
 }
 
+
+async function saveTranscript() {
+  const meetingId = els.editTranscriptPanel.dataset.meetingId;
+  const rawNotes = els.editTranscriptText.value.trim();
+  
+  if (!meetingId) {
+    showToast("Meeting ID missing.", true);
+    return;
+  }
+  if (!rawNotes) {
+    showToast("Transcript cannot be empty.", true);
+    return;
+  }
+
+  els.editTranscriptPanel.classList.add("hidden");
+  els.processResult.innerHTML = `
+    <div style="display: flex; align-items: center; gap: 10px; padding: 10px;">
+      <span class="status-dot pulsing" style="background: var(--blue);"></span>
+      <strong style="color: var(--blue);">Reprocessing transcript via AI... This may take a few seconds.</strong>
+    </div>
+  `;
+
+  await api(`/api/v1/meeting-notes/${meetingId}/transcript`, {
+    method: "PATCH",
+    body: JSON.stringify({ raw_notes: rawNotes })
+  });
+
+  // Poll for background job completion
+  const pollInterval = setInterval(async () => {
+    try {
+      const response = await fetch(`/api/v1/meeting-notes/${meetingId}`, {
+        headers: { "X-API-Key": apiKey() }
+      });
+      if (response.ok) {
+        const meeting = await response.json();
+        if (meeting.status === 'processed') {
+          clearInterval(pollInterval);
+          
+          renderProcessResult({
+            meeting_id: meeting.id,
+            client_status: meeting.client_identification_status || "identified",
+            client_id: meeting.client_id,
+            requires_client_confirmation: false,
+            meeting_summary: meeting.summary,
+            commitments_created: [],
+            commitments_updated: [],
+            pending_commitments: meeting.commitments || [],
+            warnings: [],
+          });
+          
+          await refreshAll();
+          if (meeting.client_id) {
+            await loadMemory(meeting.client_id);
+          }
+          showToast("Transcript successfully reprocessed.");
+        } else if (meeting.status === 'client_identification_required') {
+          clearInterval(pollInterval);
+          state.pendingConfirmationMeetingId = meetingId;
+          els.newClientName.value = meeting.suggested_name || "";
+          els.confirmPanel.classList.remove("hidden");
+          await refreshAll();
+          showToast("Client identification required.");
+        } else if (meeting.status === 'manual_review_required' || meeting.status === 'failed') {
+          clearInterval(pollInterval);
+          els.editTranscriptPanel.classList.remove("hidden");
+          els.processResult.innerHTML = '<span class="muted">Reprocessing failed again. Please check your text.</span>';
+          showToast("Failed to process notes.", true);
+        }
+      }
+    } catch (err) {
+      console.error("Polling error:", err);
+    }
+  }, 2000);
+}
+
 function bindEvents() {
+  els.saveTranscriptBtn.addEventListener("click", () =>
+    withLoading(els.saveTranscriptBtn, "Saving...", () => saveTranscript()).catch((err) => {
+      showToast(err.message, true);
+      els.editTranscriptPanel.classList.remove("hidden");
+      els.processResult.innerHTML = '<span class="muted">Reprocessing failed. Please try again.</span>';
+    })
+  );
+
   els.toggleKey.addEventListener("click", () => {
     els.apiKey.type = els.apiKey.type === "password" ? "text" : "password";
   });
@@ -604,19 +691,35 @@ function bindEvents() {
   els.tabTextBtn.addEventListener("click", () => {
     els.tabTextBtn.classList.add("active");
     els.tabAudioBtn.classList.remove("active");
+    const tabLiveBtn = document.getElementById("tabLiveBtn");
+    if (tabLiveBtn) tabLiveBtn.classList.remove("active");
+
     els.viewText.classList.add("active");
     els.viewText.classList.remove("hidden");
+    els.viewText.style.display = ""; // Fix inline style issue
+    
     els.viewAudio.classList.remove("active");
     els.viewAudio.classList.add("hidden");
+    
+    const viewLive = document.getElementById("viewLive");
+    if (viewLive) viewLive.style.display = "none";
   });
   
   els.tabAudioBtn.addEventListener("click", () => {
     els.tabAudioBtn.classList.add("active");
     els.tabTextBtn.classList.remove("active");
+    const tabLiveBtn = document.getElementById("tabLiveBtn");
+    if (tabLiveBtn) tabLiveBtn.classList.remove("active");
+
     els.viewAudio.classList.add("active");
     els.viewAudio.classList.remove("hidden");
+    els.viewAudio.style.display = ""; // Fix inline style issue
+
     els.viewText.classList.remove("active");
     els.viewText.classList.add("hidden");
+
+    const viewLive = document.getElementById("viewLive");
+    if (viewLive) viewLive.style.display = "none";
   });
 
   els.audioFileInput.addEventListener("change", (e) => {
@@ -704,6 +807,7 @@ async function processAudio() {
   }
 
   els.processAudio.disabled = true;
+  els.editTranscriptPanel.classList.add("hidden");
   els.processAudio.textContent = "Uploading...";
   els.audioStatusBox.classList.remove("hidden");
   els.audioStatusText.textContent = "Uploading...";
@@ -799,6 +903,9 @@ async function processAudio() {
             els.audioStatusText.textContent = "Audio Needs Review";
             els.audioStatusDetails.textContent = "PHILIXA could not detect usable speech or safely create a summary. Check the recording and try again.";
             els.processAudio.disabled = false;
+            els.editTranscriptText.value = meeting.raw_notes || "";
+            els.editTranscriptPanel.dataset.meetingId = meeting.id;
+            els.editTranscriptPanel.classList.remove("hidden");
             renderProcessResult({
               meeting_id: meeting.id,
               client_status: "manual review required",
@@ -833,4 +940,203 @@ async function init() {
   }
 }
 
+// =============================================================================
+// DAY 12: LIVE TRANSCRIPTION
+// =============================================================================
+
+// --- State ---
+let liveWs = null;
+let audioContext = null;
+let audioStream = null;
+let workletNode = null;
+let liveTranscript = "";
+let isLiveRecording = false;
+let _liveApiKey = "";
+let _liveSampleRate = 16000;
+
+// --- Start Live Recording ---
+async function startLiveRecording(diarize = false) {
+  if (isLiveRecording) return;
+
+  try {
+    // Step 1: Mic permission + WebRTC noise suppression
+    audioStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        channelCount: 1,
+        echoCancellation: true,    // WebRTC built-in noise suppression
+        noiseSuppression: true,    // AC / fan noise fix
+        autoGainControl: true,
+        // FIX 3: sampleRate hardcode NAHI — browser ka default lene do
+      },
+    });
+
+    // FIX 3: Browser ka actual sample rate detect karo
+    audioContext = new AudioContext();
+    _liveSampleRate = audioContext.sampleRate;
+    console.log(`[Live] Browser sample rate: ${_liveSampleRate}Hz`);
+
+    // FIX 2: try/catch — silent fail nahi hoga, user ko batao
+    try {
+      await audioContext.audioWorklet.addModule("/static/pcm-processor.js");
+    } catch (err) {
+      console.error("[Live] AudioWorklet load failed:", err);
+      showToast("❌ Audio processor load nahi hua. Page refresh karo.", true);
+      audioContext.close();
+      audioContext = null;
+      return;
+    }
+
+    const source = audioContext.createMediaStreamSource(audioStream);
+    workletNode = new AudioWorkletNode(audioContext, "pcm-processor");
+
+    // Step 2: WebSocket connect karo
+    _liveApiKey = document.getElementById("apiKey").value;
+    connectLiveWebSocket(_liveApiKey, _liveSampleRate, diarize);
+
+    // Step 3: AudioWorklet → WebSocket pipeline
+    workletNode.port.onmessage = (event) => {
+      if (liveWs?.readyState === WebSocket.OPEN) {
+        liveWs.send(event.data); // Raw Int16 binary — zero encoding overhead
+      }
+    };
+
+    // Step 4: Audio graph connect karo
+    source.connect(workletNode);
+    workletNode.connect(audioContext.destination);
+
+    isLiveRecording = true;
+    updateLiveUI("recording");
+  } catch (err) {
+    console.error("[Live] Recording start failed:", err);
+    updateLiveUI("error", err.message);
+  }
+}
+
+// Addition B: Auto-reconnect on disconnect (2026 network drop fix)
+function connectLiveWebSocket(apiKey, sampleRate, diarize = false) {
+  const wsUrl = `ws://${window.location.host}/api/v1/live/transcribe?api_key=${apiKey}&sample_rate=${sampleRate}&diarize=${diarize}`;
+  liveWs = new WebSocket(wsUrl);
+  liveWs.binaryType = "arraybuffer";
+
+  liveWs.onopen = () => {
+    console.log("[Live] WebSocket connected.");
+    updateLiveUI("recording");
+  };
+
+  liveWs.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+
+    // Server processing shuru — UI update karo
+    if (data.action === "processing") {
+      const statusEl = document.getElementById("liveStatusText");
+      if (statusEl) statusEl.textContent = "⏳ Processing audio...";
+      return;
+    }
+
+    // Stop signal confirmed — final transcript ready
+    if (data.action === "stopped") {
+      if (liveWs) liveWs.close(1000, "Clean close after stop");
+      liveWs = null;
+      updateLiveUI("stopped");
+
+      // Final transcript → Paste Notes tab mein daalo
+      if (data.confirmed && data.confirmed.trim()) {
+        const rawNotesEl = document.getElementById("rawNotes");
+        if (rawNotesEl) rawNotesEl.value = data.confirmed.trim();
+        const tabTextBtn = document.getElementById("tabTextBtn");
+        if (tabTextBtn) tabTextBtn.click();
+        showToast("✅ Transcript ready! Review karke Process karo.");
+      } else {
+        showToast("⚠️ Koi audio nahi mili ya transcription fail hua.", true);
+      }
+    }
+  };
+
+
+  // Addition B: Auto-reconnect agar network drop ho
+  liveWs.onclose = (event) => {
+    console.log(`[Live] WebSocket closed (code: ${event.code}).`);
+    if (isLiveRecording && event.code !== 1000) {
+      // 1000 = clean user-initiated close — reconnect mat karo
+      console.log("[Live] Auto-reconnecting in 2s...");
+      setTimeout(() => connectLiveWebSocket(apiKey, sampleRate), 2000);
+    }
+  };
+
+  liveWs.onerror = (err) => {
+    console.error("[Live] WebSocket error:", err);
+  };
+}
+
+// --- Stop Live Recording ---
+function stopLiveRecording() {
+  isLiveRecording = false;
+
+  // Audio graph cleanup
+  workletNode?.disconnect();
+  audioContext?.close();
+  audioStream?.getTracks().forEach((t) => t.stop());
+
+  workletNode = null;
+  audioContext = null;
+  audioStream = null;
+
+  if (liveWs?.readyState === WebSocket.OPEN) {
+    // Send stop signal to flush backend buffer immediately
+    liveWs.send(JSON.stringify({ action: "stop" }));
+    const stopBtn = document.getElementById("stopLiveBtn");
+    if (stopBtn) {
+      stopBtn.textContent = "Saving...";
+      stopBtn.disabled = true;
+    }
+  } else {
+    liveWs = null;
+    updateLiveUI("stopped");
+  }
+}
+
+// --- UI State Helper ---
+function updateLiveUI(state, message = "") {
+  const states = {
+    recording: { text: "🔴 Recording...", startDisabled: true,  stopDisabled: false },
+    stopped:   { text: "⏸ Ready",        startDisabled: false, stopDisabled: true  },
+    error:     { text: `❌ ${message}`,   startDisabled: false, stopDisabled: true  },
+  };
+  const s = states[state] || states.stopped;
+  const statusEl = document.getElementById("liveStatusText");
+  const soloBtn    = document.getElementById("startSoloBtn");
+  const meetingBtn = document.getElementById("startMeetingBtn");
+  const stopBtn    = document.getElementById("stopLiveBtn");
+  if (statusEl) statusEl.textContent = s.text;
+  if (soloBtn)    soloBtn.disabled    = s.startDisabled;
+  if (meetingBtn) meetingBtn.disabled = s.startDisabled;
+  if (stopBtn) {
+    stopBtn.disabled = s.stopDisabled;
+    if (state === "stopped") stopBtn.textContent = "Stop & Save";
+  }
+}
+
+// FIX 6: Tab switching event listener — existing tab pattern ke saath integrate
+document.addEventListener("DOMContentLoaded", () => {
+  const tabLiveBtn = document.getElementById("tabLiveBtn");
+  if (!tabLiveBtn) return;
+
+  tabLiveBtn.addEventListener("click", () => {
+    // Existing tabs hide karo
+    document.getElementById("viewText")?.setAttribute("style", "display:none");
+    document.getElementById("viewAudio")?.setAttribute("style", "display:none");
+    // Live view show karo
+    const liveView = document.getElementById("viewLive");
+    if (liveView) liveView.style.display = "block";
+    // Active class update
+    document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+    tabLiveBtn.classList.add("active");
+  });
+});
+
+// =============================================================================
+// END DAY 12
+// =============================================================================
+
 init().catch((err) => showToast(err.message, true));
+

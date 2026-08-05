@@ -80,7 +80,8 @@ class MemoryService:
             "pending_commitments": pending_commitments,
             "major_concerns": major_concerns[:5],
             "recent_relationship_notes": [
-                self._meeting_display_summary(client.name, meeting, [])
+                f"[{meeting.meeting_date.isoformat()}] "
+                f"{self._meeting_display_summary(client.name, meeting, [])}"
                 for meeting in recent_meetings
                 if meeting.summary
             ],
@@ -118,11 +119,16 @@ class MemoryService:
         products_owned: list[str],
     ) -> str:
         parts: list[str] = []
-        latest_summary = self._meeting_display_summary(client_name, latest_meeting, pending)
-        if latest_summary:
-            parts.append(latest_summary.rstrip(".") + ".")
-        elif latest_meeting:
-            parts.append(f"{client_name} had a recent client interaction.")
+        if latest_meeting:
+            summary = (latest_meeting.summary or "").strip()
+            if summary and "Concerns noted:" not in summary:
+                parts.append(summary.rstrip(".") + ".")
+            else:
+                topic = self._meeting_topic(latest_meeting)
+                if topic:
+                    parts.append(f"{client_name} recently discussed {topic}.")
+                else:
+                    parts.append(f"{client_name} had a recent client interaction.")
         if products_owned:
             parts.append(f"Tracked products include {', '.join(products_owned[:3])}.")
         if concerns:
@@ -214,16 +220,18 @@ class MemoryService:
         if not meeting:
             return ""
         summary = (meeting.summary or "").strip()
-        if summary and "Concerns noted:" not in summary and "Commitments captured:" not in summary:
-            return summary
         parts: list[str] = []
-        topic = self._meeting_topic(meeting)
-        if topic:
-            parts.append(f"{client_name} discussed {topic}.")
+        if summary and "Concerns noted:" not in summary and "Commitments captured:" not in summary:
+            parts.append(summary.rstrip(".") + ".")
+        else:
+            topic = self._meeting_topic(meeting)
+            if topic:
+                parts.append(f"{client_name} discussed {topic}.")
+                
         concerns = self._collect_concerns([meeting])
         if concerns:
             parts.append(
-                f"{client_name} expressed concerns about {self._format_concern(concerns[0].get('description'))}."
+                f"A key concern is: {self._format_concern(concerns[0].get('description'))}."
             )
         if pending:
             if len(pending) == 1:
