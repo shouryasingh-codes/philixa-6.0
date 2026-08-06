@@ -1,8 +1,9 @@
 """
-Day 12 (Accuracy Fix): Live Audio Collection WebSocket Route
+Day 12 (Accuracy Fix) + Day 13 (Robustness): Live Audio Collection WebSocket Route
 Simplified: No chunk inference loop, no watchdog.
 Browser audio is silently collected in buffer.
 On stop: full audio → WAV → transcription_service (same as Audio Upload) → result.
+Day 13 additions: Duplicate stop prevention, minimum audio duration check.
 """
 
 import asyncio
@@ -59,6 +60,7 @@ async def live_transcribe(
         browser_sample_rate=sample_rate,
     )
 
+    finalized = False  # Day 13: Duplicate stop prevention
     try:
         # Step 4: Browser se audio chunks receive karo — silently collect
         while True:
@@ -71,8 +73,22 @@ async def live_transcribe(
             elif "text" in message:
                 text_data = json.loads(message["text"])
 
-                if text_data.get("action") == "stop":
+                if text_data.get("action") == "stop" and not finalized:
+                    finalized = True  # Day 13: Ek baar se zyada stop nahi chalega
                     logger.info("Stop signal received. Starting full-audio transcription...")
+
+                    # Day 13: Minimum audio duration check (3 seconds)
+                    min_duration_seconds = 3.0
+                    actual_duration = buffer.total_samples / SAMPLE_RATE
+                    if actual_duration < min_duration_seconds:
+                        logger.warning(f"Audio too short ({actual_duration:.1f}s) — skipping transcription.")
+                        await websocket.send_json({
+                            "action": "stopped",
+                            "confirmed": "",
+                            "is_final": True,
+                            "error": f"Recording too short ({actual_duration:.1f}s). Minimum 3 seconds required."
+                        })
+                        break
 
                     # UI ko batao ki processing shuru ho gayi
                     await websocket.send_json({"action": "processing"})

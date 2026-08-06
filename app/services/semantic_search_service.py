@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.meeting_evidence import MeetingEvidence
 from app.models.meeting import Meeting
 from app.services.embedding_service import generate_query_embedding
+from datetime import date
 
 logger = logging.getLogger(__name__)
 
@@ -13,10 +14,13 @@ async def search_meeting_evidence(
     organization_id: str,
     user_id: str,
     client_id: int | None = None,
-    limit: int = 5
+    limit: int = 5,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    exact_keywords: list[str] | None = None
 ) -> list[dict]:
     """
-    Hybrid retrieval: Semantic search + SQL keyword/tenant filters.
+    Hybrid retrieval: Semantic search + SQL keyword/tenant/date filters.
     """
     # 1. Generate query embedding (uses 'query: ' prefix internally)
     query_vector = generate_query_embedding(query)
@@ -32,6 +36,18 @@ async def search_meeting_evidence(
     # Apply optional client filter
     if client_id:
         stmt = stmt.where(Meeting.client_id == client_id)
+        
+    # Apply Date filters
+    if start_date:
+        stmt = stmt.where(Meeting.meeting_date >= start_date)
+    if end_date:
+        stmt = stmt.where(Meeting.meeting_date <= end_date)
+        
+    # Apply Keyword filters
+    if exact_keywords:
+        for kw in exact_keywords:
+            if kw and kw.strip():
+                stmt = stmt.where(MeetingEvidence.chunk_text.ilike(f"%{kw.strip()}%"))
         
     # 3. Apply pgvector semantic search
     # Order by cosine distance (<=> operator in Postgres)

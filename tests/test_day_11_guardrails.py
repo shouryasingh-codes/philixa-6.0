@@ -158,5 +158,5 @@ async def test_arq_ml_error_boundary(temp_audio_file):
         
         # Verify notification was dispatched for failure
         mock_notify.assert_called_once_with(
-            mock_session, 123, client_name=None, success=False
+            mock_session, 123, client_name=None, success=False, organization_id="default"
         )

@@ -19,5 +19,7 @@ def require_api_key(
             detail="Invalid or missing API key.",
         )
 
-def get_current_org_id(_api_key: None = Depends(require_api_key)) -> str:
+from typing import Any
+
+def get_current_org_id(_api_key: Any = Depends(require_api_key)) -> str:
     return "org_1"

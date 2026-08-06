@@ -80,5 +80,15 @@ class MinioService:
             logger.error(f"Failed to get object stream for {object_name}: {e}")
             raise
 
+    def delete_audio_file(self, object_name: str) -> None:
+        """
+        Deletes the audio file from MinIO bucket to free up storage space.
+        """
+        try:
+            self.client.remove_object(self.bucket_name, object_name)
+            logger.info(f"Successfully deleted {object_name} from MinIO")
+        except S3Error as e:
+            logger.error(f"Failed to delete {object_name} from MinIO: {e}")
+
 # Singleton instance to be used across the app
 minio_service = MinioService()

@@ -37,6 +37,11 @@ class Settings:
     smtp_password: str
     smtp_use_tls: bool
     smtp_from_address: str
+    # WhatsApp Cloud API
+    whatsapp_phone_number_id: str
+    whatsapp_business_account_id: str
+    whatsapp_access_token: str
+    whatsapp_verify_token: str
     # Misc
     prompt_version: str
     raw_notes_max_chars: int
@@ -52,6 +57,7 @@ class Settings:
     minio_access_key: str
     minio_secret_key: str
     minio_bucket_name: str
+    retain_audio_files: bool
     
     # HuggingFace
     hf_token: str
@@ -103,6 +109,11 @@ def get_settings() -> Settings:
         smtp_password=os.getenv("PHILIXA_SMTP_PASSWORD", "").strip(),
         smtp_use_tls=os.getenv("PHILIXA_SMTP_USE_TLS", "1") == "1",
         smtp_from_address=os.getenv("PHILIXA_SMTP_FROM_ADDRESS", "no-reply@philixa.com").strip(),
+        # WhatsApp Cloud API
+        whatsapp_phone_number_id=os.getenv("WHATSAPP_PHONE_NUMBER_ID", "").strip(),
+        whatsapp_business_account_id=os.getenv("WHATSAPP_BUSINESS_ACCOUNT_ID", "").strip(),
+        whatsapp_access_token=os.getenv("WHATSAPP_ACCESS_TOKEN", "").strip(),
+        whatsapp_verify_token=os.getenv("WHATSAPP_VERIFY_TOKEN", "").strip(),
         # Misc
         prompt_version=os.getenv("PHILIXA_PROMPT_VERSION", "v1-mvp-2026-06-19"),
         raw_notes_max_chars=_env_int("PHILIXA_RAW_NOTES_MAX_CHARS", 10000),
@@ -124,6 +135,7 @@ def get_settings() -> Settings:
         minio_access_key=os.getenv("PHILIXA_MINIO_ACCESS_KEY", "philixa_minio").strip(),
         minio_secret_key=os.getenv("PHILIXA_MINIO_SECRET_KEY", "philixa_secret").strip(),
         minio_bucket_name=os.getenv("PHILIXA_MINIO_BUCKET_NAME", "philixa-audio").strip(),
+        retain_audio_files=os.getenv("PHILIXA_RETAIN_AUDIO", "0") == "1",
         # HuggingFace Token
         hf_token=os.getenv("PHILIXA_HF_TOKEN", "").strip(),
     )

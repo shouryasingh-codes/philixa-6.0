@@ -23,6 +23,8 @@ document.addEventListener("DOMContentLoaded", () => {
   let recognition = null;
   let finalTranscript = "";
 
+  let isRecording = false;
+
   // Check if browser supports Web Speech API
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   
@@ -31,42 +33,52 @@ document.addEventListener("DOMContentLoaded", () => {
     startDictationBtn.disabled = true;
   } else {
     recognition = new SpeechRecognition();
-    recognition.continuous = true;
+    recognition.continuous = false; // Android bug fix: set to false, auto-restart on end
     recognition.interimResults = true;
-    // Set to en-IN. This works perfectly on Chrome for Hinglish
-    // Chrome translates spoken Hindi into English alphabet automatically with en-IN
     recognition.lang = 'en-IN'; 
 
     recognition.onstart = () => {
       dictationStatusText.textContent = "🔴 Recording... Speak now";
       startDictationBtn.disabled = true;
       stopDictationBtn.disabled = false;
-      finalTranscript = "";
-      dictationResult.innerHTML = "";
     };
 
     recognition.onerror = (event) => {
       console.error("Speech recognition error", event.error);
-      dictationStatusText.textContent = `❌ Error: ${event.error}`;
-      startDictationBtn.disabled = false;
-      stopDictationBtn.disabled = true;
+      if (event.error !== 'no-speech') {
+        dictationStatusText.textContent = `❌ Error: ${event.error}`;
+        startDictationBtn.disabled = false;
+        stopDictationBtn.disabled = true;
+        isRecording = false;
+      }
     };
 
     recognition.onend = () => {
-      // If stopped naturally or by button
-      dictationStatusText.textContent = "⏸ Ready (Web Speech API)";
-      startDictationBtn.disabled = false;
-      stopDictationBtn.disabled = true;
+      if (isRecording) {
+        // Auto-restart to simulate continuous recording safely
+        try { recognition.start(); } catch(e) {}
+      } else {
+        dictationStatusText.textContent = "⏸ Ready (Web Speech API)";
+        startDictationBtn.disabled = false;
+        stopDictationBtn.disabled = true;
+      }
     };
 
     recognition.onresult = (event) => {
+      let currentFinal = "";
       let interimTranscript = "";
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
+      for (let i = 0; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript + " ";
+          currentFinal += event.results[i][0].transcript + " ";
         } else {
           interimTranscript += event.results[i][0].transcript;
         }
+      }
+      
+      // Because continuous=false, currentFinal is just the current finished sentence.
+      // Append it to our global finalTranscript immediately.
+      if (currentFinal) {
+         finalTranscript += currentFinal;
       }
       
       dictationResult.innerHTML = `
@@ -79,12 +91,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // --- UI Interactions ---
 
   tabFastDictationBtn.addEventListener("click", () => {
-    // Make this tab active
     tabFastDictationBtn.classList.add("active");
     viewFastDictation.classList.remove("hidden");
     viewFastDictation.style.display = "block";
     
-    // Deactivate others
     [tabTextBtn, tabAudioBtn, tabLiveBtn].forEach(btn => {
       if(btn) btn.classList.remove("active");
     });
@@ -98,17 +108,14 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Make sure clicking other tabs hides Fast Dictation
   [tabTextBtn, tabAudioBtn, tabLiveBtn].forEach(btn => {
     if(!btn) return;
     btn.addEventListener("click", () => {
       tabFastDictationBtn.classList.remove("active");
       viewFastDictation.classList.add("hidden");
       viewFastDictation.style.display = "none";
-      // Stop recognition if active
-      if (recognition && !startDictationBtn.disabled) {
-          // It's not running
-      } else if (recognition) {
+      if (recognition && isRecording) {
+          isRecording = false;
           recognition.stop();
       }
     });
@@ -117,6 +124,9 @@ document.addEventListener("DOMContentLoaded", () => {
   startDictationBtn.addEventListener("click", () => {
     if (recognition) {
       try {
+        finalTranscript = "";
+        dictationResult.innerHTML = "";
+        isRecording = true;
         recognition.start();
       } catch (e) {
         console.error(e);
@@ -126,14 +136,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   stopDictationBtn.addEventListener("click", () => {
     if (recognition) {
+      isRecording = false;
       recognition.stop();
       
-      // Auto-switch to Text tab and paste notes
       if (finalTranscript.trim()) {
         const textToPaste = finalTranscript.trim();
         rawNotes.value = textToPaste;
-        
-        // Emulate clicking the Text tab
         tabTextBtn.click();
       }
     }

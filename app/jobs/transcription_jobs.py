@@ -70,7 +70,7 @@ async def _notify_meeting_processed(
         # Notification failure should NEVER crash the transcription job
         logger.warning(f"Failed to send meeting processed notification: {e}")
 
-async def process_meeting_transcription(ctx: dict, meeting_id: int, audio_file_path: str, known_client_id: int | None = None) -> bool:
+async def process_meeting_transcription(ctx: dict, meeting_id: int, audio_file_path: str, known_client_id: int | None = None, organization_id: str = "default") -> bool:
     """
     ARQ Background job to transcribe audio for a meeting.
     This job is meant to run Whisper/WhisperX on the provided audio_file_path.
@@ -172,7 +172,7 @@ async def process_meeting_transcription(ctx: dict, meeting_id: int, audio_file_p
                 logger.warning("Meeting %d needs review because no usable speech was transcribed.", meeting_id)
                 # Notify user — empty audio / no speech detected
                 await _notify_meeting_processed(
-                    db, meeting_id, client_name=None, success=False
+                    db, meeting_id, client_name=None, success=False, organization_id=organization_id
                 )
                 return False
                 
@@ -200,7 +200,7 @@ async def process_meeting_transcription(ctx: dict, meeting_id: int, audio_file_p
                 client_obj = await db.get(Client, result["client_id"])
                 client_name = client_obj.name if client_obj else None
             await _notify_meeting_processed(
-                db, meeting_id, client_name=client_name, success=True
+                db, meeting_id, client_name=client_name, success=True, organization_id=organization_id
             )
 
             logger.info(f"Successfully transcribed and processed meeting {meeting_id}")
@@ -220,6 +220,24 @@ async def process_meeting_transcription(ctx: dict, meeting_id: int, audio_file_p
             
             # Notify failure
             await _notify_meeting_processed(
-                db, meeting_id, client_name=None, success=False
+                db, meeting_id, client_name=None, success=False, organization_id=organization_id
             )
             return False
+            
+        finally:
+            from app.core.config import get_settings
+            settings = get_settings()
+            if not settings.retain_audio_files and audio_file_path:
+                logger.info(f"Audio retention disabled. Cleaning up MinIO file {audio_file_path}.")
+                try:
+                    minio_service.delete_audio_file(audio_file_path)
+                    
+                    # Update meeting record to clear the audio path
+                    stmt = select(Meeting).where(Meeting.id == meeting_id)
+                    result = await db.execute(stmt)
+                    m = result.scalar_one_or_none()
+                    if m and m.audio_path:
+                        m.audio_path = None
+                        await db.commit()
+                except Exception as e:
+                    logger.error(f"Failed to cleanup audio file {audio_file_path}: {e}")

@@ -15,6 +15,52 @@ class AskClientService:
     def __init__(self):
         self.settings = get_settings()
 
+    async def _parse_query(self, query: str) -> dict:
+        import asyncio
+        today_str = date.today().isoformat()
+        prompt = (
+            f"You are a search query parser. Today's date is {today_str}.\n"
+            f"Extract date ranges and exact keywords from the user's natural language query.\n"
+            f"User query: '{query}'\n\n"
+            f"Rules:\n"
+            f"1. If the user mentions a specific timeline (e.g. 'last 6 months', '2023', 'last week'), calculate the start_date and end_date in YYYY-MM-DD format.\n"
+            f"2. If no time is mentioned, leave start_date and end_date as null.\n"
+            f"3. If the user mentions specific policy numbers, IDs, or exact names, put them in exact_keywords. Otherwise leave it empty.\n"
+            f"4. optimized_query should be a clean version of the question for vector search.\n"
+        )
+        
+        schema = {
+            "type": "object",
+            "properties": {
+                "optimized_query": {"type": "string"},
+                "start_date": {"type": ["string", "null"]},
+                "end_date": {"type": ["string", "null"]},
+                "exact_keywords": {
+                    "type": "array",
+                    "items": {"type": "string"}
+                }
+            },
+            "required": ["optimized_query", "start_date", "end_date", "exact_keywords"]
+        }
+        
+        try:
+            provider = get_ai_provider(self.settings.ai_economy_provider, self.settings)
+            response_json = await asyncio.to_thread(
+                provider.generate_json,
+                model=self.settings.ai_economy_model,
+                prompt=prompt,
+                schema=schema
+            )
+            return json.loads(response_json)
+        except Exception as e:
+            logger.error(f"Failed to parse query, falling back: {e}")
+            return {
+                "optimized_query": query,
+                "start_date": None,
+                "end_date": None,
+                "exact_keywords": []
+            }
+
     async def ask(self, db: AsyncSession, client_id: int, query: str) -> dict:
         client = await db.get(Client, client_id)
         if not client:
@@ -22,15 +68,32 @@ class AskClientService:
 
         from app.services.semantic_search_service import search_meeting_evidence
         
-        # New Day 7 Semantic Search Engine
-        # Instead of loading the last 20 meetings blindly, we only search for the most relevant paragraphs using AI vectors!
+        parsed = await self._parse_query(query)
+        
+        start_date = None
+        end_date = None
+        if parsed.get("start_date"):
+            try:
+                start_date = date.fromisoformat(parsed["start_date"])
+            except ValueError:
+                pass
+        if parsed.get("end_date"):
+            try:
+                end_date = date.fromisoformat(parsed["end_date"])
+            except ValueError:
+                pass
+        
+        # New Day 7 Semantic Search Engine with Date & Keyword Filters
         evidence_list = await search_meeting_evidence(
             db=db,
-            query=query,
+            query=parsed.get("optimized_query", query),
             organization_id="default", # Default placeholder
             user_id="default",         # Default placeholder
             client_id=client_id,
-            limit=5
+            limit=5,
+            start_date=start_date,
+            end_date=end_date,
+            exact_keywords=parsed.get("exact_keywords", [])
         )
 
         context_blocks = []

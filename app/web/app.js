@@ -1014,7 +1014,8 @@ async function startLiveRecording(diarize = false) {
 
 // Addition B: Auto-reconnect on disconnect (2026 network drop fix)
 function connectLiveWebSocket(apiKey, sampleRate, diarize = false) {
-  const wsUrl = `ws://${window.location.host}/api/v1/live/transcribe?api_key=${apiKey}&sample_rate=${sampleRate}&diarize=${diarize}`;
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = `${protocol}//${window.location.host}/api/v1/live/transcribe?api_key=${apiKey}&sample_rate=${sampleRate}&diarize=${diarize}`;
   liveWs = new WebSocket(wsUrl);
   liveWs.binaryType = "arraybuffer";
 
@@ -1045,9 +1046,9 @@ function connectLiveWebSocket(apiKey, sampleRate, diarize = false) {
         if (rawNotesEl) rawNotesEl.value = data.confirmed.trim();
         const tabTextBtn = document.getElementById("tabTextBtn");
         if (tabTextBtn) tabTextBtn.click();
-        showToast("✅ Transcript ready! Review karke Process karo.");
+        showToast("✅ Transcript ready! Review and click Process Notes.");
       } else {
-        showToast("⚠️ Koi audio nahi mili ya transcription fail hua.", true);
+        showToast("⚠️ No audio recorded or transcription failed. Please try again.", true);
       }
     }
   };

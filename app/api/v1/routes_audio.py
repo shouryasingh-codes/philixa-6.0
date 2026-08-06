@@ -18,12 +18,15 @@ router = APIRouter(prefix="/audio", tags=["Audio"])
 ALLOWED_AUDIO_TYPES = ["audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/wav", "audio/x-wav", "video/mp4"]
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 
+from app.core.security import get_current_org_id
+
 @router.post("/upload")
 async def upload_audio_meeting(
     file: UploadFile = File(...),
     meeting_date: date = Form(...),
     known_client_id: int | None = Form(None),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    organization_id: str = Depends(get_current_org_id)
 ) -> Any:
     """
     Upload an audio file (mp3, wav, m4a).
@@ -99,7 +102,8 @@ async def upload_audio_meeting(
             "process_meeting_transcription", 
             meeting_id=new_meeting.id,
             audio_file_path=object_name,
-            known_client_id=known_client_id
+            known_client_id=known_client_id,
+            organization_id=organization_id
         )
         logger.info(f"Enqueued process_meeting_transcription job for meeting {new_meeting.id}")
     except Exception as e:

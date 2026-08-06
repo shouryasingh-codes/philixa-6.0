@@ -3,6 +3,7 @@ from app.core.config import get_settings
 from app.services.notifications.base import NotificationAdapter
 from app.services.notifications.simulator import SimulatedNotificationAdapter
 from app.services.notifications.email_adapter import EmailAdapter
+from app.services.notifications.whatsapp_adapter import WhatsAppAdapter
 
 _notification_adapter: Optional[NotificationAdapter] = None
 
@@ -26,6 +27,8 @@ def get_notification_adapter() -> NotificationAdapter:
             use_tls=settings.smtp_use_tls,
             from_address=settings.smtp_from_address
         )
+    elif settings.notification_mode == "whatsapp":
+        _notification_adapter = WhatsAppAdapter()
     else:
         _notification_adapter = SimulatedNotificationAdapter()
         
