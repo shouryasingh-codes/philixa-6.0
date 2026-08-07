@@ -21,6 +21,7 @@ class Settings:
     ai_api_key: str
     ai_base_url: str
     ai_timeout_seconds: int
+
     # Dual-provider fallback system
     ai_economy_provider: str
     ai_economy_model: str
@@ -62,6 +63,9 @@ class Settings:
     # HuggingFace
     hf_token: str
     
+    # Voice AI Architecture
+    transcription_mode: str = "local"
+    deepgram_api_key: str = ""
 
 def _env_int(name: str, default: int) -> int:
     value = os.getenv(name)
@@ -138,4 +142,7 @@ def get_settings() -> Settings:
         retain_audio_files=os.getenv("PHILIXA_RETAIN_AUDIO", "0") == "1",
         # HuggingFace Token
         hf_token=os.getenv("PHILIXA_HF_TOKEN", "").strip(),
+        # Voice AI Architecture
+        transcription_mode=os.getenv("PHILIXA_TRANSCRIPTION_MODE", "local").strip(),
+        deepgram_api_key=os.getenv("PHILIXA_DEEPGRAM_API_KEY", "").strip(),
     )

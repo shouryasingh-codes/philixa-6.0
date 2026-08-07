@@ -43,11 +43,11 @@ async def search_meeting_evidence(
     if end_date:
         stmt = stmt.where(Meeting.meeting_date <= end_date)
         
-    # Apply Keyword filters
-    if exact_keywords:
-        for kw in exact_keywords:
-            if kw and kw.strip():
-                stmt = stmt.where(MeetingEvidence.chunk_text.ilike(f"%{kw.strip()}%"))
+    # Apply Keyword filters (DISABLED: breaks semantic search if words are not verbatim in chunk)
+    # if exact_keywords:
+    #     for kw in exact_keywords:
+    #         if kw and kw.strip():
+    #             stmt = stmt.where(MeetingEvidence.chunk_text.ilike(f"%{kw.strip()}%"))
         
     # 3. Apply pgvector semantic search
     # Order by cosine distance (<=> operator in Postgres)

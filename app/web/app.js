@@ -64,6 +64,35 @@ const els = {
   meetingDateAudio: document.querySelector("#meetingDateAudio"),
 };
 
+let currentAudio = null;
+
+async function playTTS(text) {
+  try {
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio = null;
+    }
+    const res = await fetch('/api/v1/voice/speak', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey()
+      },
+      body: JSON.stringify({ text })
+    });
+    if (!res.ok) {
+      console.log('TTS not enabled or failed', res.status);
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    currentAudio = new Audio(url);
+    currentAudio.play();
+  } catch (err) {
+    console.error('TTS Error:', err);
+  }
+}
+
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -415,7 +444,7 @@ async function askClient() {
     if (payload.source_meetings && payload.source_meetings.length > 0) {
       answerHtml += `<p class="muted" style="margin-top: 0.5rem; font-size: 0.8rem;">Sources: Meetings ${payload.source_meetings.join(", ")}</p>`;
     }
-    els.askClientResult.innerHTML = answerHtml;
+    els.askClientResult.innerHTML = answerHtml; playTTS(payload.answer);
   } catch (err) {
     els.askClientResult.innerHTML = `<span class="error" style="color: var(--danger)">${escapeHtml(err.message)}</span>`;
   }
@@ -669,6 +698,39 @@ function bindEvents() {
   els.refreshPriorities.addEventListener("click", () =>
     withLoading(els.refreshPriorities, "Loading…", () => loadPriorities()).catch((err) => showToast(err.message, true))
   );
+  let askAiRec = null;
+  if ('webkitSpeechRecognition' in window) {
+    askAiRec = new webkitSpeechRecognition();
+    askAiRec.continuous = false;
+    askAiRec.interimResults = false;
+    askAiRec.lang = 'en-US';
+    askAiRec.onresult = (e) => {
+      els.askClientInput.value = e.results[0][0].transcript;
+      els.askClientInput.placeholder = 'Ask AI about this client...';
+      els.askClientBtn.click();
+    };
+    askAiRec.onerror = (e) => {
+      console.error(e);
+      els.askClientInput.placeholder = 'Ask AI about this client...';
+    };
+    askAiRec.onend = () => {
+      els.askClientInput.placeholder = 'Ask AI about this client...';
+    };
+  }
+
+  const askClientVoiceBtn = document.querySelector('#askClientVoiceBtn');
+  if (askClientVoiceBtn) {
+    askClientVoiceBtn.addEventListener('click', () => {
+      if (askAiRec) {
+        els.askClientInput.value = '';
+        els.askClientInput.placeholder = 'Listening...';
+        askAiRec.start();
+      } else {
+        alert('Voice recognition not supported in this browser.');
+      }
+    });
+  }
+
   els.askClientBtn.addEventListener("click", () =>
     withLoading(els.askClientBtn, "Asking…", () => askClient()).catch((err) => showToast(err.message, true))
   );
@@ -1060,7 +1122,11 @@ function connectLiveWebSocket(apiKey, sampleRate, diarize = false) {
     if (isLiveRecording && event.code !== 1000) {
       // 1000 = clean user-initiated close — reconnect mat karo
       console.log("[Live] Auto-reconnecting in 2s...");
-      setTimeout(() => connectLiveWebSocket(apiKey, sampleRate), 2000);
+      setTimeout(() => {
+        if (isLiveRecording) {
+          connectLiveWebSocket(apiKey, sampleRate, diarize);
+        }
+      }, 2000);
     }
   };
 

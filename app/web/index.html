@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/styles.css?v=3" />
+  <link rel="stylesheet" href="/static/styles.css?v=4" />
 </head>
 
 <body>
@@ -261,6 +261,7 @@
             <div class="ask-client-input-row">
               <input id="askClientInput" type="text"
                 placeholder="Ask AI about this client... (e.g. What is the latest concern?)" />
+              <button id="askClientVoiceBtn" type="button" class="secondary-action" title="Hold or click to speak">🎙️</button>
               <button id="askClientBtn" type="button" class="primary-action">Ask</button>
             </div>
             <div id="askClientResult" class="ask-client-result hidden"></div>
@@ -340,6 +341,11 @@
       </div>
     </div>
   </div>
+
+  <!-- Philixa Voice Assistant Floating Button -->
+  <button id="philixaVoiceBtn" class="fab-voice-btn" title="Talk to Philixa" type="button">
+    <div class="fab-icon">🎙️</div>
+  </button>
 
   <script src="/static/app.js?v=8"></script>
   <script src="/static/fast-dictation.js?v=1"></script>

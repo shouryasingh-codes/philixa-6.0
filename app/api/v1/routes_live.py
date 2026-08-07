@@ -16,7 +16,7 @@ from sqlalchemy import select
 
 from app.database.session import AsyncSessionLocal
 from app.models.client import Client
-from app.services.live_transcription_service import LiveTranscriptionBuffer
+
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/live", tags=["Live Transcription"])
@@ -54,11 +54,27 @@ async def live_transcribe(
         client_names = [n for n in result.all() if n]
     logger.info(f"Loaded {len(client_names)} client names for prompt injection.")
 
-    # Step 3: Naya simplified buffer (sirf collect karta hai, infer nahi)
-    buffer = LiveTranscriptionBuffer(
-        client_names=client_names,
-        browser_sample_rate=sample_rate,
-    )
+    # Step 3: Initialize Strategy based on configuration
+    from app.services.live_strategies import LocalTranscriptionSession, DeepgramTranscriptionSession
+    
+    if settings.transcription_mode == "cloud" and settings.deepgram_api_key:
+        logger.info("Using Deepgram Cloud Transcription Strategy")
+        session = DeepgramTranscriptionSession(
+            api_key=settings.deepgram_api_key,
+            sample_rate=sample_rate,
+            diarize=diarize
+        )
+        await session.initialize()
+    else:
+        logger.info("Using Local Whisper Transcription Strategy")
+        session = LocalTranscriptionSession(
+            client_names=client_names,
+            sample_rate=sample_rate,
+            diarize=diarize
+        )
+        await session.initialize()
+        
+    total_bytes_received = 0
 
     finalized = False  # Day 13: Duplicate stop prevention
     try:
@@ -67,8 +83,10 @@ async def live_transcribe(
             message = await websocket.receive()
 
             if "bytes" in message:
-                # Raw PCM audio chunk — buffer mein daalo, kuch aur nahi
-                await buffer.add_chunk(message["bytes"])
+                # Raw PCM audio chunk — pass to strategy
+                chunk = message["bytes"]
+                total_bytes_received += len(chunk)
+                await session.add_chunk(chunk)
 
             elif "text" in message:
                 text_data = json.loads(message["text"])
@@ -79,7 +97,7 @@ async def live_transcribe(
 
                     # Day 13: Minimum audio duration check (3 seconds)
                     min_duration_seconds = 3.0
-                    actual_duration = buffer.total_samples / SAMPLE_RATE
+                    actual_duration = (total_bytes_received / 2) / sample_rate # 16-bit PCM
                     if actual_duration < min_duration_seconds:
                         logger.warning(f"Audio too short ({actual_duration:.1f}s) — skipping transcription.")
                         await websocket.send_json({
@@ -93,31 +111,13 @@ async def live_transcribe(
                     # UI ko batao ki processing shuru ho gayi
                     await websocket.send_json({"action": "processing"})
 
-                    # Poora audio ek WAV file mein likho
-                    wav_path = await buffer.get_full_audio_wav_path()
-
-                    transcript = ""
-                    if wav_path:
-                        try:
-                            from app.services.transcription_service import transcription_service
-                            # Exact same call as Audio Upload pipeline — guaranteed accuracy
-                            transcript = await asyncio.to_thread(
-                                transcription_service.transcribe_audio,
-                                wav_path,
-                                client_names,
-                                diarize,
-                            )
-                            logger.info(f"Transcription complete: {len(transcript)} chars")
-                        except Exception as exc:
-                            logger.error(f"Transcription error: {exc}")
-                            transcript = ""
-                        finally:
-                            # Temp WAV file zarur delete karo
-                            if os.path.exists(wav_path):
-                                os.remove(wav_path)
-                                logger.info(f"Temp WAV deleted: {wav_path}")
-                    else:
-                        logger.warning("No audio collected — empty recording.")
+                    # Finish the session and get the transcript
+                    try:
+                        transcript = await session.finish()
+                        logger.info(f"Transcription complete: {len(transcript)} chars")
+                    except Exception as exc:
+                        logger.error(f"Transcription error: {exc}")
+                        transcript = ""
 
                     # Final result browser ko bhejo
                     await websocket.send_json({
@@ -132,5 +132,5 @@ async def live_transcribe(
     except Exception as exc:
         logger.error(f"WebSocket unexpected error: {exc}")
     finally:
-        duration = buffer.total_samples / SAMPLE_RATE
+        duration = (total_bytes_received / 2) / sample_rate if 'total_bytes_received' in locals() else 0
         logger.info(f"Live session ended. Total audio collected: {duration:.1f}s")

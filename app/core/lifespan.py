@@ -54,13 +54,15 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Triggered embedding model preload in background.")
 
     # 6. Preload Whisper + PyAnnote (TranscriptionService) in background.
-    # Without this, the first Live Recording request pays the full model load cost (~15s).
-    # By loading at server start, all subsequent requests find models ready in RAM.
-    def _preload_transcription():
-        from app.services.transcription_service import transcription_service  # noqa: F401
-        logger.info("TranscriptionService (Whisper + PyAnnote) preloaded into RAM.")
-    asyncio.create_task(asyncio.to_thread(_preload_transcription))
-    logger.info("Triggered TranscriptionService preload in background.")
+    # Without this, the first local request pays the full model load cost (~15s).
+    if settings.transcription_mode == "local":
+        def _preload_transcription():
+            from app.services.transcription_service import transcription_service  # noqa: F401
+            logger.info("TranscriptionService (Whisper + PyAnnote) preloaded into RAM.")
+        asyncio.create_task(asyncio.to_thread(_preload_transcription))
+        logger.info("Triggered TranscriptionService preload in background.")
+    else:
+        logger.info(f"Skipping TranscriptionService preload because mode is {settings.transcription_mode}. Saved ~4GB RAM!")
 
     logger.info("Pre-Flight Checks Passed. App is ready to serve.")
 
