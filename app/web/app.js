@@ -444,7 +444,7 @@ async function askClient() {
     if (payload.source_meetings && payload.source_meetings.length > 0) {
       answerHtml += `<p class="muted" style="margin-top: 0.5rem; font-size: 0.8rem;">Sources: Meetings ${payload.source_meetings.join(", ")}</p>`;
     }
-    els.askClientResult.innerHTML = answerHtml; playTTS(payload.answer);
+    els.askClientResult.innerHTML = answerHtml;
   } catch (err) {
     els.askClientResult.innerHTML = `<span class="error" style="color: var(--danger)">${escapeHtml(err.message)}</span>`;
   }

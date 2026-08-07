@@ -284,3 +284,11 @@ WhatsApp reminders are opt-in and duplicate-safe.
 Audio/transcription/model failures are visible and recoverable.
 Model cost is logged per meeting.
 One pilot advisor can use it end-to-end for real meetings.
+
+---
+EXTRA FEATURES ADDED (BEYOND ORIGINAL SCOPE)
+1. Global Voice AI Assistant (Philixa Brain): A floating action button (FAB) providing a Siri-like voice-in/voice-out global assistant using Deepgram for STT and Sarvam for TTS, capable of answering general chats, saving meetings, and querying clients on the fly.
+2. Fast Dictation Mode (Tab 4): A 4th input tab added to bypass backend audio processing completely, utilizing the browser's native Web Speech API for zero-latency, real-time transcription.
+3. Solo vs Meeting Live Modes: Added distinct UI buttons in Live Record to specifically separate 'Solo Record' (fast, no diarization) from 'Meeting Record' (slower, explicit speaker diarization for client conversations).
+4. Client Auto-Identification & Resolution Popup: A smart Human-in-the-Loop (HITL) UI fallback. If the AI detects an ambiguous client name during extraction, it prompts the user with a modal to resolve the conflict instead of failing silently.
+5. Hybrid AI Audio Routing (Strategy Pattern): An advanced backend architecture (`live_strategies.py`) that dynamically switches live audio processing between a local offline faster-whisper model and a high-speed cloud Deepgram API based on cost, speed, and privacy requirements.

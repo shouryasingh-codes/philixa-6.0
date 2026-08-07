@@ -95,8 +95,8 @@ async def live_transcribe(
                     finalized = True  # Day 13: Ek baar se zyada stop nahi chalega
                     logger.info("Stop signal received. Starting full-audio transcription...")
 
-                    # Day 13: Minimum audio duration check (3 seconds)
-                    min_duration_seconds = 3.0
+                    # Day 13: Minimum audio duration check (1.0 seconds for short voice queries)
+                    min_duration_seconds = 1.0
                     actual_duration = (total_bytes_received / 2) / sample_rate # 16-bit PCM
                     if actual_duration < min_duration_seconds:
                         logger.warning(f"Audio too short ({actual_duration:.1f}s) — skipping transcription.")
@@ -104,7 +104,7 @@ async def live_transcribe(
                             "action": "stopped",
                             "confirmed": "",
                             "is_final": True,
-                            "error": f"Recording too short ({actual_duration:.1f}s). Minimum 3 seconds required."
+                            "error": f"Recording too short ({actual_duration:.1f}s). Minimum 1 second required."
                         })
                         break
 

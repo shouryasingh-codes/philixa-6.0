@@ -66,6 +66,7 @@ class Settings:
     # Voice AI Architecture
     transcription_mode: str = "local"
     deepgram_api_key: str = ""
+    sarvam_api_key: str = ""
 
 def _env_int(name: str, default: int) -> int:
     value = os.getenv(name)
@@ -145,4 +146,5 @@ def get_settings() -> Settings:
         # Voice AI Architecture
         transcription_mode=os.getenv("PHILIXA_TRANSCRIPTION_MODE", "local").strip(),
         deepgram_api_key=os.getenv("PHILIXA_DEEPGRAM_API_KEY", "").strip(),
+        sarvam_api_key=os.getenv("PHILIXA_SARVAM_API_KEY", "").strip(),
     )

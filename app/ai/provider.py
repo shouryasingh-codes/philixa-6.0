@@ -47,6 +47,10 @@ class AIProvider(ABC):
     def generate_json(self, model: str, prompt: str, schema: dict[str, Any]) -> str:
         raise NotImplementedError
 
+    @abstractmethod
+    def generate_text(self, model: str, system_prompt: str, user_prompt: str) -> str:
+        raise NotImplementedError
+
 
 class LocalHeuristicProvider(AIProvider):
     provider_name = "local"
@@ -84,6 +88,9 @@ class LocalHeuristicProvider(AIProvider):
 
     def generate_json(self, model: str, prompt: str, schema: dict[str, Any]) -> str:
         return '{"answer": "Local heuristic provider cannot answer free-form queries.", "source_meetings": []}'
+
+    def generate_text(self, model: str, system_prompt: str, user_prompt: str) -> str:
+        return "I am the local heuristic provider and cannot process conversational voice commands."
 
     def translate_transcript(self, raw_notes: str) -> str:
         return raw_notes
@@ -163,6 +170,27 @@ class GroqProvider(AIProvider):
                 {"role": "user", "content": prompt}
             ],
             "response_format": {"type": "json_object"},
+        }
+        data = _post_json(
+            self.base_url,
+            payload,
+            {"Authorization": f"Bearer {api_key}"},
+            timeout_seconds=self.settings.ai_timeout_seconds,
+        )
+        return data["choices"][0]["message"]["content"]
+
+    def generate_text(self, model: str, system_prompt: str, user_prompt: str) -> str:
+        api_key = self.settings.ai_api_key or self.settings.groq_api_key
+        if not api_key:
+            raise AIExtractionError("Groq provider selected but API key is missing.")
+        
+        payload = {
+            "model": model,
+            "temperature": 0.3,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
         }
         data = _post_json(
             self.base_url,
@@ -291,6 +319,28 @@ class GeminiProvider(AIProvider):
             "generationConfig": {
                 "temperature": 0,
                 "response_mime_type": "application/json",
+            }
+        }
+        data = _post_json(
+            url,
+            payload,
+            {},
+            timeout_seconds=self.settings.ai_timeout_seconds,
+        )
+        return data["candidates"][0]["content"]["parts"][0]["text"]
+
+    def generate_text(self, model: str, system_prompt: str, user_prompt: str) -> str:
+        api_key = self.settings.gemini_api_key or self.settings.ai_api_key
+        if not api_key:
+            raise AIExtractionError("Gemini API key is missing.")
+        url = self._build_url(model)
+        payload = {
+            "systemInstruction": {
+                "parts": [{"text": system_prompt}]
+            },
+            "contents": [{"parts": [{"text": user_prompt}]}],
+            "generationConfig": {
+                "temperature": 0.3,
             }
         }
         data = _post_json(
