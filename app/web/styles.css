@@ -224,7 +224,11 @@ textarea:focus {
   padding: 22px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 24px;
+  max-width: 1150px;
+  margin: 0 auto;
+  width: 100%;
+  justify-self: center;
 }
 
 .topbar,
@@ -315,10 +319,11 @@ textarea:focus {
 
 .panel-heading select {
   max-width: 220px;
+  border: 2px solid #94a3b8;
 }
 
 .primary-panel textarea {
-  min-height: 185px;
+  min-height: 110px;
   resize: vertical;
   line-height: 1.45;
 }
@@ -1032,3 +1037,306 @@ th:last-child {
   100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 
+
+/* --- Accordion Styles --- */
+.accordion-toggle {
+  cursor: pointer;
+  transition: opacity 0.2s;
+  user-select: none;
+}
+.accordion-toggle:hover {
+  opacity: 0.8;
+}
+.accordion-icon {
+  font-size: 10px;
+  color: var(--muted);
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+.accordion-content {
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+  max-height: 1500px;
+  opacity: 1;
+}
+.accordion-content.collapsed {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+  border: none;
+}
+.accordion-toggle.collapsed .accordion-icon {
+  transform: rotate(-90deg);
+}
+
+
+/* --- Highlighted Primary Panel --- */
+.primary-panel {
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.08), 0 10px 15px -3px rgba(0, 0, 0, 0.03) !important;
+
+  overflow: hidden;
+}
+
+.primary-panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 4px;
+  background: linear-gradient(90deg, #14b8a6, #3b82f6);
+}
+
+.primary-panel textarea {
+  border: 1px solid rgba(20, 184, 166, 0.4);
+  background: #f4fdfc;
+  box-shadow: inset 0 2px 5px rgba(0,0,0,0.02);
+  transition: all 0.2s ease;
+}
+
+.primary-panel textarea:focus {
+  background: #ffffff;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.15), inset 0 2px 5px rgba(0,0,0,0.02);
+}
+
+
+/* --- Step 1 Muted Badge (to highlight Philixa) --- */
+.primary-panel .eyebrow {
+  background: #ffffff;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  margin-bottom: 8px;
+}
+
+
+/* --- Top Center Copilot Box --- */
+.copilot-box {
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 28px;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 180px;
+}
+
+.copilot-box:hover {
+  background: #1e293b;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+}
+
+.copilot-icon {
+  font-size: 16px;
+}
+
+.copilot-text {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+/* States */
+.copilot-box.listening {
+  background: #ef4444;
+  box-shadow: 0 0 25px rgba(239, 68, 68, 0.6);
+  animation: pulse-listen 1.5s infinite;
+}
+
+.copilot-box.thinking {
+  background: linear-gradient(90deg, #3b82f6, #6366f1);
+  background-size: 200% 200%;
+  box-shadow: 0 0 25px rgba(59, 130, 246, 0.5);
+  animation: gradient-shift 2s ease infinite;
+}
+
+.copilot-box.speaking {
+  background: linear-gradient(90deg, #eab308, #f59e0b);
+  box-shadow: 0 0 25px rgba(234, 179, 8, 0.6);
+}
+
+@keyframes pulse-listen {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+  70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+
+
+
+
+
+/* --- Topbar Center --- */
+.topbar {
+  position: relative;
+}
+.topbar-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* --- Idle Glow Override for Copilot Box --- */
+@keyframes magnetic-float {
+  0% { 
+    transform: scale(1) translateY(0); 
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.05); 
+  }
+  50% { 
+    transform: scale(1.02) translateY(-2px); 
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.1); 
+    border-color: rgba(94, 234, 212, 0.6);
+  }
+  100% { 
+    transform: scale(1) translateY(0); 
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.05); 
+  }
+}
+
+@keyframes shimmer-shine {
+  0% { transform: translateX(-150%) skewX(-25deg); }
+  15% { transform: translateX(300%) skewX(-25deg); }
+  100% { transform: translateX(300%) skewX(-25deg); }
+}
+
+.copilot-box {
+  position: relative;
+  overflow: hidden;
+  animation: magnetic-float 2.5s ease-in-out infinite !important;
+  border: 1px solid rgba(20, 184, 166, 0.5) !important;
+  background: linear-gradient(135deg, #0f172a, #064e3b) !important;
+  color: #5eead4 !important;
+}
+
+.copilot-box::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(94, 234, 212, 0.5) 50%, rgba(255,255,255,0) 100%);
+  transform: skewX(-25deg) translateX(-150%);
+  animation: shimmer-shine 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  z-index: 1;
+}
+
+.copilot-box:hover {
+  animation: none !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3) !important;
+  border-color: rgba(94, 234, 212, 0.8) !important;
+  transform: scale(1.04) translateY(-3px) !important;
+  color: #ffffff !important;
+}
+
+.copilot-box .copilot-icon, 
+.copilot-box .copilot-text {
+  position: relative;
+  z-index: 2;
+}
+
+/* Ensure other states don't conflict */
+.copilot-box.listening {
+  animation: pulse-listen 1.5s infinite !important;
+  border-color: rgba(239, 68, 68, 0.8) !important;
+  color: #ffffff !important;
+}
+.copilot-box.listening::before { display: none; }
+
+.copilot-box.thinking {
+  animation: gradient-shift 2s ease infinite !important;
+  border-color: rgba(59, 130, 246, 0.8) !important;
+  color: #ffffff !important;
+}
+.copilot-box.thinking::before { display: none; }
+
+.copilot-box.speaking {
+  animation: none !important;
+  border-color: rgba(234, 179, 8, 0.8) !important;
+  color: #ffffff !important;
+}
+.copilot-box.speaking::before { display: none; }
+
+
+/* --- Sidebar Collapse Feature (Gemini Style) --- */
+.app-shell {
+  transition: grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-shell.sidebar-collapsed {
+  grid-template-columns: 72px minmax(0, 1fr) !important; /* Just enough for P6 Logo */
+}
+
+.sidebar {
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-x: hidden;
+  white-space: nowrap;
+}
+
+/* Hide all text, inner elements, AND the hamburger when collapsed */
+.app-shell.sidebar-collapsed .brand-text,
+.app-shell.sidebar-collapsed #sidebarToggleBtn,
+.app-shell.sidebar-collapsed .field-label,
+.app-shell.sidebar-collapsed .api-row,
+.app-shell.sidebar-collapsed .system-strip,
+.app-shell.sidebar-collapsed .nav-list {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  display: none;
+  transition: opacity 0.15s ease-out;
+}
+
+/* Ensure brand mark acts as an expand button */
+.brand-mark:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 10px rgba(20, 184, 166, 0.5);
+}
+
+.hamburger-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #aeb8c6;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+  flex-shrink: 0;
+}
+.hamburger-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+
+.app-shell.sidebar-collapsed .sidebar {
+  padding-left: 13px !important;
+  padding-right: 13px !important;
+}

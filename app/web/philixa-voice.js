@@ -1,52 +1,53 @@
-// Philixa Voice Assistant - Continuous Loop Logic
+﻿// Philixa Voice Assistant - Continuous Loop Logic
 
-let voiceState = "idle"; // idle, listening, thinking, speaking
+let voiceState = "idle";
 let voiceWs = null;
 let voiceAudioContext = null;
 let voiceWorkletNode = null;
 let voiceAudioStream = null;
 let conversationHistory = [];
 let silenceTimeout = null;
-const SILENCE_LIMIT_MS = 2500; // 2.5 seconds of silence turns it off automatically
+const SILENCE_LIMIT_MS = 3000;
 
-document.addEventListener("DOMContentLoaded", () => {
+function initVoice() {
     const fabBtn = document.getElementById("philixaVoiceBtn");
     if (fabBtn) {
         fabBtn.addEventListener("click", handleVoiceClick);
     }
-});
+}
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initVoice);
+} else {
+    initVoice();
+}
 
 function setVoiceState(state) {
     voiceState = state;
-    const fabBtn = document.getElementById("philixaVoiceBtn");
-    const icon = fabBtn.querySelector(".fab-icon");
+    const fabBtn = document.getElementById('philixaVoiceBtn');
+    if (!fabBtn) return;
     
-    // Reset all classes and inline styles
-    fabBtn.className = "fab-voice-btn";
-    fabBtn.style.background = ""; // Clear inline background overrides
+    const icon = fabBtn.querySelector('.copilot-icon');
+    const text = fabBtn.querySelector('.copilot-text');
     
-    if (state === "idle") {
-        icon.textContent = "🎙️";
-    } else if (state === "listening") {
-        fabBtn.classList.add("listening");
-        icon.textContent = "👂";
-    } else if (state === "thinking") {
-        fabBtn.style.background = "linear-gradient(135deg, #3b82f6, #2563eb)"; // Blue for thinking
-        icon.textContent = "🧠";
-    } else if (state === "speaking") {
-        fabBtn.style.background = "linear-gradient(135deg, #eab308, #ca8a04)"; // Yellow for speaking
-        icon.textContent = "🔊";
+    fabBtn.className = 'copilot-box';
+    fabBtn.style.background = ''; 
+    
+    if (state === 'idle') {
+        if(icon) icon.textContent = '🎙️';
+        if(text) text.textContent = 'PHILIXA';
+    } else if (state === 'listening') {
+        fabBtn.classList.add('listening');
+        if(icon) icon.textContent = '🔴';
+        if(text) text.textContent = 'LISTENING...';
+    } else if (state === 'thinking') {
+        fabBtn.classList.add('thinking');
+        if(icon) icon.textContent = '🤔';
+        if(text) text.textContent = 'THINKING...';
+    } else if (state === 'speaking') {
+        fabBtn.classList.add('speaking');
+        if(icon) icon.textContent = '💬';
+        if(text) text.textContent = 'SPEAKING...';
     }
-}
-
-function resetSilenceTimer() {
-    if (silenceTimeout) clearTimeout(silenceTimeout);
-    silenceTimeout = setTimeout(() => {
-        if (voiceState === "listening") {
-            console.log("[Philixa Voice] Auto-off triggered due to silence.");
-            stopVoiceListening();
-        }
-    }, SILENCE_LIMIT_MS);
 }
 
 async function handleVoiceClick() {
@@ -65,7 +66,7 @@ async function startVoiceListening() {
             audio: { channelCount: 1, sampleRate: 48000, echoCancellation: true, noiseSuppression: true }
         });
 
-        voiceAudioContext = new AudioContext({ sampleRate: 48000 });
+        voiceAudioContext = new window.AudioContext({ sampleRate: 48000 });
         try {
             await voiceAudioContext.audioWorklet.addModule("/static/pcm-processor.js");
         } catch (err) {
@@ -77,26 +78,22 @@ async function startVoiceListening() {
         const source = voiceAudioContext.createMediaStreamSource(voiceAudioStream);
         voiceWorkletNode = new AudioWorkletNode(voiceAudioContext, "pcm-processor");
 
-        // Use the existing api key logic from the page if available
         const apiKeyEl = document.getElementById("apiKey");
         const apiKey = apiKeyEl ? apiKeyEl.value : "";
         
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        // We use the same STT endpoint that was just fixed for Hindi/Hinglish
-        const wsUrl = `${protocol}//${window.location.host}/api/v1/live/transcribe?api_key=${apiKey}&sample_rate=48000&diarize=false`;
+        const wsUrl = protocol + "//" + window.location.host + "/api/v1/live/transcribe?api_key=" + apiKey + "&sample_rate=48000&diarize=false";
         
         voiceWs = new WebSocket(wsUrl);
         voiceWs.binaryType = "arraybuffer";
 
         voiceWs.onopen = () => {
             console.log("[Philixa Voice] Connected to Deepgram.");
-            resetSilenceTimer(); // Start the silence timer when connected
+            resetSilenceTimer();
         };
 
         voiceWs.onmessage = async (event) => {
-            // Any message (even interim or empty) resets the silence timer as long as user is making noise
             resetSilenceTimer();
-            
             const data = JSON.parse(event.data);
             if (data.action === "stopped" && data.confirmed) {
                 const transcript = data.confirmed.trim();
@@ -108,7 +105,7 @@ async function startVoiceListening() {
         };
 
         voiceWorkletNode.port.onmessage = (event) => {
-            if (voiceWs?.readyState === WebSocket.OPEN) {
+            if (voiceWs && voiceWs.readyState === WebSocket.OPEN) {
                 voiceWs.send(event.data);
             }
         };
@@ -123,18 +120,24 @@ async function startVoiceListening() {
 
 async function stopVoiceListening() {
     if (silenceTimeout) clearTimeout(silenceTimeout);
-    setVoiceState("thinking"); // Transition to thinking while waiting for transcript
+    setVoiceState("thinking");
     
     if (voiceWorkletNode) voiceWorkletNode.disconnect();
     if (voiceAudioContext) voiceAudioContext.close();
     if (voiceAudioStream) voiceAudioStream.getTracks().forEach((t) => t.stop());
 
-    if (voiceWs?.readyState === WebSocket.OPEN) {
+    if (voiceWs && voiceWs.readyState === WebSocket.OPEN) {
         voiceWs.send(JSON.stringify({ action: "stop" }));
     }
 }
 
 async function processUserTranscript(transcript) {
+    if (!transcript || transcript.trim() === "") {
+        console.log("[Philixa Voice] Empty transcript ignored.");
+        setVoiceState("idle");
+        return;
+    }
+    
     try {
         setVoiceState("thinking");
         
@@ -154,7 +157,6 @@ async function processUserTranscript(transcript) {
         
         console.log("[Philixa Voice] AI Response:", aiResponseText);
         
-        // Save to history
         conversationHistory.push({ role: "user", content: transcript });
         conversationHistory.push({ role: "assistant", content: aiResponseText });
         
@@ -182,8 +184,6 @@ async function speakAIResponse(text) {
         const audio = new Audio(audioUrl);
         
         audio.onended = () => {
-            // Check if the AI ended with a question (like "Should I save this?")
-            // If yes, we automatically go back to listening!
             if (text.includes("?") || text.toLowerCase().includes("save")) {
                 startVoiceListening();
             } else {
@@ -196,4 +196,14 @@ async function speakAIResponse(text) {
         console.error("[Philixa Voice] TTS error:", err);
         setVoiceState("idle");
     }
+}
+
+function resetSilenceTimer() {
+    if (silenceTimeout) clearTimeout(silenceTimeout);
+    silenceTimeout = setTimeout(() => {
+        console.log("[Philixa Voice] Silence detected. Stopping recording.");
+        if (voiceState === "listening") {
+            stopVoiceListening();
+        }
+    }, SILENCE_LIMIT_MS);
 }

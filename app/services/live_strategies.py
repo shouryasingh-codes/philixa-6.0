@@ -67,8 +67,7 @@ class DeepgramTranscriptionSession(LiveTranscriptionSession):
     async def initialize(self) -> None:
         from deepgram import LiveTranscriptionEvents, LiveOptions
         
-        def on_message(self_conn, result, **kwargs):
-            print(f"Deepgram raw result: {result}", flush=True)
+        async def on_message(self_conn, result, **kwargs):
             try:
                 if result.channel and result.channel.alternatives:
                     sentence = result.channel.alternatives[0].transcript
@@ -78,11 +77,11 @@ class DeepgramTranscriptionSession(LiveTranscriptionSession):
             except Exception as e:
                 logger.error(f"Deepgram message parsing error: {e}")
 
-        def on_error(self_conn, error, **kwargs):
-            print(f"Deepgram Error: {error}", flush=True)
+        async def on_error(self_conn, error, **kwargs):
+            logger.error(f"Deepgram Error: {error}")
 
-        def on_close(self_conn, close, **kwargs):
-            print(f"Deepgram Connection Closed", flush=True)
+        async def on_close(self_conn, close, **kwargs):
+            logger.info("Deepgram Connection Closed")
 
         self.dg_connection.on(LiveTranscriptionEvents.Transcript, on_message)
         self.dg_connection.on(LiveTranscriptionEvents.Error, on_error)

@@ -14,8 +14,6 @@ const els = {
   toggleKey: document.querySelector("#toggleKey"),
   healthDot: document.querySelector("#healthDot"),
   healthText: document.querySelector("#healthText"),
-  refreshAll: document.querySelector("#refreshAll"),
-  refreshClients: document.querySelector("#refreshClients"),
   clientCount: document.querySelector("#clientCount"),
   pendingCount: document.querySelector("#pendingCount"),
   selectedClientLabel: document.querySelector("#selectedClientLabel"),
@@ -33,7 +31,6 @@ const els = {
   memoryContent: document.querySelector("#memoryContent"),
   commitmentFilter: document.querySelector("#commitmentFilter"),
   commitmentRows: document.querySelector("#commitmentRows"),
-  refreshPriorities: document.querySelector("#refreshPriorities"),
   taskList: document.querySelector("#taskList"),
   riskList: document.querySelector("#riskList"),
   toast: document.querySelector("#toast"),
@@ -679,12 +676,6 @@ function bindEvents() {
   els.toggleKey.addEventListener("click", () => {
     els.apiKey.type = els.apiKey.type === "password" ? "text" : "password";
   });
-  els.refreshAll.addEventListener("click", () =>
-    withLoading(els.refreshAll, "Refreshing…", () => refreshAll()).catch((err) => showToast(err.message, true))
-  );
-  els.refreshClients.addEventListener("click", () =>
-    withLoading(els.refreshClients, "Loading…", () => loadClients()).catch((err) => showToast(err.message, true))
-  );
   els.processNotes.addEventListener("click", () =>
     withLoading(els.processNotes, "Processing…", () => processNotes()).catch((err) => showToast(err.message, true))
   );
@@ -695,9 +686,6 @@ function bindEvents() {
     withLoading(els.loadSelectedMemory, "Loading…", () => loadMemory()).catch((err) => showToast(err.message, true))
   );
   els.commitmentFilter.addEventListener("change", () => loadCommitments().catch((err) => showToast(err.message, true)));
-  els.refreshPriorities.addEventListener("click", () =>
-    withLoading(els.refreshPriorities, "Loading…", () => loadPriorities()).catch((err) => showToast(err.message, true))
-  );
   let askAiRec = null;
   if ('webkitSpeechRecognition' in window) {
     askAiRec = new webkitSpeechRecognition();

@@ -108,8 +108,22 @@ async def upload_audio_meeting(
         logger.info(f"Enqueued process_meeting_transcription job for meeting {new_meeting.id}")
     except Exception as e:
         logger.error(f"ARQ Enqueue failed: {e}")
-        # Note: In production we might want to clean up the DB record and MinIO object if this fails,
-        # but for V1 MVP we log the error and return a 500.
+        
+        # Rollback: delete the newly created DB record
+        try:
+            await db.delete(new_meeting)
+            await db.commit()
+            logger.info(f"Rolled back database record for meeting {new_meeting.id}")
+        except Exception as db_err:
+            logger.error(f"Failed to rollback database record for meeting {new_meeting.id}: {db_err}")
+            
+        # Rollback: delete the MinIO uploaded file
+        try:
+            minio_service.delete_audio_file(object_name)
+            logger.info(f"Rolled back MinIO object {object_name}")
+        except Exception as minio_err:
+            logger.error(f"Failed to rollback MinIO object {object_name}: {minio_err}")
+
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to enqueue background processing.")
 
     return {

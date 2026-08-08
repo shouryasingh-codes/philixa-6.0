@@ -1,4 +1,6 @@
-<!doctype html>
+import json
+
+perfect_html = """<!doctype html>
 <html lang="en">
 
 <head>
@@ -12,25 +14,18 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/styles.css?v=34" />
+  <link rel="stylesheet" href="/static/styles.css?v=4" />
 </head>
 
 <body>
   <div class="app-shell">
     <aside class="sidebar">
-      <div class="brand-block" style="display: flex; align-items: center; justify-content: space-between; white-space: nowrap; overflow: hidden; padding-right: 12px;">
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <div class="brand-mark" style="flex-shrink: 0; cursor: pointer;" id="logoToggleBtn">P6</div>
-          <div class="brand-text">
-            <h1>PHILIXA 6.0</h1>
-            <p>Commitment and Memory</p>
-          </div>
+      <div class="brand-block">
+        <div class="brand-mark" id="logoToggleBtn" style="cursor:pointer;">P6</div>
+        <div>
+          <h1>PHILIXA 6.0</h1>
+          <p>Commitment and Memory</p>
         </div>
-        <button id="sidebarToggleBtn" class="hamburger-btn" title="Toggle Sidebar" type="button" style="flex-shrink: 0; background: transparent; color: var(--muted); border: none; cursor: pointer;">
-          <svg focusable="false" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
-            <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"></path>
-          </svg>
-        </button>
       </div>
 
       <label class="field-label" for="apiKey">API key</label>
@@ -51,7 +46,12 @@
         <a href="#day4Panel">Daily Priorities</a>
       </nav>
       
-
+      <!-- Hamburger for collapsing -->
+      <button id="sidebarToggleBtn" class="hamburger-btn" title="Toggle Sidebar" type="button" style="position: absolute; bottom: 20px; left: 20px; background: transparent; color: var(--muted); border: none; cursor: pointer;">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+          <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"></path>
+        </svg>
+      </button>
     </aside>
 
     <main class="workspace">
@@ -105,7 +105,7 @@
       </section>
 
       <!-- Hero Input Panel -->
-      <section class="panel primary-panel" id="notePanel" style="margin-bottom: 2rem; width: 100%; max-width: 950px; align-self: center;">
+      <section class="panel primary-panel" id="notePanel" style="margin-bottom: 2rem;">
         <div class="panel-heading" style="padding-bottom: 0; border-bottom: none; margin-bottom: 25px; display: flex; align-items: center; justify-content: space-between;">
           <div style="flex: 1; display: flex; justify-content: flex-start;">
             <h3 style="margin: 0;">Input Meeting Data</h3>
@@ -353,9 +353,9 @@
     </div>
   </div>
 
-  <script src="/static/app.js?v=31"></script>
+  <script src="/static/app.js?v=9"></script>
   <script src="/static/fast-dictation.js?v=1"></script>
-  <script src="/static/philixa-voice.js?v=31"></script>
+  <script src="/static/philixa-voice.js?v=3"></script>
   <script>
     // Sidebar toggle logic
     const toggleSidebar = () => document.querySelector('.app-shell').classList.toggle('sidebar-collapsed');
@@ -381,3 +381,7 @@
   </script>
 </body>
 </html>
+"""
+
+with open('app/web/index.html', 'w', encoding='utf-8') as f:
+    f.write(perfect_html)
