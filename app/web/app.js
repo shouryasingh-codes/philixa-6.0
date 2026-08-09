@@ -38,6 +38,7 @@ const els = {
   askClientInput: document.querySelector("#askClientInput"),
   askClientBtn: document.querySelector("#askClientBtn"),
   askClientResult: document.querySelector("#askClientResult"),
+  themeToggleBtn: document.querySelector("#themeToggleBtn"),
   settingsBtn: document.querySelector("#settingsBtn"),
   settingsModal: document.querySelector("#settingsModal"),
   closeSettingsBtn: document.querySelector("#closeSettingsBtn"),
@@ -1193,5 +1194,30 @@ document.addEventListener("DOMContentLoaded", () => {
 // END DAY 12
 // =============================================================================
 
-init().catch((err) => showToast(err.message, true));
+// =============================================================================
+// Theme Toggle Logic
+// =============================================================================
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.querySelector("#themeToggleBtn");
+  if (!btn) return;
 
+  // Check local storage for saved theme
+  const savedTheme = localStorage.getItem("theme");
+  if (savedTheme === "dark") {
+    document.body.classList.add("dark-theme");
+    btn.textContent = "☀️";
+  }
+
+  btn.addEventListener("click", () => {
+    document.body.classList.toggle("dark-theme");
+    if (document.body.classList.contains("dark-theme")) {
+      localStorage.setItem("theme", "dark");
+      btn.textContent = "☀️";
+    } else {
+      localStorage.setItem("theme", "light");
+      btn.textContent = "🌙";
+    }
+  });
+});
+
+init().catch((err) => showToast(err.message, true));

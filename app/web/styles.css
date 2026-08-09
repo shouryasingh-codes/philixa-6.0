@@ -10,6 +10,21 @@
   --amber: #b45309;
   --danger: #b91c1c;
   --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  --input-bg: #ffffff;
+  --tab-bg: #f1f5f9;
+  --active-tab-bg: #ffffff;
+}
+
+.dark-theme {
+  --bg: #0f172a;
+  --panel: #1e293b;
+  --ink: #f8fafc;
+  --muted: #94a3b8;
+  --line: #334155;
+  --shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+  --input-bg: #0f172a;
+  --tab-bg: #0f172a;
+  --active-tab-bg: #1e293b;
 }
 
 * {
@@ -40,7 +55,7 @@ button,
   min-height: 38px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--panel);
   color: var(--ink);
   padding: 8px 12px;
   cursor: pointer;
@@ -151,7 +166,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 9px 10px;
-  background: #fff;
+  background: var(--input-bg);
   color: var(--ink);
   outline: none;
 }
@@ -316,7 +331,7 @@ textarea:focus {
 }
 
 .support-panel {
-  background: #fbfdff;
+  background: var(--panel);
 }
 
 .panel-heading {
@@ -755,7 +770,7 @@ th:last-child {
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 11px 13px;
-  background: #fff;
+  background: var(--panel);
   display: grid;
   gap: 5px;
   transition: box-shadow 120ms ease;
@@ -825,7 +840,7 @@ th:last-child {
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 11px 13px;
-  background: #fff;
+  background: var(--panel);
   display: grid;
   gap: 5px;
   transition: box-shadow 120ms ease;
@@ -907,7 +922,7 @@ th:last-child {
   border: 1px solid var(--line);
   padding: 10px 14px;
   font-size: 14px;
-  background-color: #fafafa;
+  background-color: var(--input-bg);
   color: var(--ink);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -925,7 +940,7 @@ th:last-child {
 .ask-client-result {
   margin-top: 12px;
   padding: 14px 16px;
-  background-color: #f8fafc;
+  background-color: var(--input-bg);
   border: 1px solid var(--line);
   border-radius: 8px;
   font-size: 14px;
@@ -950,7 +965,7 @@ th:last-child {
   display: flex;
   gap: 8px;
   margin-bottom: 20px;
-  background: #f1f5f9;
+  background: var(--tab-bg);
   padding: 6px;
   border-radius: 12px;
   width: fit-content;
@@ -973,7 +988,7 @@ th:last-child {
 }
 .tab-btn.active {
   color: var(--accent-dark);
-  background: #ffffff;
+  background: var(--active-tab-bg);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 .tab-content {
@@ -1100,13 +1115,13 @@ th:last-child {
 
 .primary-panel textarea {
   border: 1px solid rgba(20, 184, 166, 0.4);
-  background: #f4fdfc;
+  background: var(--input-bg);
   box-shadow: inset 0 2px 5px rgba(0,0,0,0.02);
   transition: all 0.2s ease;
 }
 
 .primary-panel textarea:focus {
-  background: #ffffff;
+  background: var(--input-bg);
   border-color: var(--accent);
   box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.15), inset 0 2px 5px rgba(0,0,0,0.02);
 }
@@ -1140,7 +1155,6 @@ th:last-child {
   background: #0f172a;
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.15);
-
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1352,4 +1366,79 @@ th:last-child {
 .app-shell.sidebar-collapsed .sidebar {
   padding-left: 13px !important;
   padding-right: 13px !important;
+}
+
+/* ==========================================================================
+   Comprehensive Dark Theme Overrides for Hardcoded Light Colors
+   ========================================================================== */
+.dark-theme .result-box,
+.dark-theme .memory-content {
+  background: var(--input-bg);
+}
+
+.dark-theme .task-card.overdue,
+.dark-theme .risk-card.high,
+.dark-theme .risk-card.critical,
+.dark-theme .task-badge.overdue,
+.dark-theme .risk-badge.high,
+.dark-theme .risk-badge.critical,
+.dark-theme .status-pill.urgency-high,
+.dark-theme .delete-client {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+.dark-theme .delete-client:hover {
+  background: rgba(239, 68, 68, 0.25) !important;
+}
+
+.dark-theme .task-card.due-today,
+.dark-theme .risk-card.medium,
+.dark-theme .task-badge.due-today,
+.dark-theme .risk-badge.medium,
+.dark-theme .status-pill.warning,
+.dark-theme .status-pill.urgency-medium,
+.dark-theme .confirm-panel {
+  background: rgba(245, 158, 11, 0.15) !important;
+  color: #fcd34d !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+.dark-theme .task-card.upcoming,
+.dark-theme .status-pill.done,
+.dark-theme .client-item.active {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #6ee7b7 !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+.dark-theme .status-pill.urgency-low,
+.dark-theme .status-pill,
+.dark-theme .narrative-block,
+.dark-theme .modal-header {
+  background: rgba(59, 130, 246, 0.15) !important;
+  color: #93c5fd !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+.dark-theme .brief-card {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+}
+
+.dark-theme .brief-block {
+  background: rgba(15, 23, 42, 0.6);
+  color: var(--ink);
+}
+
+.dark-theme .primary-panel .eyebrow {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #e2e8f0 !important;
+}
+
+.dark-theme .memory-block h4 {
+  color: var(--ink);
+}
+
+.dark-theme .metric strong {
+  color: #ffffff !important;
 }
