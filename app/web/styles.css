@@ -502,7 +502,7 @@ textarea:focus {
 
 .memory-content {
   display: grid;
-  gap: 12px;
+  gap: 20px;
   min-height: 180px;
 }
 
@@ -564,6 +564,11 @@ textarea:focus {
 .narrative-block {
   border-color: rgba(37, 99, 235, 0.16);
   background: #f8fbff;
+}
+
+.narrative-block p {
+  line-height: 1.6;
+  font-size: 14px;
 }
 
 .memory-block {
@@ -851,17 +856,17 @@ th:last-child {
 }
 
 .risk-card.high {
-  border-left: 3px solid var(--danger);
+  border-left: 4px solid var(--danger) !important;
   background: #fff8f8;
 }
 
 .risk-card.critical {
-  border-left: 3px solid #7f1d1d;
+  border-left: 4px solid #7f1d1d !important;
   background: #fff0f0;
 }
 
 .risk-card.medium {
-  border-left: 3px solid var(--amber);
+  border-left: 4px solid var(--amber) !important;
   background: #fffbf0;
 }
 
@@ -988,8 +993,8 @@ th:last-child {
 }
 .tab-btn.active {
   color: var(--accent-dark);
-  background: var(--active-tab-bg);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  background: #f0fdfa;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05), inset 0 0 0 1px rgba(15, 118, 110, 0.2);
 }
 .tab-content {
   display: none;
@@ -1412,13 +1417,25 @@ th:last-child {
   border-color: rgba(16, 185, 129, 0.3) !important;
 }
 
+.dark-theme .risk-card.high, .dark-theme .risk-card.critical {
+  border-left-color: var(--danger) !important;
+}
+.dark-theme .risk-card.medium {
+  border-left-color: var(--amber) !important;
+}
+
 .dark-theme .status-pill.urgency-low,
 .dark-theme .status-pill,
-.dark-theme .narrative-block,
 .dark-theme .modal-header {
   background: rgba(59, 130, 246, 0.15) !important;
   color: #93c5fd !important;
   border-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+.dark-theme .narrative-block {
+  background: rgba(59, 130, 246, 0.05) !important;
+  border-color: rgba(59, 130, 246, 0.2) !important;
+  color: var(--ink) !important;
 }
 
 .dark-theme .brief-card {

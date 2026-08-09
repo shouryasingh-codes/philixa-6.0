@@ -16,7 +16,7 @@ const els = {
   healthText: document.querySelector("#healthText"),
   clientCount: document.querySelector("#clientCount"),
   pendingCount: document.querySelector("#pendingCount"),
-  selectedClientLabel: document.querySelector("#selectedClientLabel"),
+  topClientSelect: document.querySelector("#topClientSelect"),
   rawNotes: document.querySelector("#rawNotes"),
   meetingDate: document.querySelector("#meetingDate"),
   knownClient: document.querySelector("#knownClient"),
@@ -26,7 +26,6 @@ const els = {
   confirmClientSelect: document.querySelector("#confirmClientSelect"),
   newClientName: document.querySelector("#newClientName"),
   confirmClient: document.querySelector("#confirmClient"),
-  clientList: document.querySelector("#clientList"),
   loadSelectedMemory: document.querySelector("#loadSelectedMemory"),
   memoryContent: document.querySelector("#memoryContent"),
   commitmentFilter: document.querySelector("#commitmentFilter"),
@@ -104,6 +103,15 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function formatShortDate(dateString) {
+  if (!dateString || typeof dateString !== "string") return dateString || "Unknown";
+  const match = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return dateString;
+  const d = new Date(match[1], match[2] - 1, match[3]);
+  if (isNaN(d)) return dateString;
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
 function showToast(message, isError = false) {
   els.toast.textContent = message;
   els.toast.classList.toggle("error", isError);
@@ -154,8 +162,7 @@ function clientNameById(clientId) {
 function updateMetrics() {
   els.clientCount.textContent = state.clients.length;
   els.pendingCount.textContent = state.commitments.filter((item) => item.status === "pending").length;
-  const selected = state.clients.find((client) => client.id === state.selectedClientId);
-  els.selectedClientLabel.textContent = selected ? selected.name : "None";
+  els.topClientSelect.value = state.selectedClientId || "";
 }
 
 function renderClientOptions() {
@@ -164,33 +171,11 @@ function renderClientOptions() {
     .join("");
   els.knownClient.innerHTML = `<option value="">Auto identify client</option>${clientOptions}`;
   els.confirmClientSelect.innerHTML = `<option value="">Select existing client</option>${clientOptions}`;
+  els.topClientSelect.innerHTML = `<option value="">No client selected</option>${clientOptions}`;
+  els.topClientSelect.value = state.selectedClientId || "";
 }
 
 function renderClients() {
-  if (!state.clients.length) {
-    els.clientList.innerHTML = `<span class="muted">No clients yet. Process a clear note to create one.</span>`;
-    renderClientOptions();
-    updateMetrics();
-    return;
-  }
-  els.clientList.innerHTML = state.clients
-    .map((client) => {
-      const active = client.id === state.selectedClientId ? " active" : "";
-      const preview = client.rolling_summary || client.last_meeting_summary || "No meeting yet";
-      return `
-        <button class="client-item${active}" type="button" data-client-id="${client.id}">
-          <span class="client-copy">
-            <strong>${escapeHtml(client.name)}</strong>
-            <span class="client-meta">${client.pending_commitments_count} pending - ${escapeHtml(preview)}</span>
-          </span>
-          <span class="client-actions">
-            <span class="status-pill">${client.id}</span>
-            <span class="delete-client" title="Delete client" data-delete-client-id="${client.id}">Delete</span>
-          </span>
-        </button>
-      `;
-    })
-    .join("");
   renderClientOptions();
   updateMetrics();
 }
@@ -213,7 +198,7 @@ function renderCommitments() {
             <div class="commitment-title">${escapeHtml(item.description)}</div>
             <div class="client-meta">Owner: ${escapeHtml(item.owner)} - Confidence: ${Math.round((item.extraction_confidence || 0) * 100)}%</div>
           </td>
-          <td>${escapeHtml(item.due_date || item.due_date_text || "Unknown")}</td>
+          <td>${escapeHtml(formatShortDate(item.due_date || item.due_date_text))}</td>
           <td><span class="status-pill urgency-${escapeHtml(item.urgency_level || "medium")}">${escapeHtml(item.urgency_level || "medium")}</span></td>
           <td><span class="status-pill ${pillClass}">${escapeHtml(item.status)}</span></td>
           <td><button class="link-button" type="button" data-commitment-id="${item.id}" data-next-status="${nextStatus}">${label}</button></td>
@@ -307,7 +292,7 @@ function renderMemory(payload) {
     </div>
     <div class="memory-block">
       <h4>Pending commitments</h4>
-      ${commitments.length ? `<ul>${commitments.map((item) => `<li>${escapeHtml(item.description)} - ${escapeHtml(item.due_date || item.due_date_text || "Unknown due date")}</li>`).join("")}</ul>` : `<span class="muted">No pending commitments.</span>`}
+      ${commitments.length ? `<ul>${commitments.map((item) => `<li>${escapeHtml(item.description)} - ${escapeHtml(formatShortDate(item.due_date || item.due_date_text))}</li>`).join("")}</ul>` : `<span class="muted">No pending commitments.</span>`}
     </div>
     <div class="memory-block">
       <h4>Concerns</h4>
@@ -666,6 +651,19 @@ async function saveTranscript() {
 }
 
 function bindEvents() {
+  els.topClientSelect.addEventListener("change", (e) => {
+    const val = e.target.value;
+    if (val) {
+      state.selectedClientId = parseInt(val, 10);
+      loadMemory().catch((err) => showToast(err.message, true));
+    } else {
+      state.selectedClientId = null;
+      els.memoryContent.innerHTML = `<div class="empty-state">Select a client to view instant context.</div>`;
+      els.askClientSection.classList.add("hidden");
+    }
+    updateMetrics();
+  });
+
   els.saveTranscriptBtn.addEventListener("click", () =>
     withLoading(els.saveTranscriptBtn, "Saving...", () => saveTranscript()).catch((err) => {
       showToast(err.message, true);
@@ -820,18 +818,7 @@ function bindEvents() {
   });
 
 
-  els.clientList.addEventListener("click", (event) => {
-    const deleteButton = event.target.closest("[data-delete-client-id]");
-    if (deleteButton) {
-      event.preventDefault();
-      event.stopPropagation();
-      deleteClient(Number(deleteButton.dataset.deleteClientId)).catch((err) => showToast(err.message, true));
-      return;
-    }
-    const button = event.target.closest("[data-client-id]");
-    if (!button) return;
-    loadMemory(Number(button.dataset.clientId)).catch((err) => showToast(err.message, true));
-  });
+
 
   els.commitmentRows.addEventListener("click", (event) => {
     const button = event.target.closest("[data-commitment-id]");

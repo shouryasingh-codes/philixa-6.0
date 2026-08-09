@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/styles.css?v=50" />
+  <link rel="stylesheet" href="/static/styles.css?v=56" />
 </head>
 
 <body>
@@ -77,9 +77,11 @@
           <span>Pending commitments</span>
           <strong id="pendingCount">0</strong>
         </div>
-        <div class="metric">
+        <div class="metric" style="display: flex; flex-direction: column; justify-content: center;">
           <span>Selected client</span>
-          <strong id="selectedClientLabel">None</strong>
+          <select id="topClientSelect" class="form-input" style="width: 100%; margin-top: 10px; padding: 10px 12px; font-size: 16px; font-weight: 600; cursor: pointer; border-radius: 8px;">
+            <option value="">No client selected</option>
+          </select>
         </div>
       </section>
 
@@ -263,19 +265,6 @@
         </section>
 
         <div style="display: flex; flex-direction: column; gap: 24px;">
-          <aside class="panel client-panel">
-            <div class="panel-heading accordion-toggle" data-target="accordionClientList">
-              <div style="pointer-events: none;">
-                <h3 style="display:flex; align-items:center; gap:8px;">Memory index <span class="accordion-icon">▼</span></h3>
-              </div>
-            </div>
-            <div class="accordion-content collapsed" id="accordionClientList">
-              <div class="client-list" id="clientList">
-                <div class="empty-state">No clients loaded.</div>
-              </div>
-            </div>
-          </aside>
-
           <section class="panel support-panel" id="commitmentPanel">
             <div class="panel-heading accordion-toggle" data-target="accordionCommitmentContent">
               <div style="pointer-events: none;">
@@ -352,7 +341,7 @@
     </div>
   </div>
 
-  <script src="/static/app.js?v=32"></script>
+  <script src="/static/app.js?v=36"></script>
   <script src="/static/fast-dictation.js?v=1"></script>
   <script src="/static/philixa-voice.js?v=31"></script>
   <script>
