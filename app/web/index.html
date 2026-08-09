@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/styles.css?v=44" />
+  <link rel="stylesheet" href="/static/styles.css?v=50" />
 </head>
 
 <body>
@@ -83,24 +83,21 @@
         </div>
       </section>
 
-      <!-- Daily Priorities -->
-      <section class="panel day4-panel" id="day4Panel" style="margin-bottom: 2rem;">
-        <div class="panel-heading">
-          <div>
-            <h3>Daily Priorities</h3>
-          </div>
-        </div>
+      <!-- Daily Priorities & Risk Signals -->
+      <section class="panel day4-panel" id="day4Panel" style="margin-bottom: 2rem; padding: 24px;">
         <div class="day4-grid">
           <div>
-            <p class="eyebrow day4-col-label">Follow-up Tasks</p>
+            <h3 style="margin-top: 0; margin-bottom: 15px;">Daily Priorities</h3>
+            <p class="eyebrow day4-col-label" style="margin-bottom: 12px;">Follow-up Tasks</p>
             <div class="task-list" id="taskList">
-              <span class="muted">No overdue or due-today tasks.</span>
+              <div class="empty-state">✅ All caught up! No pressing tasks for today.</div>
             </div>
           </div>
           <div>
-            <p class="eyebrow day4-col-label">Risk Signals</p>
+            <h3 style="margin-top: 0; margin-bottom: 15px; color: #ef4444;">Risk Signals</h3>
+            <p class="eyebrow day4-col-label" style="margin-bottom: 12px; visibility: hidden;">Spacer</p>
             <div class="risk-list" id="riskList">
-              <span class="muted">No high-risk signals.</span>
+              <div class="empty-state">🛡️ All clear. No active risk signals detected.</div>
             </div>
           </div>
         </div>
@@ -211,7 +208,7 @@
           </div>
 
           <div class="result-box" id="processResult" style="margin-top: 15px;">
-            <span class="muted">Process a meeting note to see extraction results here.</span>
+            <div class="empty-state">Process a meeting note to see extraction results here.</div>
           </div>
 
           <div id="editTranscriptPanel" class="hidden panel" style="margin-top: 15px; border: 1px solid var(--line); padding: 15px; border-radius: 6px; background: var(--bg);">
@@ -250,7 +247,7 @@
           </div>
           <div class="accordion-content collapsed" id="accordionMemoryContent">
             <div id="memoryContent" class="memory-content">
-              <span class="muted">Select a client to view instant context.</span>
+              <div class="empty-state">Select a client to view instant context.</div>
             </div>
 
             <div class="ask-client-section hidden" id="askClientSection">
@@ -274,7 +271,7 @@
             </div>
             <div class="accordion-content collapsed" id="accordionClientList">
               <div class="client-list" id="clientList">
-                <span class="muted">No clients loaded.</span>
+                <div class="empty-state">No clients loaded.</div>
               </div>
             </div>
           </aside>
@@ -305,7 +302,7 @@
                   </thead>
                   <tbody id="commitmentRows">
                     <tr>
-                      <td colspan="6" class="muted">No commitments loaded.</td>
+                      <td colspan="6"><div class="empty-state" style="padding:20px; background:transparent;">No commitments loaded.</div></td>
                     </tr>
                   </tbody>
                 </table>

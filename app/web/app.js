@@ -331,7 +331,7 @@ async function loadPriorities() {
 function renderTasks() {
   const tasks = state.priorities.tasks;
   if (!tasks.length) {
-    els.taskList.innerHTML = `<span class="muted">No overdue or due-today tasks.</span>`;
+    els.taskList.innerHTML = `<div class="empty-state">✅ All caught up! No pressing tasks for today.</div>`;
     return;
   }
   const today = todayIso();
@@ -363,7 +363,7 @@ function renderTasks() {
 function renderRisks() {
   const risks = state.priorities.risks;
   if (!risks.length) {
-    els.riskList.innerHTML = `<span class="muted">No high-risk signals.</span>`;
+    els.riskList.innerHTML = `<div class="empty-state">🛡️ All clear. No active risk signals detected.</div>`;
     return;
   }
   els.riskList.innerHTML = risks

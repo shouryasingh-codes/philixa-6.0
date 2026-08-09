@@ -750,7 +750,7 @@ th:last-child {
 
 .day4-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: 1fr 1.5fr;
   gap: 18px;
   margin-top: 4px;
 }
@@ -1441,4 +1441,99 @@ th:last-child {
 
 .dark-theme .metric strong {
   color: #ffffff !important;
+}
+
+/* Dark Theme Overrides Added via PowerShell */
+
+.dark-theme .metric,
+.dark-theme .panel {
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 15px rgba(20, 184, 166, 0.04) !important;
+}
+
+/* Dark Theme Tab Styling */
+.dark-theme .tab-btn {
+  color: #94a3b8 !important;
+}
+.dark-theme .tab-btn:hover {
+  color: #f8fafc !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+.dark-theme .tab-btn.active {
+  color: #5eead4 !important;
+  background: rgba(20, 184, 166, 0.15) !important;
+  border-bottom: 2px solid #5eead4 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Dark Theme Textarea & Input */
+.dark-theme textarea,
+.dark-theme input {
+  color: #f8fafc !important;
+}
+
+/* Dark Theme Placeholder Text */
+.dark-theme textarea::placeholder,
+.dark-theme input::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+}
+
+/* --- Small UI Polish --- */
+
+/* Empty States */
+.empty-state {
+  padding: 16px;
+  background: rgba(15, 118, 110, 0.05);
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  border-radius: 8px;
+  color: var(--ink);
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.dark-theme .empty-state {
+  background: rgba(94, 234, 212, 0.08);
+  border-color: rgba(94, 234, 212, 0.2);
+  color: #f8fafc;
+}
+
+/* Button Loading State Animation */
+button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  animation: pulse-button 1.5s infinite !important;
+}
+@keyframes pulse-button {
+  0% { opacity: 0.8; }
+  50% { opacity: 0.4; }
+  100% { opacity: 0.8; }
+}
+
+/* Hover Effects for Buttons */
+.primary-action {
+  transition: all 0.2s ease;
+}
+.primary-action:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15, 118, 110, 0.3);
+}
+
+/* Dark Mode Hover Effects for Cards */
+.dark-theme .task-card,
+.dark-theme .risk-card,
+.dark-theme .client-item {
+  transition: all 0.2s ease;
+}
+.dark-theme .task-card:hover, 
+.dark-theme .risk-card:hover, 
+.dark-theme .client-item:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 8px rgba(255,255,255,0.05) !important;
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.15) !important;
 }
