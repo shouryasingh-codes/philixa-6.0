@@ -171,6 +171,14 @@ textarea {
   outline: none;
 }
 
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
 input:focus,
 select:focus,
 textarea:focus {
@@ -1494,6 +1502,14 @@ th:last-child {
 .dark-theme input::placeholder {
   color: #94a3b8 !important;
   opacity: 1 !important;
+}
+
+/* Dark Theme Modal Text Fixes */
+.dark-theme .modal-header h3 {
+  color: #f8fafc !important;
+}
+.dark-theme .modal-body label {
+  color: #cbd5e1 !important;
 }
 
 /* --- Small UI Polish --- */

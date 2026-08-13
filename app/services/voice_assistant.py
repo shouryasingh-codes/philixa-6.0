@@ -92,9 +92,9 @@ class VoiceAssistantService:
                     meetings = meeting_res.scalars().all()
                     
                     if meetings:
-                        memory_context = f"Here is the context from the database regarding past meetings for {client.name}:\n"
+                        memory_context = f"Here is the context from the database regarding PAST meetings for {client.name} (These meetings have ALREADY happened):\n"
                         for m in meetings:
-                            memory_context += f"- On {m.meeting_date}: {m.summary}\n"
+                            memory_context += f"- Past meeting that occurred on {m.meeting_date}: {m.summary}\n"
                     else:
                         memory_context = f"Found client {client.name} but no previous meetings recorded."
                 else:
