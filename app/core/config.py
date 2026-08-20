@@ -94,13 +94,13 @@ def get_settings() -> Settings:
         demo_api_key=os.getenv("PHILIXA_DEMO_API_KEY", ""),
         # Primary provider
         ai_provider=os.getenv("PHILIXA_AI_PROVIDER", "groq").lower().strip(),
-        ai_model=os.getenv("PHILIXA_AI_MODEL", "llama-3.3-70b-versatile").strip(),
+        ai_model=os.getenv("PHILIXA_AI_MODEL", "openai/gpt-oss-20b").strip(),
         ai_api_key=os.getenv("PHILIXA_AI_API_KEY", "").strip(),
         ai_base_url=os.getenv("PHILIXA_AI_BASE_URL", "").strip(),
         ai_timeout_seconds=_env_int("PHILIXA_AI_TIMEOUT_SECONDS", 20),
         # Dual-provider fallback
         ai_economy_provider=os.getenv("PHILIXA_AI_ECONOMY_PROVIDER", "groq").lower().strip(),
-        ai_economy_model=os.getenv("PHILIXA_AI_ECONOMY_MODEL", "llama-3.3-70b-versatile").strip(),
+        ai_economy_model=os.getenv("PHILIXA_AI_ECONOMY_MODEL", "openai/gpt-oss-20b").strip(),
         ai_review_provider=os.getenv("PHILIXA_AI_REVIEW_PROVIDER", "gemini").lower().strip(),
         ai_review_model=os.getenv("PHILIXA_AI_REVIEW_MODEL", "gemini-2.5-flash").strip(),
         # Per-provider keys

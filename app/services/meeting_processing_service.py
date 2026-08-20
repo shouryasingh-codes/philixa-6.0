@@ -68,9 +68,7 @@ class MeetingProcessingService:
         """Process an already created meeting, like one created from an audio upload."""
         return await self._process_extracted_meeting(db, meeting, known_client_id)
 
-    async def _process_extracted_meeting(
-        self, db: AsyncSession, meeting: Meeting, known_client_id: int | None
-    ) -> dict[str, Any]:
+    async def _process_extracted_meeting(self, db: AsyncSession, meeting: Meeting, known_client_id: int | None) -> dict[str, Any]:
         meeting_date = meeting.meeting_date or date.today()
         # Both failure paths are audit-logged inside the routing service.
         try:

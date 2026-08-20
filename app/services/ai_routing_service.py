@@ -1,4 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+import asyncio
 import logging
 from datetime import date
 from typing import Any
@@ -24,7 +25,6 @@ class AIRoutingService:
         Returns the validated raw payload dict if successful.
         Raises AIExtractionError if BOTH models fail.
         """
-        import asyncio
         
         # Pre-processing: LLM Translation Layer to normalize Hinglish to English
         try:
@@ -51,7 +51,6 @@ class AIRoutingService:
             raise AIExtractionError("All AI models failed to produce a valid extraction.") from e
 
     async def _call_and_validate(self, raw_notes: str, meeting_date: date, provider_name: str, model_name: str, meeting_id: int) -> ExtractionResult:
-        import asyncio
         try:
             provider = get_ai_provider(provider_name, self.settings)
             result = await asyncio.to_thread(provider.extract_meeting_intelligence, raw_notes, meeting_date, model_name)
