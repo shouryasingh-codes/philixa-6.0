@@ -1,0 +1,313 @@
+PHILIXA V1 Beta — 15-Day Detailed Build Plan
+Goal: a real pilot product for 1–5 users.
+
+Paste notes / upload audio / start browser live meeting
+→ validated AI extraction
+→ client memory + commitments + priorities
+→ evidence-backed client search
+→ WhatsApp reminder
+It is not a fake demo. It will process real meetings, but V1 Beta is intentionally limited to browser microphone and selected pilot users.
+
+Fixed V1 Beta scope
+Included:
+
+Paste notes
+Audio recording upload
+Browser microphone live listening
+SLM-first + stronger-LLM escalation
+Pydantic validation, one retry, manual-review queue
+Client timeline, commitments, risks, daily priorities
+“Ask Client” with evidence/date sources
+pgvector semantic memory
+WhatsApp reminders and delivery logs
+ARQ + Redis background jobs
+Docker deployment and core tests
+Explicitly deferred:
+
+Zoom/Teams/Google Meet native capture
+mobile application
+PydanticAI agent/copilot
+automatic financial advice
+unrestricted autonomous WhatsApp actions
+enterprise compliance certification
+large 100–300-case evaluation suite
+Final technical stack
+LayerTechnologyAPI/UIFastAPI + current dashboardDataPostgreSQL + SQLAlchemy + AlembicValidationPydantic v2Background workARQ + RedisFile storageMinIOAudio transcriptionWhisperX/faster-whisper adapterEconomy AIconfigurable low-cost SLM providerEscalation AIconfigurable stronger LLM providerSemantic memorypgvector + local Sentence Transformers embeddingsMessagingWhatsApp Cloud APITestingpytestTracingstructured logs + basic OpenTelemetryDeploymentDocker Compose
+No model ID will be hardcoded into the business logic. We keep separate environment settings:
+
+PHILIXA_ECONOMY_MODEL
+PHILIXA_REVIEW_MODEL
+PHILIXA_EMBEDDING_MODEL
+Day-by-day execution
+Day 1 — Freeze architecture and data ownership
+Build:
+
+Final V1 Beta scope document.
+Add organization_id and user_id ownership plan for all data.
+Add meeting source types: pasted_note, audio_upload, live_browser.
+Create local Docker services: app, PostgreSQL, Redis, MinIO.
+Start WhatsApp Business/Cloud API approval process immediately; external approval runs in parallel.
+Done when:
+
+Local stack starts with one command.
+Every future meeting/client/task is scoped to a user and organization.
+Day 2 — Strict extraction schema
+Build:
+
+Internal Pydantic MeetingExtraction.
+Typed objects for client identification, concerns, commitments, risk signals, source evidence.
+Strict enum/field validation.
+Due-date safety: unclear date remains null.
+Client ambiguity safety: no auto-link when confidence is low.
+Done when:
+
+Malformed or incomplete JSON is rejected before database writes.
+Day 3 — Safe retry and model routing
+Build:
+
+Economy SLM
+→ valid + confident result: accept
+
+Invalid/ambiguous/high-risk result
+→ stronger LLM review
+
+Still invalid/uncertain
+→ manual_review_required
+One repair retry maximum.
+Raw response/error stored in audit log.
+Per-call model, latency, token/cost metadata logged.
+No automatic commitment/client-memory write on failed extraction.
+Done when:
+
+SLM and LLM routing works through the existing provider abstraction.
+No need to run expensive LLM on every meeting.
+Day 4 — Follow-up and risk engine
+Build:
+
+FollowUpTask and RiskSignal data models.
+Rules for:overdue
+due today
+upcoming
+missing deadline
+high-risk review
+duplicate commitment detection
+Task creation from validated commitments only.
+Done when:
+
+Same commitment twice creates one tracked task, not duplicates.
+Day 5 — Client Memory and Ask Client
+Build:
+
+Client timeline screen/API.
+Latest demand, concern, commitment, and last-meeting view.
+Daily priorities endpoint/UI.
+Basic “Ask Client” queries answered from structured SQL fields.
+Examples:
+
+“Rajesh ki latest demand kya thi?”
+“Kaunsa follow-up pending hai?”
+“Last concern kya tha?”
+Every response includes source meeting/date.
+Done when:
+
+20 pasted test meetings for one client can be recalled accurately.
+Day 6 — WhatsApp integration
+Build:
+
+WhatsApp Cloud API send adapter.
+Webhook endpoint for sent/delivered/failed status.
+NotificationPreference and NotificationDelivery.
+User opt-in preference.
+Quiet hours, rate limit, idempotency key.
+V1 messages:
+
+meeting processed confirmation — optional
+due-today reminder
+overdue reminder
+daily top-three briefing
+Done when:
+
+One valid task sends one WhatsApp message and cannot send a duplicate.
+Day 7 — pgvector semantic memory
+Build:
+
+MeetingEvidence chunk table with embedding column.
+Local Sentence Transformers embedding worker (Using intfloat/multilingual-e5-small).
+Embeddings only after final validated transcript/note.
+Hybrid retrieval: SQL keyword filter + semantic search.
+Mandatory filters:
+organization_id
+user_id
+client_id
+meeting date range
+RAG answers must cite meeting dates and evidence snippets.
+Done when:
+
+PHILIXA answers: “Last six months mein recurring concern kya tha?” with evidence, or honestly says no confirmed record exists.
+Day 8 — ARQ and Redis job pipeline
+Build ARQ jobs:
+
+transcription
+embedding generation
+daily briefing generation
+scheduled reminder dispatch
+notification retry
+Rules:
+
+Every job gets an idempotency key.
+Jobs are retry-safe.
+Job state is visible: queued, processing, failed, completed.
+Done when:
+
+Killing/restarting a worker does not create duplicate reminders or duplicate data.
+Day 9 — Audio upload infrastructure
+Build:
+
+.mp3, .m4a, .wav upload screen/API.
+MinIO upload.
+File validation: allowed format, size, duration.
+Meeting processing state UI.
+Flow:
+
+Uploaded
+→ queued
+→ transcribing
+→ extracting
+→ completed / review required
+Done when:
+
+Audio file uploads safely and starts an ARQ job.
+Day 10 — Audio transcription to PHILIXA pipeline
+Build:
+
+WhisperX/faster-whisper transcription adapter.
+Transcript persistence with timestamps/speaker labels where available.
+Feed final transcript into Day 2–3 validated extraction.
+Create evidence chunks and embeddings asynchronously.
+Done when:
+
+A real meeting recording creates client memory, tasks, and a WhatsApp event.
+Day 11 — Audio quality and cost controls
+Build:
+
+Hinglish transcription tests.
+Empty/noisy audio failure handling.
+Audio retention/delete setting.
+Transcript review screen.
+Cost logging for transcription duration and model calls.
+Done when:
+
+Bad audio becomes “review needed,” not a fake confident summary.
+Day 12 — Live browser meeting capture
+Build:
+
+“Start Meeting” / “End Meeting” UI.
+visible recording indicator and consent notice.
+Browser microphone capture via MediaRecorder.
+WebSocket stream of audio chunks.
+Live transcript channel.
+V1 Beta live capture means incremental chunks with a few seconds’ delay—not perfect zero-latency word-by-word transcription.
+Done when:
+
+Browser mic audio appears as a live transcript.
+Day 13 — Live finalization and safe actions
+Build:
+
+Live transcript = draft
+End Meeting
+→ final transcription pass
+→ validated extraction
+→ task/client/RAG updates
+→ WhatsApp policy event
+Network reconnect handling.
+Meeting status recovery.
+Prevent duplicate finalization.
+Done when:
+
+Ending a live meeting creates exactly one finalized meeting record and correct follow-ups.
+Day 14 — End-to-end quality hardening
+Test every input mode:
+
+Paste note
+Audio upload
+Live browser meeting
+Test cases:
+
+vague date: “soon”
+duplicate promise
+wrong/unknown client
+Hindi-English notes
+empty recording
+malformed model JSON
+WhatsApp retry
+one user attempting another user’s client lookup
+Done when:
+
+Unsafe situations go to review; no silent data corruption.
+Day 15 — Deploy and pilot run
+Build:
+
+Production-like Docker Compose configuration.
+environment configuration documentation.
+Swagger examples.
+demo dashboard polish.
+test user onboarding flow.
+pilot checklist and failure dashboard.
+Final end-to-end pilot scenario:
+
+Advisor starts browser meeting
+→ live transcript
+→ ends meeting
+→ PHILIXA saves commitments and concerns
+→ client memory updates
+→ task appears in Today list
+→ WhatsApp reminder is sent according to policy
+→ advisor asks “Client ki latest demand kya thi?”
+→ PHILIXA answers with meeting evidence/date
+Cost-control rules
+One economy-model call first; expensive model only on escalation.
+Never send full client history to a model by default.
+RAG retrieves only 3–5 relevant evidence chunks.
+Use local embeddings; cache by transcript-content hash.
+Create embeddings once after finalized meeting, not every query.
+ARQ jobs prevent request-time compute spikes.
+Store audio only when enabled; keep transcript/evidence as needed.
+Strict per-user monthly token/audio budget.
+V1 Beta acceptance gates
+PHILIXA V1 Beta is complete only if:
+
+Pasted notes, uploaded audio, and live browser audio all work.
+Invalid AI output never writes normal CRM data.
+No invented due date is silently saved.
+Client questions return source meeting/date evidence.
+WhatsApp reminders are opt-in and duplicate-safe.
+Audio/transcription/model failures are visible and recoverable.
+Model cost is logged per meeting.
+One pilot advisor can use it end-to-end for real meetings.
+
+---
+EXTRA FEATURES ADDED (BEYOND ORIGINAL SCOPE)
+1. Global Voice AI Assistant (Philixa Brain): A floating action button (FAB) providing a Siri-like voice-in/voice-out global assistant using Deepgram for STT and Sarvam for TTS, capable of answering general chats, saving meetings, and querying clients on the fly.
+2. Fast Dictation Mode (Tab 4): A 4th input tab added to bypass backend audio processing completely, utilizing the browser's native Web Speech API for zero-latency, real-time transcription.
+3. Solo vs Meeting Live Modes: Added distinct UI buttons in Live Record to specifically separate 'Solo Record' (fast, no diarization) from 'Meeting Record' (slower, explicit speaker diarization for client conversations).
+4. Client Auto-Identification & Resolution Popup: A smart Human-in-the-Loop (HITL) UI fallback. If the AI detects an ambiguous client name during extraction, it prompts the user with a modal to resolve the conflict instead of failing silently.
+5. Hybrid AI Audio Routing (Strategy Pattern): An advanced backend architecture (`live_strategies.py`) that dynamically switches live audio processing between a local offline faster-whisper model and a high-speed cloud Deepgram API based on cost, speed, and privacy requirements.
+---
+SELF-INITIATED ADDITION (BEYOND ORIGINAL SCOPE)
+6. Customer Churn Prediction Engine (Built independently, integrated into Philixa ecosystem):
+   A standalone end-to-end ML system built from scratch to predict which clients are at risk of churning.
+   
+   What was built:
+   - Custom synthetic dataset (persona_churn_dataset.csv) designed around real CRM behavior signals.
+   - XGBoost binary classifier trained with class imbalance handling (scale_pos_weight) for realistic churn distribution.
+   - Proper ML evaluation: Accuracy, Precision, Recall, F1 Score, and Confusion Matrix.
+   - FastAPI prediction server with full Pydantic input validation (range checks, type enforcement, Literal plan types).
+   - Business logic layer: risk segmentation (low/medium/high) and recommended action engine (upsell/email/call+discount).
+   - Clean dark-mode HTML frontend for real-time churn risk analysis.
+   - Threshold alignment fix: training thresholds (0.3/0.7) matched exactly to production thresholds to prevent evaluation-production mismatch.
+
+   Why it matters for Philixa:
+   - Philixa already captures meeting notes, last-meeting dates, products owned, and follow-up status per client.
+   - These are the exact features needed for a production churn model trained on real advisor data.
+   - Future integration path: ARQ background job (analyze_churn_risk) runs after each meeting finalization, updates client risk score in database, and triggers WhatsApp alert if score crosses high-risk threshold.
+   - This moves Philixa from a passive CRM to a proactive retention intelligence system.

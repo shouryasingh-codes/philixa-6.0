@@ -33,3 +33,4 @@ async def close_arq_pool() -> None:
 def get_arq_pool() -> Optional[ArqRedis]:
     global arq_pool
     return arq_pool
+ 
