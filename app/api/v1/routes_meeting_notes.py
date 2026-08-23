@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Annotated
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.provider import AIExtractionError
@@ -60,6 +60,14 @@ async def process_meeting_note(
     principal: CurrentPrincipal,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    if principal.user.email.startswith("demo_guest_"):
+        meeting_count = await db.scalar(select(func.count(Meeting.id)).where(Meeting.user_id == principal.user_id))
+        if meeting_count >= 2:
+            raise HTTPException(
+                status_code=403,
+                detail="Demo limit reached (Max 2 meetings). Please create a free Philixa account to continue!"
+            )
+            
     try:
         return await MeetingProcessingService().process_notes(db, request, principal=principal)
     except AIExtractionError as exc:

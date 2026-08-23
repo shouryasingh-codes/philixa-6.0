@@ -17,7 +17,11 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     hash_token,
+    decode_jwt_token,
+    hash_password,
+    generate_csrf_token,
 )
+from app.api.v1.routes_auth import set_auth_cookies
 from app.database.session import get_db
 from app.models.enums import MembershipStatus, UserRole
 from app.models.organization import Organization
@@ -36,6 +40,7 @@ from app.schemas.workspace import (
     WorkspaceMemberRoleUpdateResponse,
     WorkspaceSwitchRequest,
     WorkspaceSwitchResponse,
+    AcceptInviteRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -63,7 +68,7 @@ async def send_invite_email(
         subject = f"Invitation to join '{org_name}' on Philixa"
         body = (
             f"You have been invited by {inviter_email} to join '{org_name}' on Philixa! "
-            f"Accept your invitation here: /workspaces/invite/accept?token={raw_token}"
+            f"Accept your invitation here: http://localhost:8000/?action=invite-accept&token={raw_token}"
         )
         if hasattr(adapter, "send_message"):
             await adapter.send_message(to_destination=recipient, message_content=body, subject=subject)
@@ -272,17 +277,18 @@ async def invite_member(
 
 @router.post("/invite/accept", response_model=WorkspaceInviteAcceptResponse)
 async def accept_invite(
-    principal: CurrentPrincipal,
-    token: Optional[str] = Query(default=None),
+    payload: AcceptInviteRequest,
+    request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
 ) -> Any:
-    if not token:
+    if not payload.token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invitation token is required.",
         )
 
-    t_hash = hash_token(token)
+    t_hash = hash_token(payload.token)
     invite = (await db.execute(
         select(WorkspaceInvite).where(WorkspaceInvite.token_hash == t_hash)
     )).scalar_one_or_none()
@@ -310,10 +316,99 @@ async def accept_invite(
             detail="Invitation has expired.",
         )
 
+    # Resolve active user from cookie if present
+    token = request.cookies.get("access_token")
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header[7:].strip()
+
+    active_user = None
+    if token:
+        try:
+            jwt_payload = decode_jwt_token(token)
+            user_id = jwt_payload.get("sub")
+            if user_id:
+                active_user = await db.get(User, user_id)
+        except Exception:
+            pass # Ignore invalid tokens during invite accept
+
+    # Check if a user with this email already exists
+    normalized_email = invite.invited_email.strip().lower()
+    existing_user_by_email = (await db.execute(
+        select(User).where(User.email == normalized_email)
+    )).scalar_one_or_none()
+
+    if active_user:
+        target_user = active_user
+    else:
+        if existing_user_by_email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="An account with this email already exists. Please log in first.",
+            )
+        else:
+            # Create a new user on the fly
+            if not payload.password:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="A password is required to create your account.",
+                )
+            
+            new_user_id = f"usr_{secrets.token_hex(12)}"
+            target_user = User(
+                id=new_user_id,
+                email=normalized_email,
+                hashed_password=hash_password(payload.password),
+                is_active=True,
+                is_verified=True,
+            )
+            db.add(target_user)
+            
+            # Create User Session
+            session_id = f"sess_{secrets.token_hex(16)}"
+            refresh_jwt = create_refresh_token(
+                user_id=target_user.id,
+                org_id=invite.organization_id,
+                role=invite.role,
+                session_id=session_id,
+            )
+            refresh_hash = hash_token(refresh_jwt)
+
+            ip_addr = request.client.host if request.client else None
+            user_agent = request.headers.get("User-Agent")
+
+            user_session = UserSession(
+                id=session_id,
+                user_id=target_user.id,
+                organization_id=invite.organization_id,
+                refresh_token_hash=refresh_hash,
+                ip_address=ip_addr,
+                user_agent=user_agent[:255] if user_agent else None,
+                expires_at=utc_now() + timedelta(days=get_settings().jwt_refresh_token_expire_days),
+            )
+            db.add(user_session)
+            
+            # Set auth cookies
+            access_jwt = create_access_token(
+                user_id=target_user.id,
+                org_id=invite.organization_id,
+                role=invite.role,
+                session_id=session_id,
+            )
+            csrf_token = generate_csrf_token()
+
+            set_auth_cookies(
+                response=response,
+                access_token=access_jwt,
+                refresh_token=refresh_jwt,
+                csrf_token=csrf_token,
+            )
+
     # Upsert OrganizationMembership
     existing_mem = (await db.execute(
         select(OrganizationMembership).where(
-            OrganizationMembership.user_id == principal.user_id,
+            OrganizationMembership.user_id == target_user.id,
             OrganizationMembership.organization_id == invite.organization_id,
         )
     )).scalar_one_or_none()
@@ -324,7 +419,7 @@ async def accept_invite(
         existing_mem.joined_at = utc_now()
     else:
         new_mem = OrganizationMembership(
-            user_id=principal.user_id,
+            user_id=target_user.id,
             organization_id=invite.organization_id,
             role=invite.role,
             status=MembershipStatus.ACTIVE.value,

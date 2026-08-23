@@ -34,6 +34,10 @@ from app.models.organization import Organization
 from app.models.organization_membership import OrganizationMembership
 from app.models.user import User
 from app.models.user_session import UserSession
+from app.models.client import Client
+from app.models.meeting import Meeting
+from app.models.follow_up_task import FollowUpTask
+from app.models.risk_signal import RiskSignal
 from app.schemas.auth import (
     ForgotPasswordRequest,
     LoginRequest,
@@ -672,6 +676,31 @@ async def reset_password(
     }
 
 
+@router.delete("/me", status_code=status.HTTP_200_OK)
+async def delete_current_user(
+    principal: CurrentPrincipal,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    # SQLAlchemy cascade will automatically delete the user's sessions, memberships, clients, meetings, etc.
+    user = await db.get(User, principal.user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        )
+    
+    await db.delete(user)
+    await db.commit()
+
+    # Clear authentication cookies
+    response.delete_cookie("access_token", path="/")
+    response.delete_cookie("refresh_token", path="/")
+    response.delete_cookie("csrf_token", path="/")
+
+    return {"message": "Account successfully deleted."}
+
+
 @ws_ticket_router.post("")
 async def create_ws_ticket(
     principal: CurrentPrincipal,
@@ -685,3 +714,149 @@ async def create_ws_ticket(
         expires_delta=timedelta(seconds=60),
     )
     return {"ticket": ticket, "token": ticket}
+
+
+@router.post("/demo-login", response_model=LoginResponse)
+async def demo_login(
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    # 1. Create a unique demo guest user
+    unique_id = secrets.token_hex(6)
+    demo_email = f"demo_guest_{unique_id}@philixa.com"
+    user_id = f"usr_{secrets.token_hex(12)}"
+    
+    user = User(
+        id=user_id,
+        email=demo_email,
+        hashed_password=hash_password(secrets.token_urlsafe(16)), # Unused password
+        is_active=True,
+        is_verified=True, # Auto-verify so they can log in
+    )
+    db.add(user)
+
+    # 2. Create Demo Organization
+    org_id = f"org_{secrets.token_hex(12)}"
+    slug = await generate_unique_slug(db, f"demo-workspace-{unique_id}")
+    org = Organization(
+        id=org_id,
+        name="Philixa Demo Workspace",
+        workspace_type="individual",
+        slug=slug,
+        plan="free",
+        is_active=True,
+    )
+    db.add(org)
+
+    # 3. Create Membership
+    membership = OrganizationMembership(
+        user_id=user_id,
+        organization_id=org_id,
+        role=UserRole.OWNER.value,
+        status=MembershipStatus.ACTIVE.value,
+        joined_at=utc_now(),
+    )
+    db.add(membership)
+    await db.flush()
+
+    # 4. Seed Data (Clients)
+    client1 = Client(
+        organization_id=org_id,
+        user_id=user_id,
+        name="Rajesh Sharma",
+        normalized_name="rajesh sharma",
+        products_owned_json='["Business Loan", "Current Account"]',
+        rolling_summary="Rajesh is expanding his retail business. Very concerned about fast processing times.",
+        relationship_notes='["Needs frequent updates", "Prefers WhatsApp communication"]',
+    )
+    client2 = Client(
+        organization_id=org_id,
+        user_id=user_id,
+        name="Manoj Kumar",
+        normalized_name="manoj kumar",
+        products_owned_json='["Home Loan"]',
+        rolling_summary="Looking for a loan top-up to renovate property.",
+    )
+    db.add(client1)
+    db.add(client2)
+    await db.flush()
+
+    # 5. Seed Data (Meetings and Tasks)
+    meeting = Meeting(
+        organization_id=org_id,
+        user_id=user_id,
+        client_id=client1.id,
+        meeting_date=utc_now().date(),
+        raw_notes="Met Rajesh regarding a 500cr loan request. He is concerned about the processing time and threatened to switch to HDFC bank if it is delayed.",
+        summary="Client requested a 500cr business loan. High priority due to retention risk.",
+    )
+    db.add(meeting)
+    await db.flush()
+    
+    risk = RiskSignal(
+        organization_id=org_id,
+        user_id=user_id,
+        client_id=client1.id,
+        meeting_id=meeting.id,
+        description="Client threatened to switch to HDFC bank.",
+        severity_level="high",
+        confidence=0.8
+    )
+    db.add(risk)
+
+    task = FollowUpTask(
+        organization_id=org_id,
+        user_id=user_id,
+        client_id=client1.id,
+        description="Follow up on 500cr loan approval timeline.",
+        due_date=(utc_now() + timedelta(days=1)).date(),
+        is_completed=False,
+    )
+    db.add(task)
+    await db.commit()
+
+    # 6. Create User Session and Tokens
+    session_id = f"sess_{secrets.token_hex(16)}"
+    refresh_jwt = create_refresh_token(
+        user_id=user.id,
+        org_id=org.id,
+        role=membership.role,
+        session_id=session_id,
+    )
+    
+    ip_addr = request.client.host if request.client else None
+    user_agent = request.headers.get("User-Agent")
+    user_session = UserSession(
+        id=session_id,
+        user_id=user.id,
+        organization_id=org.id,
+        refresh_token_hash=hash_token(refresh_jwt),
+        ip_address=ip_addr,
+        user_agent=user_agent[:255] if user_agent else None,
+        expires_at=utc_now() + timedelta(days=1), # Expire session in 1 day
+    )
+    db.add(user_session)
+    await db.commit()
+
+    access_jwt = create_access_token(
+        user_id=user.id,
+        org_id=org.id,
+        role=membership.role,
+        session_id=session_id,
+    )
+    csrf_token = generate_csrf_token()
+
+    set_auth_cookies(
+        response=response,
+        access_token=access_jwt,
+        refresh_token=refresh_jwt,
+        csrf_token=csrf_token,
+    )
+
+    return {
+        "user": user,
+        "active_organization": org,
+        "role": membership.role,
+        "csrf_token": csrf_token,
+    }

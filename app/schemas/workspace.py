@@ -25,6 +25,11 @@ class WorkspaceRead(WorkspaceItem):
     pass
 
 
+class AcceptInviteRequest(BaseModel):
+    token: str
+    password: Optional[str] = None
+
+
 class WorkspaceListResponse(BaseModel):
     workspaces: list[WorkspaceItem]
 

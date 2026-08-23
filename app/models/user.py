@@ -32,14 +32,14 @@ class User(Base, TimestampMixin):
         cascade="all, delete-orphan",
     )
     sessions: Mapped[list[UserSession]] = relationship(
-        "UserSession", back_populates="user", cascade="all, delete-orphan"
+        "UserSession", back_populates="user", cascade="all, delete-orphan", passive_deletes=True
     )
     clients: Mapped[list[Client]] = relationship(
-        "Client", back_populates="user", cascade="all, delete-orphan"
+        "Client", back_populates="user", cascade="all, delete-orphan", passive_deletes=True
     )
     meetings: Mapped[list[Meeting]] = relationship(
-        "Meeting", back_populates="user", cascade="all, delete-orphan"
+        "Meeting", back_populates="user", cascade="all, delete-orphan", passive_deletes=True
     )
     commitments: Mapped[list[Commitment]] = relationship(
-        "Commitment", back_populates="user", cascade="all, delete-orphan"
+        "Commitment", back_populates="user", cascade="all, delete-orphan", passive_deletes=True
     )

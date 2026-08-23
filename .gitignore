@@ -8,3 +8,8 @@ tmp/
 *.wav
 *.webm
 .agents/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3

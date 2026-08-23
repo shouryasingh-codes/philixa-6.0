@@ -16,7 +16,7 @@ class AIExtractionLog(Base):
     __tablename__ = "ai_extraction_logs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    meeting_id: Mapped[int | None] = mapped_column(ForeignKey("meetings.id"), nullable=True)
+    meeting_id: Mapped[int | None] = mapped_column(ForeignKey("meetings.id", ondelete="CASCADE"), nullable=True)
     provider: Mapped[str] = mapped_column(String(40), nullable=False)
     model: Mapped[str] = mapped_column(String(120), nullable=False)
     prompt_version: Mapped[str] = mapped_column(String(80), nullable=False)

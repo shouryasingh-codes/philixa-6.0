@@ -38,7 +38,7 @@ class Commitment(Base):
     user_id: Mapped[str] = mapped_column(
         String, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
     )
-    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), nullable=False, index=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
     description: Mapped[str] = mapped_column(String(500), nullable=False)
     normalized_description: Mapped[str] = mapped_column(String(520), nullable=False, index=True, default="")
     owner: Mapped[str] = mapped_column(String(80), default="RM", nullable=False)
@@ -67,7 +67,7 @@ class Commitment(Base):
     user: Mapped[User] = relationship("User", back_populates="commitments")
     client: Mapped[Client] = relationship("Client", back_populates="commitments")
     meeting_links: Mapped[list[CommitmentMeetingLink]] = relationship(
-        "CommitmentMeetingLink", back_populates="commitment"
+        "CommitmentMeetingLink", back_populates="commitment", cascade="all, delete-orphan", passive_deletes=True
     )
 
 
@@ -76,9 +76,9 @@ class CommitmentMeetingLink(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     commitment_id: Mapped[int] = mapped_column(
-        ForeignKey("commitments.id"), nullable=False, index=True
+        ForeignKey("commitments.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    meeting_id: Mapped[int] = mapped_column(ForeignKey("meetings.id"), nullable=False, index=True)
+    meeting_id: Mapped[int] = mapped_column(ForeignKey("meetings.id", ondelete="CASCADE"), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
     commitment: Mapped[Commitment] = relationship("Commitment", back_populates="meeting_links")

@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/styles.css?v=59" />
+  <link rel="stylesheet" href="/static/styles.css?v=60" />
   <style>
     /* Scoped Multi-Tenant & Auth Enhancements */
     .topbar-branding { display: flex; flex-direction: column; }
@@ -145,6 +145,11 @@
 
           <!-- Role Badge Removed to avoid redundancy with Workspace dropdown -->
 
+          <!-- Copilot Toggle -->
+          <button id="toggleCopilotBtn" type="button" class="topbar-btn" title="Toggle AI Copilot" style="border-color: var(--accent); color: var(--accent);">
+            <span class="icon">🤖</span> Copilot
+          </button>
+
           <!-- Avatar Dropdown for User Actions -->
           <div class="avatar-dropdown-container" id="avatarDropdownContainer">
             <button id="avatarBtn" class="avatar-btn" type="button" aria-haspopup="menu" aria-expanded="false" title="User Menu">U</button>
@@ -183,9 +188,12 @@
         </div>
         <div class="metric" style="display: flex; flex-direction: column; justify-content: center;">
           <span>Selected client</span>
-          <select id="topClientSelect" class="form-input" style="width: 100%; margin-top: 10px; padding: 10px 12px; font-size: 16px; font-weight: 600; cursor: pointer; border-radius: 8px;">
-            <option value="">No client selected</option>
-          </select>
+          <div style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+            <select id="topClientSelect" class="form-input" style="flex: 1; padding: 10px 12px; font-size: 16px; font-weight: 600; cursor: pointer; border-radius: 8px;">
+              <option value="">No client selected</option>
+            </select>
+            <button id="deleteSelectedClientBtn" class="delete-client btn" style="display: none; padding: 8px 12px; background-color: rgba(255, 77, 79, 0.1); color: #ff4d4f; border: 1px solid rgba(255, 77, 79, 0.3); border-radius: 8px; cursor: pointer;">Delete</button>
+          </div>
         </div>
       </section>
 
@@ -351,16 +359,6 @@
             <div id="memoryContent" class="memory-content">
               <div class="empty-state">Select a client to view instant context.</div>
             </div>
-
-            <div class="ask-client-section hidden" id="askClientSection">
-              <div class="ask-client-input-row">
-                <input id="askClientInput" type="text"
-                  placeholder="Ask AI about this client... (e.g. What is the latest concern?)" />
-                <button id="askClientVoiceBtn" type="button" class="secondary-action" title="Hold or click to speak">🎙️</button>
-                <button id="askClientBtn" type="button" class="primary-action">Ask</button>
-              </div>
-              <div id="askClientResult" class="ask-client-result hidden"></div>
-            </div>
           </div>
         </section>
 
@@ -402,7 +400,27 @@
       </section>
 
     </main>
-  </div>
+  
+  <aside id="copilotSidebar" class="copilot-sidebar">
+    <div class="copilot-header">
+      <h3 style="margin: 0; font-size: 16px; display: flex; align-items: center; gap: 8px;">
+        <span class="icon">🤖</span> AI Copilot
+      </h3>
+      <button id="closeCopilotBtn" type="button" class="close-btn" title="Close Copilot">✕</button>
+    </div>
+    <div class="copilot-content">
+      <div class="ask-client-section hidden" id="askClientSection">
+        <div class="ask-client-input-row">
+          <input id="askClientInput" type="text"
+            placeholder="Ask AI about this client... (e.g. What is the latest concern?)" />
+          <button id="askClientVoiceBtn" type="button" class="secondary-action" title="Hold or click to speak">🎙️</button>
+          <button id="askClientBtn" type="button" class="primary-action">Ask</button>
+        </div>
+        <div id="askClientResult" class="ask-client-result hidden"></div>
+      </div>
+    </div>
+  </aside>
+</div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -429,6 +447,7 @@
               <input id="loginPassword" type="password" required autocomplete="current-password" placeholder="••••••••" />
             </div>
             <button id="loginSubmitBtn" type="submit" class="primary-action" style="width: 100%; margin-top: 8px;">Sign In</button>
+            <button id="demoLoginBtn" type="button" class="secondary-action" style="width: 100%; margin-top: 12px; background: #f8fafc; border-color: #cbd5e1; color: #334155; font-weight: 600;">Try Demo (For Recruiters/Guests)</button>
           </form>
           <div class="auth-footer-links">
             <div>Don't have an account? <a id="linkToRegister">Create workspace</a></div>
@@ -541,10 +560,16 @@
           </div>
           <form id="acceptInviteForm">
             <div class="form-group">
-              <label for="inviteTokenInput">Invitation Token</label>
-              <input id="inviteTokenInput" type="text" required placeholder="Paste invitation token here..." />
+              <label>Invitation Token</label>
+              <input type="text" id="inviteTokenInput" class="input-field" required />
             </div>
-            <button id="inviteAcceptSubmitBtn" type="submit" class="primary-action" style="width: 100%;">Join Workspace</button>
+            <div class="form-group" id="invitePasswordFieldGroup">
+              <label>Set Password (to create account)</label>
+              <input type="password" id="invitePasswordInput" class="input-field" placeholder="Leave blank if you already have an account" />
+            </div>
+            <button type="submit" id="inviteAcceptSubmitBtn" class="btn primary full-width" style="margin-top: 10px;">
+              Join Workspace
+            </button>
           </form>
           <div class="auth-footer-links">
             <div><a id="linkToLoginFromInvite">Sign in with different account</a></div>
@@ -645,13 +670,22 @@
               style="width: 100%; margin-top: 5px; padding: 8px; border-radius: 6px; border: 1px solid var(--line);" />
           </label>
         </div>
-        <button id="saveSettingsBtn" type="button" class="primary-action" style="width: 100%;">Save Preferences</button>
+        <button id="saveSettingsBtn" type="button" class="primary-action" style="width: 100%; margin-bottom: 20px;">Save Preferences</button>
+
+        <hr style="border: 0; border-top: 1px solid var(--line); margin: 20px 0;">
+        <div class="danger-zone" style="margin-top: 15px;">
+          <h4 style="color: #ff4d4f; margin-bottom: 10px;">Danger Zone</h4>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">
+            Permanently delete your account and all associated personal data. This action cannot be undone.
+          </p>
+          <button id="deleteAccountBtn" type="button" class="btn" style="width: 100%; background-color: rgba(255, 77, 79, 0.1); color: #ff4d4f; border: 1px solid rgba(255, 77, 79, 0.3);">Permanently Delete Account</button>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- Application Scripts -->
-  <script src="/static/app.js?v=40"></script>
+  <script src="/static/app.js?v=43"></script>
   <script src="/static/fast-dictation.js?v=1"></script>
   <script src="/static/philixa-voice.js?v=31"></script>
   <script>

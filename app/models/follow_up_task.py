@@ -13,8 +13,8 @@ class FollowUpTask(Base, TenantMixin, TimestampMixin):
     __tablename__ = "follow_up_tasks"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), nullable=False, index=True)
-    commitment_id: Mapped[int | None] = mapped_column(ForeignKey("commitments.id"), nullable=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
+    commitment_id: Mapped[int | None] = mapped_column(ForeignKey("commitments.id", ondelete="CASCADE"), nullable=True)
     description: Mapped[str] = mapped_column(String(500), nullable=False)
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
     is_completed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

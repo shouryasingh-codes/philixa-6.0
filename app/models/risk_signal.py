@@ -11,8 +11,8 @@ class RiskSignal(Base, TenantMixin, TimestampMixin):
     __tablename__ = "risk_signals"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), nullable=False, index=True)
-    meeting_id: Mapped[int | None] = mapped_column(ForeignKey("meetings.id"), nullable=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
+    meeting_id: Mapped[int | None] = mapped_column(ForeignKey("meetings.id", ondelete="CASCADE"), nullable=True)
     description: Mapped[str] = mapped_column(String(500), nullable=False)
     severity_level: Mapped[str] = mapped_column(String(20), default="medium", nullable=False)
     confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)

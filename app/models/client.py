@@ -54,7 +54,7 @@ class Client(Base):
 
     organization: Mapped[Organization] = relationship("Organization", back_populates="clients")
     user: Mapped[User] = relationship("User", back_populates="clients")
-    meetings: Mapped[list[Meeting]] = relationship("Meeting", back_populates="client")
-    commitments: Mapped[list[Commitment]] = relationship("Commitment", back_populates="client")
-    risk_signals: Mapped[list[RiskSignal]] = relationship("RiskSignal", back_populates="client")
-    follow_up_tasks: Mapped[list[FollowUpTask]] = relationship("FollowUpTask", back_populates="client")
+    meetings: Mapped[list[Meeting]] = relationship("Meeting", back_populates="client", cascade="all, delete-orphan", passive_deletes=True)
+    commitments: Mapped[list[Commitment]] = relationship("Commitment", back_populates="client", cascade="all, delete-orphan", passive_deletes=True)
+    risk_signals: Mapped[list[RiskSignal]] = relationship("RiskSignal", back_populates="client", cascade="all, delete-orphan", passive_deletes=True)
+    follow_up_tasks: Mapped[list[FollowUpTask]] = relationship("FollowUpTask", back_populates="client", cascade="all, delete-orphan", passive_deletes=True)

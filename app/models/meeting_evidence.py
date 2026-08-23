@@ -28,4 +28,4 @@ class MeetingEvidence(TenantMixin, Base):
         DateTime(timezone=True), default=utc_now, onupdate=utc_now
     )
 
-    meeting = relationship("Meeting", backref="evidence_chunks")
+    meeting = relationship("Meeting", backref=__import__("sqlalchemy.orm").orm.backref("evidence_chunks", cascade="all, delete-orphan", passive_deletes=True))

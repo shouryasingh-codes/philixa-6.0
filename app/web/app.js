@@ -36,6 +36,7 @@ const els = {
   loginEmail: document.querySelector("#loginEmail"),
   loginPassword: document.querySelector("#loginPassword"),
   loginSubmitBtn: document.querySelector("#loginSubmitBtn"),
+  demoLoginBtn: document.querySelector("#demoLoginBtn"),
   loginError: document.querySelector("#loginError"),
   linkToRegister: document.querySelector("#linkToRegister"),
   linkToForgotPassword: document.querySelector("#linkToForgotPassword"),
@@ -83,6 +84,7 @@ const els = {
   inviteAcceptMessage: document.querySelector("#inviteAcceptMessage"),
   acceptInviteForm: document.querySelector("#acceptInviteForm"),
   inviteTokenInput: document.querySelector("#inviteTokenInput"),
+  invitePasswordInput: document.querySelector("#invitePasswordInput"),
   inviteAcceptSubmitBtn: document.querySelector("#inviteAcceptSubmitBtn"),
   linkToLoginFromInvite: document.querySelector("#linkToLoginFromInvite"),
 
@@ -116,6 +118,7 @@ const els = {
   clientCount: document.querySelector("#clientCount"),
   pendingCount: document.querySelector("#pendingCount"),
   topClientSelect: document.querySelector("#topClientSelect"),
+  deleteSelectedClientBtn: document.querySelector("#deleteSelectedClientBtn"),
   rawNotes: document.querySelector("#rawNotes"),
   meetingDate: document.querySelector("#meetingDate"),
   knownClient: document.querySelector("#knownClient"),
@@ -135,6 +138,12 @@ const els = {
   taskList: document.querySelector("#taskList"),
   riskList: document.querySelector("#riskList"),
   toast: document.querySelector("#toast"),
+  
+  // Copilot Sidebar
+  copilotSidebar: document.querySelector("#copilotSidebar"),
+  toggleCopilotBtn: document.querySelector("#toggleCopilotBtn"),
+  closeCopilotBtn: document.querySelector("#closeCopilotBtn"),
+
   askClientSection: document.querySelector("#askClientSection"),
   askClientInput: document.querySelector("#askClientInput"),
   askClientBtn: document.querySelector("#askClientBtn"),
@@ -148,6 +157,7 @@ const els = {
   prefQuietStart: document.querySelector("#prefQuietStart"),
   prefQuietEnd: document.querySelector("#prefQuietEnd"),
   saveSettingsBtn: document.querySelector("#saveSettingsBtn"),
+  deleteAccountBtn: document.querySelector("#deleteAccountBtn"),
   tabTextBtn: document.querySelector("#tabTextBtn"),
   tabAudioBtn: document.querySelector("#tabAudioBtn"),
   viewText: document.querySelector("#viewText"),
@@ -570,6 +580,34 @@ async function handleLogin(e) {
   }
 }
 
+async function handleDemoLogin(e) {
+  e.preventDefault();
+  if (els.loginError) els.loginError.classList.add("hidden");
+  
+  if (els.demoLoginBtn) {
+    els.demoLoginBtn.disabled = true;
+    els.demoLoginBtn.textContent = "Provisioning Demo Workspace...";
+  }
+
+  try {
+    const res = await api("/api/v1/auth/demo-login", {
+      method: "POST"
+    });
+    // Set CSRF token
+    if (res.csrf_token) {
+      localStorage.setItem("csrf_token", res.csrf_token);
+    }
+    await bootstrapSession(); // Reload state with new session
+  } catch (err) {
+    showAuthError(els.loginError, err.message);
+  } finally {
+    if (els.demoLoginBtn) {
+      els.demoLoginBtn.disabled = false;
+      els.demoLoginBtn.textContent = "Try Demo (For Recruiters/Guests)";
+    }
+  }
+}
+
 async function handleRegister(e) {
   e.preventDefault();
   if (els.registerError) els.registerError.classList.add("hidden");
@@ -693,20 +731,26 @@ async function handleResetPassword(e) {
 async function handleAcceptInvite(e) {
   e.preventDefault();
   const token = els.inviteTokenInput.value.trim();
+  const password = els.invitePasswordInput ? els.invitePasswordInput.value.trim() : "";
   if (!token) return;
 
   try {
     els.inviteAcceptSubmitBtn.disabled = true;
     els.inviteAcceptSubmitBtn.textContent = "Joining...";
 
-    await api(`/api/v1/workspaces/invite/accept?token=${encodeURIComponent(token)}`, {
+    await api(`/api/v1/workspaces/invite/accept`, {
       method: "POST",
+      body: JSON.stringify({ token, password }),
     });
 
     showToast("Joined workspace successfully!");
     await bootstrapSession();
   } catch (err) {
-    showAuthError(els.inviteAcceptMessage, err.message);
+    if (err.message.includes("already exists")) {
+        showAuthError(els.inviteAcceptMessage, err.message + " Use the 'Sign in with different account' link below.");
+    } else {
+        showAuthError(els.inviteAcceptMessage, err.message);
+    }
   } finally {
     els.inviteAcceptSubmitBtn.disabled = false;
     els.inviteAcceptSubmitBtn.textContent = "Join Workspace";
@@ -960,6 +1004,9 @@ function renderClientOptions() {
   if (els.topClientSelect) {
     els.topClientSelect.innerHTML = `<option value="">No client selected</option>${clientOptions}`;
     els.topClientSelect.value = state.selectedClientId || "";
+  }
+  if (els.deleteSelectedClientBtn) {
+    els.deleteSelectedClientBtn.style.display = state.selectedClientId ? "block" : "none";
   }
 }
 
@@ -1738,6 +1785,7 @@ function updateLiveUI(uiState, message = "") {
 function bindEvents() {
   // Auth Form Handlers
   els.loginForm?.addEventListener("submit", handleLogin);
+  els.demoLoginBtn?.addEventListener("click", handleDemoLogin);
   els.registerForm?.addEventListener("submit", handleRegister);
   els.verifyEmailForm?.addEventListener("submit", handleVerifyEmail);
   els.forgotPasswordForm?.addEventListener("submit", handleForgotPassword);
@@ -1785,7 +1833,33 @@ function bindEvents() {
       }
       if (els.askClientSection) els.askClientSection.classList.add("hidden");
     }
+    if (els.deleteSelectedClientBtn) {
+      els.deleteSelectedClientBtn.style.display = state.selectedClientId ? "block" : "none";
+    }
     updateMetrics();
+  });
+
+  els.deleteSelectedClientBtn?.addEventListener("click", async () => {
+    if (!state.selectedClientId) return;
+    const client = state.clients.find(c => c.id === state.selectedClientId);
+    if (!client) return;
+    if (!window.confirm(`Are you sure you want to delete the client "${client.name}"? This will permanently delete all associated meetings and commitments.`)) return;
+
+    try {
+      const btn = els.deleteSelectedClientBtn;
+      btn.disabled = true;
+      btn.textContent = "Deleting...";
+      await api(`/api/v1/clients/${state.selectedClientId}`, { method: "DELETE" });
+      showToast(`Client "${client.name}" deleted successfully.`);
+      state.selectedClientId = null;
+      await bootstrapSession(); // Reload data
+    } catch (err) {
+      showToast(`Failed to delete client: ${err.message}`, true);
+    } finally {
+      const btn = els.deleteSelectedClientBtn;
+      btn.disabled = false;
+      btn.textContent = "Delete";
+    }
   });
 
   // Process & Confirm Notes
@@ -1834,6 +1908,22 @@ function bindEvents() {
   els.saveSettingsBtn?.addEventListener("click", () =>
     withLoading(els.saveSettingsBtn, "Saving…", () => saveSettings())
   );
+  els.deleteAccountBtn?.addEventListener("click", async () => {
+    if (window.confirm("Are you sure you want to permanently delete your account? This action cannot be undone.")) {
+      try {
+        const btn = els.deleteAccountBtn;
+        btn.disabled = true;
+        btn.textContent = "Deleting...";
+        await api("/api/v1/auth/me", { method: "DELETE" });
+        showToast("Account deleted successfully.", true);
+        setTimeout(() => { window.location.href = "/"; }, 1000);
+      } catch (err) {
+        showToast(`Failed to delete account: ${err.message}`, true);
+        els.deleteAccountBtn.disabled = false;
+        els.deleteAccountBtn.textContent = "Permanently Delete Account";
+      }
+    }
+  });
   els.settingsModal?.addEventListener("click", (e) => {
     if (e.target === els.settingsModal) closeSettings();
   });
@@ -1985,6 +2075,20 @@ function bindEvents() {
   document.getElementById("startSoloBtn")?.addEventListener("click", () => startLiveRecording(false));
   document.getElementById("startMeetingBtn")?.addEventListener("click", () => startLiveRecording(true));
   document.getElementById("stopLiveBtn")?.addEventListener("click", () => stopLiveRecording());
+  els.tabFastDictationBtn?.addEventListener("click", () => switchTab("tabFastDictationBtn", "viewFastDictation"));
+
+  // Sidebar Toggles
+  els.sidebarToggleBtn?.addEventListener("click", () => {
+    document.querySelector(".app-shell").classList.toggle("sidebar-collapsed");
+  });
+  
+  els.toggleCopilotBtn?.addEventListener("click", () => {
+    els.copilotSidebar?.classList.toggle("open");
+  });
+  
+  els.closeCopilotBtn?.addEventListener("click", () => {
+    els.copilotSidebar?.classList.remove("open");
+  });
 
   // Theme Toggle
   els.themeToggleBtn?.addEventListener("click", () => {

@@ -41,7 +41,7 @@ class Meeting(Base):
     user_id: Mapped[str] = mapped_column(
         String, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
     )
-    client_id: Mapped[int | None] = mapped_column(ForeignKey("clients.id"), nullable=True)
+    client_id: Mapped[int | None] = mapped_column(ForeignKey("clients.id", ondelete="CASCADE"), nullable=True)
     raw_notes: Mapped[str] = mapped_column(Text, nullable=False)
     meeting_date: Mapped[date] = mapped_column(Date, nullable=False, default=date.today)
     summary: Mapped[str] = mapped_column(Text, default="", nullable=False)
@@ -80,8 +80,8 @@ class Meeting(Base):
     user: Mapped[User] = relationship("User", back_populates="meetings")
     client: Mapped[Client | None] = relationship("Client", back_populates="meetings")
     commitment_links: Mapped[list[CommitmentMeetingLink]] = relationship(
-        "CommitmentMeetingLink", back_populates="meeting"
+        "CommitmentMeetingLink", back_populates="meeting", cascade="all, delete-orphan", passive_deletes=True
     )
     ai_logs: Mapped[list[AIExtractionLog]] = relationship(
-        "AIExtractionLog", back_populates="meeting"
+        "AIExtractionLog", back_populates="meeting", cascade="all, delete-orphan", passive_deletes=True
     )
