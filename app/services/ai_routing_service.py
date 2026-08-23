@@ -55,13 +55,15 @@ class AIRoutingService:
             provider = get_ai_provider(provider_name, self.settings)
             result = await asyncio.to_thread(provider.extract_meeting_intelligence, raw_notes, meeting_date, model_name)
             
+            payload = result.payload if isinstance(result, ExtractionResult) else result
             # Schema validation check:
-            MeetingExtraction.model_validate(result.payload)
+            MeetingExtraction.model_validate(payload)
+            res_obj = result if isinstance(result, ExtractionResult) else ExtractionResult(payload=payload)
 
             # Low confidence is fine — client identification service
             # will handle it by showing confirmation panel to user.
-            await self._log_audit(meeting_id, provider_name, model_name, result, success=True)
-            return result
+            await self._log_audit(meeting_id, provider_name, model_name, res_obj, success=True)
+            return res_obj
 
         except Exception as e:
             # We log failures too!

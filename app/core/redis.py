@@ -18,6 +18,13 @@ async def close_redis_pool():
         await pool.disconnect()
         pool = None
 
+async def get_redis_client() -> Redis:
+    global pool
+    if pool is None:
+        await init_redis_pool()
+    return Redis(connection_pool=pool)
+
+
 async def get_redis() -> AsyncGenerator[Redis, None]:
     global pool
     if pool is None:

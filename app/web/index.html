@@ -5,14 +5,94 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description"
-    content="PHILIXA 6.0 — AI-powered Commitment and Memory Copilot for Banking Relationship Managers." />
-  <title>PHILIXA 6.0 V1</title>
+    content="PHILIXA 6.0 — AI-powered Multi-Tenant Commitment and Memory Copilot for Banking Relationship Managers." />
+  <title>PHILIXA 6.0 — Commitment & Memory Copilot</title>
   <link rel="icon" type="image/svg+xml"
-    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2314b8a6'/%3E%3Ctext x='16' y='22' font-family='sans-serif' font-size='16' font-weight='900' fill='%2306231f' text-anchor='middle'%3EP6%3C/text%3E%3C/svg%3E" />
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230f766e'/%3E%3Ctext x='16' y='22' font-family='sans-serif' font-size='16' font-weight='900' fill='%23ffffff' text-anchor='middle'%3EP6%3C/text%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/styles.css?v=58" />
+  <link rel="stylesheet" href="/static/styles.css?v=59" />
+  <style>
+    /* Scoped Multi-Tenant & Auth Enhancements */
+    .topbar-branding { display: flex; flex-direction: column; }
+    .topbar-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .workspace-selector-wrap { display: flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; }
+    .workspace-select { border: none; background: transparent; font-size: 13px; font-weight: 600; color: var(--ink); cursor: pointer; outline: none; padding-right: 4px; }
+    
+    .role-badge { display: inline-flex; align-items: center; padding: 3px 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; border-radius: 6px; }
+    .role-owner { background: #dbeafe; color: #1e40af; }
+    .role-admin { background: #e0e7ff; color: #3730a3; }
+    .role-member { background: #f1f5f9; color: #475569; }
+    .dark-theme .role-owner { background: #1e3a8a; color: #93c5fd; }
+    .dark-theme .role-admin { background: #312e81; color: #c7d2fe; }
+    .dark-theme .role-member { background: #334155; color: #cbd5e1; }
+
+    .user-email-text { font-size: 13px; font-weight: 500; color: var(--muted); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .topbar-btn { min-height: 34px; padding: 6px 12px; font-size: 13px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+    .topbar-btn:hover { border-color: var(--accent); }
+    .topbar-btn.logout-btn { color: var(--danger); border-color: #fca5a5; }
+    .topbar-btn.logout-btn:hover { background: #fef2f2; }
+
+    /* Avatar Dropdown Styles */
+    .avatar-dropdown-container { position: relative; display: inline-block; }
+    .avatar-btn { width: 34px; height: 34px; border-radius: 50%; border: none; background: var(--accent); color: white; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: transform 0.2s; }
+    .avatar-btn:hover { transform: scale(1.05); }
+    .avatar-menu { position: absolute; top: calc(100% + 8px); right: 0; width: 220px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); z-index: 1000; overflow: hidden; animation: slideUp 0.2s ease-out; }
+    .avatar-menu.hidden { display: none; }
+    .avatar-menu-header { padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--bg); }
+    .avatar-menu-header .user-email-text { font-size: 12px; font-weight: 600; color: var(--ink); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; margin: 0; }
+    .avatar-menu-body { padding: 8px 0; }
+    .avatar-menu-item { width: 100%; text-align: left; background: none; border: none; padding: 10px 16px; font-size: 13px; font-weight: 500; color: var(--ink); cursor: pointer; display: flex; align-items: center; gap: 10px; transition: background 0.15s; }
+    .avatar-menu-item:hover { background: var(--bg); }
+    .avatar-menu-item .icon { font-size: 14px; }
+    .avatar-menu-divider { height: 1px; background: var(--line); margin: 6px 0; }
+    .avatar-menu-item.logout-item { color: var(--danger); }
+    .avatar-menu-item.logout-item:hover { background: #fef2f2; }
+    .dark-theme .avatar-menu-item.logout-item:hover { background: rgba(220, 38, 38, 0.1); }
+
+    /* Auth Fullscreen Modal Overlay */
+    .auth-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
+    .auth-overlay.hidden { display: none; }
+    .auth-card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; width: 100%; max-width: 440px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); overflow: hidden; animation: slideUp 0.25s ease-out; }
+    .auth-card-header { padding: 24px 28px 16px; text-align: center; border-bottom: 1px solid var(--line); background: var(--bg); }
+    .auth-card-header .brand-mark { margin: 0 auto 12px; width: 44px; height: 44px; font-size: 16px; }
+    .auth-card-header h2 { margin: 0; font-size: 20px; font-weight: 800; color: var(--ink); }
+    .auth-card-header p { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+    .auth-card-body { padding: 24px 28px; }
+    
+    .segmented-control { display: flex; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 3px; margin-bottom: 18px; }
+    .segmented-control label { flex: 1; text-align: center; padding: 8px 10px; font-size: 13px; font-weight: 600; cursor: pointer; border-radius: 6px; transition: all 0.15s ease; color: var(--muted); margin: 0; }
+    .segmented-control input[type="radio"] { display: none; }
+    .segmented-control input[type="radio"]:checked + span { color: var(--ink); }
+    .segmented-control label.active { background: var(--panel); color: var(--ink); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+    .form-group input, .form-group select { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--input-bg); color: var(--ink); outline: none; }
+    .form-group input:focus, .form-group select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15); }
+    
+    .auth-footer-links { margin-top: 18px; text-align: center; font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 8px; }
+    .auth-footer-links a { color: var(--accent); text-decoration: none; font-weight: 600; cursor: pointer; }
+    .auth-footer-links a:hover { text-decoration: underline; }
+
+    .alert-box { padding: 12px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .alert-box.error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+    .alert-box.success { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+    .dark-theme .alert-box.error { background: #450a0a; color: #fca5a5; border-color: #7f1d1d; }
+    .dark-theme .alert-box.success { background: #052e16; color: #86efac; border-color: #14532d; }
+
+    /* Members Management Modal */
+    .members-modal-content { max-width: 680px; width: 95%; }
+    .invite-box { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 20px; }
+    .invite-form-row { display: grid; grid-template-columns: 2fr 1fr auto; gap: 10px; align-items: end; }
+    .members-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    .members-table th { text-align: left; padding: 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); }
+    .members-table td { padding: 12px 10px; font-size: 13px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+    .member-role-select { padding: 4px 8px; font-size: 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+    .btn-remove-member { background: transparent; border: 1px solid var(--line); color: var(--danger); padding: 4px 8px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+    .btn-remove-member:hover { background: #fef2f2; border-color: #fca5a5; }
+  </style>
 </head>
 
 <body>
@@ -33,38 +113,62 @@
         </button>
       </div>
 
-      <label class="field-label" for="apiKey">API key</label>
-      <div class="api-row">
-        <input id="apiKey" type="password" value="philixa-demo-secret-123" autocomplete="off" />
-        <button class="icon-button" id="toggleKey" type="button" title="Show or hide API key">Key</button>
-      </div>
-
+      <!-- System status indicator -->
       <div class="system-strip">
         <span class="status-dot" id="healthDot"></span>
         <span id="healthText">Checking API</span>
       </div>
 
+      <!-- Main Navigation -->
       <nav class="nav-list" aria-label="Dashboard sections">
         <a href="#notePanel">Process Notes</a>
         <a href="#memoryPanel">Client Memory</a>
         <a href="#commitmentPanel">Commitments</a>
         <a href="#day4Panel">Daily Priorities</a>
       </nav>
-      
-
     </aside>
 
     <main class="workspace">
       <header class="topbar">
-        <div>
-          <p class="eyebrow">V1-Beta</p>
-          <h2>RM meeting memory workspace</h2>
+        <div class="topbar-branding">
+          <p class="eyebrow" id="topbarPlanBadge">V1-Beta</p>
+          <h2 id="topbarTitle">RM meeting memory workspace</h2>
         </div>
         <div class="topbar-actions">
-          <button id="themeToggleBtn" type="button" class="icon-btn" title="Toggle Dark Mode"
-            style="font-size: 1.2rem; background: transparent; border: none; cursor: pointer; color: var(--muted); margin-right: 10px;">🌙</button>
-          <button id="settingsBtn" type="button" class="icon-btn" title="Notification Settings"
-            style="font-size: 1.2rem; background: transparent; border: none; cursor: pointer; color: var(--muted); margin-right: 10px;">⚙️</button>
+          <!-- Multi-Tenant Workspace Selector -->
+          <div class="workspace-selector-wrap" title="Current Workspace">
+            <span class="workspace-icon">🏢</span>
+            <select id="workspaceSelect" class="workspace-select" aria-label="Select active workspace">
+              <option value="" disabled selected>Loading...</option>
+            </select>
+          </div>
+
+          <!-- Role Badge Removed to avoid redundancy with Workspace dropdown -->
+
+          <!-- Avatar Dropdown for User Actions -->
+          <div class="avatar-dropdown-container" id="avatarDropdownContainer">
+            <button id="avatarBtn" class="avatar-btn" type="button" aria-haspopup="menu" aria-expanded="false" title="User Menu">U</button>
+            <div id="avatarMenu" class="avatar-menu hidden" role="menu">
+              <div class="avatar-menu-header">
+                <span id="userEmailDisplay" class="user-email-text" title="Logged in user">user@example.com</span>
+              </div>
+              <div class="avatar-menu-body">
+                <button id="manageMembersBtn" type="button" class="avatar-menu-item" data-min-role="admin" role="menuitem">
+                  <span class="icon">👥</span> Manage Members
+                </button>
+                <button id="settingsBtn" type="button" class="avatar-menu-item" role="menuitem">
+                  <span class="icon">⚙️</span> Preferences
+                </button>
+                <button id="themeToggleBtn" type="button" class="avatar-menu-item" role="menuitem">
+                  <span class="icon">🌙</span> Toggle Theme
+                </button>
+                <div class="avatar-menu-divider"></div>
+                <button id="logoutBtn" type="button" class="avatar-menu-item logout-item" role="menuitem">
+                  <span class="icon">🚪</span> Sign Out
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -153,8 +257,7 @@
             <label for="audioFileInput" class="file-input-label">
               <span style="font-size: 24px; display: block; margin-bottom: 8px;">📁</span>
               <span id="uploadFileName">Click to select audio file</span>
-              <span class="muted" style="display: block; font-size: 12px; margin-top: 4px;">.mp3, .m4a, .wav (Max
-                50MB)</span>
+              <span class="muted" style="display: block; font-size: 12px; margin-top: 4px;">.mp3, .m4a, .wav (Max 50MB)</span>
             </label>
           </div>
           <div class="form-row">
@@ -170,58 +273,55 @@
               <span class="status-dot pulsing" id="audioStatusDot" style="background: var(--blue);"></span>
               <strong id="audioStatusText" style="color: var(--blue);">Uploading...</strong>
             </div>
-            <p class="muted" style="font-size: 12px; margin-top: 8px;" id="audioStatusDetails">Please wait while the
-              file is sent to the server.</p>
+            <p class="muted" style="font-size: 12px; margin-top: 8px;" id="audioStatusDetails">Please wait while the file is sent to the server.</p>
           </div>
         </div>
 
-          <!-- Tab: Live Record (Day 12 - Accuracy Fix) -->
-          <div id="viewLive" class="tab-content hidden">
-            <div style="display:flex; gap:12px; align-items:center; margin-bottom:14px; flex-wrap:wrap;">
-              <button id="startSoloBtn" type="button" onclick="startLiveRecording(false)" style="background:var(--accent); color:#000; font-weight:700; border:none; padding:8px 18px; border-radius:6px; cursor:pointer;">🎙 Solo Record</button>
-              <button id="startMeetingBtn" type="button" onclick="startLiveRecording(true)" style="background:#6c63ff; color:#fff; font-weight:700; border:none; padding:8px 18px; border-radius:6px; cursor:pointer;">👥 Meeting Record</button>
-              <button id="stopLiveBtn" type="button" onclick="stopLiveRecording()" disabled style="background:var(--surface); color:var(--muted); border:1px solid var(--line); padding:8px 18px; border-radius:6px; cursor:pointer;">⏹ Stop &amp; Save</button>
-              <span id="liveStatusText" style="color:var(--muted); font-size:14px;">⏸ Ready</span>
-            </div>
-            <div style="font-size:11px; color:var(--muted); margin-bottom:10px;">
-              🎙 <strong>Solo</strong> — Only you are speaking (Fast, ~20s) &nbsp;|&nbsp; 👥 <strong>Meeting</strong> — Client is present, speaker labels included (Slow, ~60s)
-            </div>
-            <div style="border:1px solid var(--line); border-radius:8px; padding:24px 16px; min-height:130px; background:var(--bg); display:flex; align-items:center; justify-content:center; text-align:center;">
-              <div>
-                <div id="liveRecordingIndicator" style="font-size:32px; margin-bottom:8px;">🎙</div>
-                <div style="color:var(--muted); font-size:14px; line-height:1.6;">Speak freely — recording in progress.<br>When you click Stop &amp; Save, Whisper will process the full audio at once.<br><strong style="color:var(--text);">No live text will appear — only the final accurate transcript.</strong></div>
-              </div>
-            </div>
-            <p style="font-size:12px; color:var(--muted); margin-top:8px;">⚡ After Stop &amp; Save, the transcript will appear in Paste Notes — review and click Process.</p>
+        <!-- Tab: Live Record -->
+        <div id="viewLive" class="tab-content hidden">
+          <div style="display:flex; gap:12px; align-items:center; margin-bottom:14px; flex-wrap:wrap;">
+            <button id="startSoloBtn" type="button" style="background:var(--accent); color:#fff; font-weight:700; border:none; padding:8px 18px; border-radius:6px; cursor:pointer;">🎙 Solo Record</button>
+            <button id="startMeetingBtn" type="button" style="background:#6c63ff; color:#fff; font-weight:700; border:none; padding:8px 18px; border-radius:6px; cursor:pointer;">👥 Meeting Record</button>
+            <button id="stopLiveBtn" type="button" disabled style="background:var(--surface); color:var(--muted); border:1px solid var(--line); padding:8px 18px; border-radius:6px; cursor:pointer;">⏹ Stop &amp; Save</button>
+            <span id="liveStatusText" style="color:var(--muted); font-size:14px;">⏸ Ready</span>
           </div>
+          <div style="font-size:11px; color:var(--muted); margin-bottom:10px;">
+            🎙 <strong>Solo</strong> — Only you are speaking (Fast, ~20s) &nbsp;|&nbsp; 👥 <strong>Meeting</strong> — Client is present, speaker labels included (Slow, ~60s)
+          </div>
+          <div style="border:1px solid var(--line); border-radius:8px; padding:24px 16px; min-height:130px; background:var(--bg); display:flex; align-items:center; justify-content:center; text-align:center;">
+            <div>
+              <div id="liveRecordingIndicator" style="font-size:32px; margin-bottom:8px;">🎙</div>
+              <div style="color:var(--muted); font-size:14px; line-height:1.6;">Speak freely — recording in progress.<br>When you click Stop &amp; Save, Whisper will process the full audio at once.<br><strong style="color:var(--text);">No live text will appear — only the final accurate transcript.</strong></div>
+            </div>
+          </div>
+          <p style="font-size:12px; color:var(--muted); margin-top:8px;">⚡ After Stop &amp; Save, the transcript will appear in Paste Notes — review and click Process.</p>
+        </div>
 
-          <!-- Tab: Fast Dictation (Web Speech API) -->
-          <div id="viewFastDictation" class="tab-content hidden">
-            <div style="display:flex; gap:12px; align-items:center; margin-bottom:14px; flex-wrap:wrap;">
-              <button id="startDictationBtn" type="button" style="background:var(--accent); color:#000; font-weight:700; border:none; padding:8px 18px; border-radius:6px; cursor:pointer;">🎙 Start Dictation</button>
-              <button id="stopDictationBtn" type="button" disabled style="background:var(--surface); color:var(--muted); border:1px solid var(--line); padding:8px 18px; border-radius:6px; cursor:pointer;">⏹ Stop &amp; Save</button>
-              <span id="dictationStatusText" style="color:var(--muted); font-size:14px;">⏸ Ready (Web Speech API)</span>
-            </div>
-            <div style="border:1px solid var(--line); border-radius:8px; padding:16px; min-height:130px; background:var(--bg);">
-              <div id="dictationResult" style="font-weight:600; color:var(--text); white-space:pre-wrap; font-size:15px; line-height:1.6;"></div>
-              <div class="muted" style="font-size:12px; margin-top:12px;">Instant dictation using browser native speech API.</div>
-            </div>
-            <p style="font-size:12px; color:var(--muted); margin-top:8px;">⚡ Stop &amp; Save ke baad transcript Paste Notes mein jayega — wahan se Process karo.</p>
+        <!-- Tab: Fast Dictation (Web Speech API) -->
+        <div id="viewFastDictation" class="tab-content hidden">
+          <div style="display:flex; gap:12px; align-items:center; margin-bottom:14px; flex-wrap:wrap;">
+            <button id="startDictationBtn" type="button" style="background:var(--accent); color:#fff; font-weight:700; border:none; padding:8px 18px; border-radius:6px; cursor:pointer;">🎙 Start Dictation</button>
+            <button id="stopDictationBtn" type="button" disabled style="background:var(--surface); color:var(--muted); border:1px solid var(--line); padding:8px 18px; border-radius:6px; cursor:pointer;">⏹ Stop &amp; Save</button>
+            <span id="dictationStatusText" style="color:var(--muted); font-size:14px;">⏸ Ready (Web Speech API)</span>
           </div>
+          <div style="border:1px solid var(--line); border-radius:8px; padding:16px; min-height:130px; background:var(--bg);">
+            <div id="dictationResult" style="font-weight:600; color:var(--text); white-space:pre-wrap; font-size:15px; line-height:1.6;"></div>
+            <div class="muted" style="font-size:12px; margin-top:12px;">Instant dictation using browser native speech API.</div>
+          </div>
+          <p style="font-size:12px; color:var(--muted); margin-top:8px;">⚡ Stop &amp; Save saves transcript to Paste Notes — review and click Process.</p>
+        </div>
 
-          <div class="result-box" id="processResult" style="margin-top: 15px;">
-            <div class="empty-state">Process a meeting note to see extraction results here.</div>
-          </div>
+        <div class="result-box" id="processResult" style="margin-top: 15px;">
+          <div class="empty-state">Process a meeting note to see extraction results here.</div>
+        </div>
 
-          <div id="editTranscriptPanel" class="hidden panel" style="margin-top: 15px; border: 1px solid var(--line); padding: 15px; border-radius: 6px; background: var(--bg);">
-            <p class="eyebrow">Manual Review Required</p>
-            <h4>Edit Audio Transcript</h4>
-            <p class="muted" style="margin-bottom: 10px; font-size: 13px;">The AI could not automatically generate a summary from this audio. Please review and edit the transcript, then click 'Save & Re-process'.</p>
-            
-            <textarea id="editTranscriptText" spellcheck="true" style="width: 100%; min-height: 150px; margin-bottom: 10px;"></textarea>
-            
-            <button class="primary-action" id="saveTranscriptBtn" type="button">Save & Re-process</button>
-          </div>
+        <div id="editTranscriptPanel" class="hidden panel" style="margin-top: 15px; border: 1px solid var(--line); padding: 15px; border-radius: 6px; background: var(--bg);">
+          <p class="eyebrow">Manual Review Required</p>
+          <h4>Edit Audio Transcript</h4>
+          <p class="muted" style="margin-bottom: 10px; font-size: 13px;">The AI could not automatically generate a summary from this audio. Please review and edit the transcript, then click 'Save & Re-process'.</p>
+          <textarea id="editTranscriptText" spellcheck="true" style="width: 100%; min-height: 150px; margin-bottom: 10px;"></textarea>
+          <button class="primary-action" id="saveTranscriptBtn" type="button">Save & Re-process</button>
+        </div>
 
         <div class="confirm-panel hidden" id="confirmPanel">
           <div>
@@ -238,7 +338,7 @@
         </div>
       </section>
 
-      <!-- Bottom Layout -->
+      <!-- Bottom Layout: Client Memory & Commitments -->
       <section class="grid-layout bottom-layout">
         <section class="panel hero-panel" id="memoryPanel">
           <div class="panel-heading accordion-toggle" data-target="accordionMemoryContent">
@@ -306,12 +406,221 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+  <!-- Authentication Modal Overlay (6-View State Machine) -->
+  <div id="authModal" class="auth-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <div class="auth-card">
+      <div class="auth-card-header">
+        <div class="brand-mark">P6</div>
+        <h2 id="authTitle">Sign in to Philixa</h2>
+        <p id="authSubtitle">AI Copilot for Banking Relationship Managers</p>
+      </div>
+
+      <div class="auth-card-body">
+        <!-- View 1: Login Form -->
+        <div id="viewLogin" class="auth-view">
+          <div id="loginError" class="alert-box error hidden"></div>
+          <form id="loginForm">
+            <div class="form-group">
+              <label for="loginEmail">Work Email</label>
+              <input id="loginEmail" type="email" required autocomplete="username" placeholder="name@company.com" />
+            </div>
+            <div class="form-group">
+              <label for="loginPassword">Password</label>
+              <input id="loginPassword" type="password" required autocomplete="current-password" placeholder="••••••••" />
+            </div>
+            <button id="loginSubmitBtn" type="submit" class="primary-action" style="width: 100%; margin-top: 8px;">Sign In</button>
+          </form>
+          <div class="auth-footer-links">
+            <div>Don't have an account? <a id="linkToRegister">Create workspace</a></div>
+            <div><a id="linkToForgotPassword">Forgot password?</a> &nbsp;•&nbsp; <a id="linkToVerifyEmail">Verify email token</a></div>
+          </div>
+        </div>
+
+        <!-- View 2: Register Form -->
+        <div id="viewRegister" class="auth-view hidden">
+          <div id="registerError" class="alert-box error hidden"></div>
+          <form id="registerForm">
+            <div class="form-group">
+              <label>Workspace Type</label>
+              <div class="segmented-control">
+                <label id="labelTypeCompany" class="active">
+                  <input type="radio" name="workspaceType" id="typeCompany" value="company" checked />
+                  <span>🏢 Company</span>
+                </label>
+                <label id="labelTypeIndividual">
+                  <input type="radio" name="workspaceType" id="typeIndividual" value="individual" />
+                  <span>👤 Individual</span>
+                </label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="registerWorkspaceName">Workspace Name</label>
+              <input id="registerWorkspaceName" type="text" required placeholder="e.g. Acme Capital or Sarah's Workspace" />
+            </div>
+            <div class="form-group">
+              <label for="registerEmail">Work Email</label>
+              <input id="registerEmail" type="email" required autocomplete="email" placeholder="name@company.com" />
+            </div>
+            <div class="form-group">
+              <label for="registerPassword">Password</label>
+              <input id="registerPassword" type="password" required minlength="8" autocomplete="new-password" placeholder="Min 8 characters" />
+            </div>
+            <button id="registerSubmitBtn" type="submit" class="primary-action" style="width: 100%; margin-top: 8px;">Create Account & Workspace</button>
+          </form>
+          <div class="auth-footer-links">
+            <div>Already have an account? <a id="linkToLoginFromRegister">Sign in</a></div>
+          </div>
+        </div>
+
+        <!-- View 3: Email Verification -->
+        <div id="viewVerifyEmail" class="auth-view hidden">
+          <div id="verifyMessage" class="alert-box hidden"></div>
+          <div style="text-align: center; margin-bottom: 16px;">
+            <span style="font-size: 36px; display: block; margin-bottom: 8px;">📬</span>
+            <p style="font-size: 14px; color: var(--muted); margin: 0;">
+              We sent a verification link to <strong id="verifyEmailDisplay" style="color: var(--ink);">your email</strong>.
+            </p>
+          </div>
+          <form id="verifyEmailForm">
+            <div class="form-group">
+              <label for="verifyTokenInput">Verification Token</label>
+              <input id="verifyTokenInput" type="text" required placeholder="Paste verification token here..." />
+            </div>
+            <button id="verifyTokenSubmitBtn" type="submit" class="primary-action" style="width: 100%;">Verify Account</button>
+          </form>
+          <div class="auth-footer-links">
+            <div><a id="linkToLoginFromVerify">Back to Sign In</a></div>
+          </div>
+        </div>
+
+        <!-- View 4: Forgot Password Request -->
+        <div id="viewForgotPassword" class="auth-view hidden">
+          <div id="forgotPasswordMessage" class="alert-box hidden"></div>
+          <form id="forgotPasswordForm">
+            <div class="form-group">
+              <label for="forgotPasswordEmail">Account Email</label>
+              <input id="forgotPasswordEmail" type="email" required placeholder="name@company.com" />
+            </div>
+            <button id="forgotPasswordSubmitBtn" type="submit" class="primary-action" style="width: 100%;">Send Reset Token</button>
+          </form>
+          <div class="auth-footer-links">
+            <div><a id="linkToResetWithToken">Already have a token? Reset password</a></div>
+            <div><a id="linkToLoginFromForgot">Back to Sign In</a></div>
+          </div>
+        </div>
+
+        <!-- View 5: Reset Password Confirm -->
+        <div id="viewResetPassword" class="auth-view hidden">
+          <div id="resetPasswordMessage" class="alert-box hidden"></div>
+          <form id="resetPasswordForm">
+            <div class="form-group">
+              <label for="resetTokenInput">Reset Token</label>
+              <input id="resetTokenInput" type="text" required placeholder="Paste reset token here..." />
+            </div>
+            <div class="form-group">
+              <label for="resetNewPassword">New Password</label>
+              <input id="resetNewPassword" type="password" required minlength="8" placeholder="New password (min 8 chars)" />
+            </div>
+            <div class="form-group">
+              <label for="resetConfirmPassword">Confirm New Password</label>
+              <input id="resetConfirmPassword" type="password" required minlength="8" placeholder="Confirm new password" />
+            </div>
+            <button id="resetPasswordSubmitBtn" type="submit" class="primary-action" style="width: 100%;">Update Password</button>
+          </form>
+          <div class="auth-footer-links">
+            <div><a id="linkToLoginFromReset">Back to Sign In</a></div>
+          </div>
+        </div>
+
+        <!-- View 6: Accept Workspace Invite -->
+        <div id="viewInviteAccept" class="auth-view hidden">
+          <div id="inviteAcceptMessage" class="alert-box hidden"></div>
+          <div style="text-align: center; margin-bottom: 16px;">
+            <span style="font-size: 36px; display: block; margin-bottom: 8px;">🤝</span>
+            <p style="font-size: 14px; color: var(--muted); margin: 0;">You have been invited to collaborate in a Philixa workspace.</p>
+          </div>
+          <form id="acceptInviteForm">
+            <div class="form-group">
+              <label for="inviteTokenInput">Invitation Token</label>
+              <input id="inviteTokenInput" type="text" required placeholder="Paste invitation token here..." />
+            </div>
+            <button id="inviteAcceptSubmitBtn" type="submit" class="primary-action" style="width: 100%;">Join Workspace</button>
+          </form>
+          <div class="auth-footer-links">
+            <div><a id="linkToLoginFromInvite">Sign in with different account</a></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Workspace Member Management Modal -->
+  <div id="memberModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="memberModalTitle">
+    <div class="modal-content members-modal-content">
+      <div class="modal-header">
+        <div>
+          <h3 id="memberModalTitle" style="display: flex; align-items: center; gap: 8px;">
+            Workspace Members <span id="memberModalOrgName" class="badge" style="font-size: 12px; font-weight: normal; background: var(--bg); border: 1px solid var(--line);"></span>
+          </h3>
+        </div>
+        <button id="closeMemberModalBtn" class="close-btn" type="button" title="Close modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Section A: Invite Form (Owner/Admin) -->
+        <div id="inviteSection" class="invite-box" data-min-role="admin">
+          <p class="eyebrow" style="margin-bottom: 10px;">Invite New Member</p>
+          <div id="inviteResultMsg" class="alert-box hidden"></div>
+          <form id="inviteMemberForm">
+            <div class="invite-form-row">
+              <div class="form-group" style="margin: 0;">
+                <label for="inviteMemberEmail">User Email</label>
+                <input id="inviteMemberEmail" type="email" required placeholder="colleague@company.com" />
+              </div>
+              <div class="form-group" style="margin: 0;">
+                <label for="inviteMemberRole">Role</label>
+                <select id="inviteMemberRole">
+                  <option value="member" selected>Member</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <button id="inviteMemberSubmitBtn" type="submit" class="primary-action" style="height: 42px;">Send Invite</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Section B: Member List -->
+        <div>
+          <p class="eyebrow" style="margin-bottom: 8px;">Active Members (<span id="memberCountBadge">0</span>)</p>
+          <div class="table-wrap" style="max-height: 280px; overflow-y: auto;">
+            <table class="members-table">
+              <thead>
+                <tr>
+                  <th>User / Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Joined</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="memberListRows">
+                <tr>
+                  <td colspan="5"><div class="empty-state">Loading members...</div></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Notification Settings Modal -->
-  <div id="settingsModal" class="modal hidden">
+  <div id="settingsModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>Notification Preferences</h3>
-        <button id="closeSettingsBtn" class="close-btn">&times;</button>
+        <h3 id="settingsModalTitle">Notification Preferences</h3>
+        <button id="closeSettingsBtn" class="close-btn" type="button" title="Close settings">&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-row" style="margin-bottom: 15px;">
@@ -341,7 +650,8 @@
     </div>
   </div>
 
-  <script src="/static/app.js?v=36"></script>
+  <!-- Application Scripts -->
+  <script src="/static/app.js?v=40"></script>
   <script src="/static/fast-dictation.js?v=1"></script>
   <script src="/static/philixa-voice.js?v=31"></script>
   <script>
@@ -369,3 +679,4 @@
   </script>
 </body>
 </html>
+

@@ -109,7 +109,9 @@ async def test_arq_ml_error_boundary(temp_audio_file):
     # 1. Setup mock meeting
     mock_meeting = MagicMock(spec=Meeting)
     mock_meeting.id = 123
-    mock_meeting.status = MeetingStatus.PENDING.value
+    mock_meeting.organization_id = None
+    mock_meeting.user_id = None
+    mock_meeting.status = MeetingStatus.QUEUED.value
     mock_meeting.raw_notes = None
 
     # Setup mock DB session and factory
@@ -158,5 +160,5 @@ async def test_arq_ml_error_boundary(temp_audio_file):
         
         # Verify notification was dispatched for failure
         mock_notify.assert_called_once_with(
-            mock_session, 123, client_name=None, success=False, organization_id="default"
+            mock_session, 123, client_name=None, success=False, organization_id="default", user_id=None
         )

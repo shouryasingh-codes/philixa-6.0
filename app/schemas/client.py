@@ -112,3 +112,26 @@ class MeetingRead(BaseModel):
     source_type: str
     client_identification_status: str
     client_identification_confidence: float
+
+
+class ClientCreateRequest(BaseModel):
+    name: str
+    products_owned: list[str] | None = None
+    rolling_summary: str | None = None
+    relationship_notes: str | None = None
+
+
+class ClientResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    organization_id: str
+    user_id: str
+    products_owned: list[str] = []
+    rolling_summary: str | None = ""
+    relationship_notes: str | None = ""
+    is_active: bool = True
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+

@@ -18,10 +18,14 @@ class ClientIdentificationService:
         suggested_name: str | None,
         confidence: float,
         known_client_id: int | None = None,
+        organization_id: str | None = None,
     ) -> tuple[Client | None, str, list[str]]:
         warnings: list[str] = []
         if known_client_id:
-            client = await db.get(Client, known_client_id)
+            stmt = select(Client).where(Client.id == known_client_id)
+            if organization_id:
+                stmt = stmt.where(Client.organization_id == organization_id)
+            client = (await db.execute(stmt)).scalar_one_or_none()
             if not client:
                 warnings.append("Known client id was not found.")
                 return None, "client_identification_required", warnings
@@ -32,7 +36,10 @@ class ClientIdentificationService:
             return None, "client_identification_required", warnings
 
         normalized = normalize_text(suggested_name)
-        clients = list((await db.scalars(select(Client))).all())
+        stmt = select(Client)
+        if organization_id:
+            stmt = stmt.where(Client.organization_id == organization_id)
+        clients = list((await db.scalars(stmt)).all())
         exact = [client for client in clients if client.normalized_name == normalized]
         if exact and confidence >= self.settings.client_auto_match_threshold:
             return exact[0], "identified", warnings

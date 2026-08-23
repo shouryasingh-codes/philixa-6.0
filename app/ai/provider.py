@@ -68,7 +68,7 @@ class LocalHeuristicProvider(AIProvider):
         key_points = _key_points(sentences)
 
         identification_status = "identified" if client_name else "client_identification_required"
-        return {
+        payload = {
             "client_identification": {
                 "status": identification_status,
                 "matched_client_id": None,

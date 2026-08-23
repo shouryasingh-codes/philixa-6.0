@@ -1,22 +1,26 @@
-from sqlalchemy.ext.asyncio import AsyncSession
+from __future__ import annotations
+
+import asyncio
+from datetime import date
 import json
 import logging
 from sqlalchemy import select
-from datetime import date
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.provider import get_ai_provider
+from app.core.auth import Principal
 from app.core.config import get_settings
 from app.models.client import Client
 from app.models.meeting import Meeting
-from app.ai.provider import get_ai_provider
 
 logger = logging.getLogger(__name__)
 
+
 class AskClientService:
-    def __init__(self):
+    def __init__(self) -> None:
         self.settings = get_settings()
 
     async def _parse_query(self, query: str) -> dict:
-        import asyncio
         today_str = date.today().isoformat()
         prompt = (
             f"You are a search query parser. Today's date is {today_str}.\n"
@@ -28,7 +32,7 @@ class AskClientService:
             f"3. If the user mentions specific policy numbers, IDs, or exact names, put them in exact_keywords. Otherwise leave it empty.\n"
             f"4. optimized_query should be a clean version of the question for vector search.\n"
         )
-        
+
         schema = {
             "type": "object",
             "properties": {
@@ -37,19 +41,19 @@ class AskClientService:
                 "end_date": {"type": ["string", "null"]},
                 "exact_keywords": {
                     "type": "array",
-                    "items": {"type": "string"}
-                }
+                    "items": {"type": "string"},
+                },
             },
-            "required": ["optimized_query", "start_date", "end_date", "exact_keywords"]
+            "required": ["optimized_query", "start_date", "end_date", "exact_keywords"],
         }
-        
+
         try:
             provider = get_ai_provider(self.settings.ai_economy_provider, self.settings)
             response_json = await asyncio.to_thread(
                 provider.generate_json,
                 model=self.settings.ai_economy_model,
                 prompt=prompt,
-                schema=schema
+                schema=schema,
             )
             return json.loads(response_json)
         except Exception as e:
@@ -58,18 +62,29 @@ class AskClientService:
                 "optimized_query": query,
                 "start_date": None,
                 "end_date": None,
-                "exact_keywords": []
+                "exact_keywords": [],
             }
 
-    async def ask(self, db: AsyncSession, client_id: int, query: str) -> dict:
-        client = await db.get(Client, client_id)
+    async def ask(
+        self,
+        db: AsyncSession,
+        client_id: int,
+        query: str,
+        principal: Principal | None = None,
+    ) -> dict:
+        if principal is not None:
+            from app.repositories.client_repository import ClientRepository
+            client = await ClientRepository().get_by_id(db, principal, client_id)
+        else:
+            client = await db.get(Client, client_id)
+
         if not client:
             raise ValueError("Client not found.")
 
         from app.services.semantic_search_service import search_meeting_evidence
-        
+
         parsed = await self._parse_query(query)
-        
+
         start_date = None
         end_date = None
         if parsed.get("start_date"):
@@ -82,18 +97,17 @@ class AskClientService:
                 end_date = date.fromisoformat(parsed["end_date"])
             except ValueError:
                 pass
-        
-        # New Day 7 Semantic Search Engine with Date & Keyword Filters
+
         evidence_list = await search_meeting_evidence(
             db=db,
             query=parsed.get("optimized_query", query),
-            organization_id="default", # Default placeholder
-            user_id="default",         # Default placeholder
+            organization_id=client.organization_id,
+            user_id=client.user_id,
             client_id=client_id,
             limit=5,
             start_date=start_date,
             end_date=end_date,
-            exact_keywords=parsed.get("exact_keywords", [])
+            exact_keywords=parsed.get("exact_keywords", []),
         )
 
         context_blocks = []
@@ -128,20 +142,20 @@ class AskClientService:
                         "answer": {"type": "string"},
                         "source_meetings": {
                             "type": "array",
-                            "items": {"type": "integer"}
-                        }
+                            "items": {"type": "integer"},
+                        },
                     },
-                    "required": ["answer", "source_meetings"]
-                }
+                    "required": ["answer", "source_meetings"],
+                },
             )
             result = json.loads(response_json)
             return {
                 "answer": result.get("answer", "I couldn't find an answer in the client's history."),
-                "source_meetings": result.get("source_meetings", [])
+                "source_meetings": result.get("source_meetings", []),
             }
         except Exception as e:
             logger.error(f"Error querying AI for Ask Client: {e}")
             return {
                 "answer": "Sorry, I encountered an error while processing your request.",
-                "source_meetings": []
+                "source_meetings": [],
             }

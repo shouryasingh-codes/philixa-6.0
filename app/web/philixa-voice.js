@@ -1,4 +1,7 @@
-﻿// Philixa Voice Assistant - Continuous Loop Logic
+// =============================================================================
+// PHILIXA 6.0: Voice Assistant Continuous Loop & Live Audio Streaming
+// Multi-Tenant Authenticated WebSocket & Secure Voice Service Integration
+// =============================================================================
 
 let voiceState = "idle";
 let voiceWs = null;
@@ -9,201 +12,400 @@ let conversationHistory = [];
 let silenceTimeout = null;
 const SILENCE_LIMIT_MS = 3000;
 
+// --- DOM Initialization ---
 function initVoice() {
-    const fabBtn = document.getElementById("philixaVoiceBtn");
-    if (fabBtn) {
-        fabBtn.addEventListener("click", handleVoiceClick);
-    }
-}
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initVoice);
-} else {
-    initVoice();
+  const fabBtn = document.getElementById("philixaVoiceBtn");
+  if (fabBtn) {
+    fabBtn.addEventListener("click", handleVoiceClick);
+  }
 }
 
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initVoice);
+} else {
+  initVoice();
+}
+
+// --- UI State Management ---
 function setVoiceState(state) {
-    voiceState = state;
-    const fabBtn = document.getElementById('philixaVoiceBtn');
-    if (!fabBtn) return;
-    
-    const icon = fabBtn.querySelector('.copilot-icon');
-    const text = fabBtn.querySelector('.copilot-text');
-    
-    fabBtn.className = 'copilot-box';
-    fabBtn.style.background = ''; 
-    
-    if (state === 'idle') {
-        if(icon) icon.textContent = '🎙️';
-        if(text) text.textContent = 'PHILIXA';
-    } else if (state === 'listening') {
-        fabBtn.classList.add('listening');
-        if(icon) icon.textContent = '🔴';
-        if(text) text.textContent = 'LISTENING...';
-    } else if (state === 'thinking') {
-        fabBtn.classList.add('thinking');
-        if(icon) icon.textContent = '🤔';
-        if(text) text.textContent = 'THINKING...';
-    } else if (state === 'speaking') {
-        fabBtn.classList.add('speaking');
-        if(icon) icon.textContent = '💬';
-        if(text) text.textContent = 'SPEAKING...';
-    }
+  voiceState = state;
+  const fabBtn = document.getElementById("philixaVoiceBtn");
+  if (!fabBtn) return;
+
+  const icon = fabBtn.querySelector(".copilot-icon");
+  const text = fabBtn.querySelector(".copilot-text");
+
+  fabBtn.className = "copilot-box";
+  fabBtn.style.background = "";
+
+  if (state === "idle") {
+    if (icon) icon.textContent = "🎙️";
+    if (text) text.textContent = "PHILIXA";
+  } else if (state === "listening") {
+    fabBtn.classList.add("listening");
+    if (icon) icon.textContent = "🔴";
+    if (text) text.textContent = "LISTENING...";
+  } else if (state === "thinking") {
+    fabBtn.classList.add("thinking");
+    if (icon) icon.textContent = "🤔";
+    if (text) text.textContent = "THINKING...";
+  } else if (state === "speaking") {
+    fabBtn.classList.add("speaking");
+    if (icon) icon.textContent = "💬";
+    if (text) text.textContent = "SPEAKING...";
+  }
 }
 
 async function handleVoiceClick() {
-    if (voiceState === "idle") {
-        await startVoiceListening();
-    } else if (voiceState === "listening") {
-        await stopVoiceListening();
-    }
+  if (voiceState === "idle") {
+    await startVoiceListening();
+  } else if (voiceState === "listening") {
+    await stopVoiceListening();
+  }
 }
 
-async function startVoiceListening() {
-    try {
-        setVoiceState("listening");
-        
-        voiceAudioStream = await navigator.mediaDevices.getUserMedia({
-            audio: { channelCount: 1, sampleRate: 48000, echoCancellation: true, noiseSuppression: true }
-        });
+// --- Auth & Helper Utilities ---
+function getVoiceCsrfToken() {
+  const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : "";
+}
 
-        voiceAudioContext = new window.AudioContext({ sampleRate: 48000 });
-        try {
-            await voiceAudioContext.audioWorklet.addModule("/static/pcm-processor.js");
-        } catch (err) {
-            console.error("AudioWorklet load failed:", err);
-            setVoiceState("idle");
-            return;
+async function voiceFetchWithAuth(url, options = {}) {
+  if (typeof window.fetchWithAuth === "function") {
+    return window.fetchWithAuth(url, options);
+  }
+
+  const opts = { ...options };
+  opts.credentials = "include";
+  opts.headers = { ...(opts.headers || {}) };
+
+  const method = (opts.method || "GET").toUpperCase();
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+    const csrf = getVoiceCsrfToken();
+    if (csrf && !opts.headers["X-CSRF-Token"]) {
+      opts.headers["X-CSRF-Token"] = csrf;
+    }
+  }
+
+  let response = await fetch(url, opts);
+
+  if (response.status === 401 && !options._retried) {
+    try {
+      const refreshRes = await fetch("/api/v1/auth/refresh", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": getVoiceCsrfToken(),
+        },
+      });
+
+      if (refreshRes.ok) {
+        opts._retried = true;
+        const newCsrf = getVoiceCsrfToken();
+        if (newCsrf && ["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+          opts.headers["X-CSRF-Token"] = newCsrf;
+        }
+        response = await fetch(url, opts);
+      }
+    } catch (refreshErr) {
+      console.warn("[Philixa Voice] Token refresh attempt failed:", refreshErr);
+    }
+  }
+
+  return response;
+}
+
+async function mintWsTicket() {
+  const response = await voiceFetchWithAuth("/api/v1/ws-ticket", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    let errorDetail = `HTTP ${response.status}`;
+    try {
+      const payload = await response.json();
+      errorDetail = payload.detail || errorDetail;
+    } catch (_) {}
+    throw new Error(`Authentication ticket generation failed: ${errorDetail}`);
+  }
+
+  const data = await response.json();
+  const ticket = data.ticket || data.token;
+  if (!ticket) {
+    throw new Error("Invalid response from /api/v1/ws-ticket: missing ticket claim");
+  }
+
+  return ticket;
+}
+
+// --- Audio Resource Cleanup ---
+function cleanupAudioResources() {
+  if (silenceTimeout) {
+    clearTimeout(silenceTimeout);
+    silenceTimeout = null;
+  }
+
+  if (voiceWorkletNode) {
+    try {
+      voiceWorkletNode.disconnect();
+    } catch (_) {}
+    voiceWorkletNode = null;
+  }
+
+  if (voiceAudioContext) {
+    try {
+      if (voiceAudioContext.state !== "closed") {
+        voiceAudioContext.close();
+      }
+    } catch (_) {}
+    voiceAudioContext = null;
+  }
+
+  if (voiceAudioStream) {
+    try {
+      voiceAudioStream.getTracks().forEach((track) => track.stop());
+    } catch (_) {}
+    voiceAudioStream = null;
+  }
+}
+
+// --- Voice Assistant Core Lifecycle ---
+async function startVoiceListening() {
+  if (voiceState === "listening") return;
+
+  try {
+    setVoiceState("listening");
+
+    // 1. Mint short-lived WebSocket ticket
+    let ticket;
+    try {
+      ticket = await mintWsTicket();
+    } catch (ticketErr) {
+      console.error("[Philixa Voice] Failed to mint WebSocket ticket:", ticketErr);
+      if (typeof window.showToast === "function") {
+        window.showToast("Voice authentication failed. Please re-login.", true);
+      }
+      setVoiceState("idle");
+      return;
+    }
+
+    // 2. Obtain mic stream
+    try {
+      voiceAudioStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          sampleRate: 48000,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+    } catch (micErr) {
+      console.error("[Philixa Voice] Microphone access error:", micErr);
+      if (typeof window.showToast === "function") {
+        window.showToast("Microphone access denied. Please grant mic permissions.", true);
+      }
+      setVoiceState("idle");
+      return;
+    }
+
+    // 3. Audio graph setup
+    voiceAudioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
+    const actualSampleRate = voiceAudioContext.sampleRate || 48000;
+
+    try {
+      await voiceAudioContext.audioWorklet.addModule("/static/pcm-processor.js");
+    } catch (workletErr) {
+      console.error("[Philixa Voice] AudioWorklet load failed:", workletErr);
+      cleanupAudioResources();
+      setVoiceState("idle");
+      return;
+    }
+
+    const source = voiceAudioContext.createMediaStreamSource(voiceAudioStream);
+    voiceWorkletNode = new AudioWorkletNode(voiceAudioContext, "pcm-processor");
+
+    // 4. WebSocket setup
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/api/v1/live/transcribe?ticket=${encodeURIComponent(ticket)}&sample_rate=${actualSampleRate}&diarize=false`;
+
+    voiceWs = new WebSocket(wsUrl);
+    voiceWs.binaryType = "arraybuffer";
+
+    voiceWs.onopen = () => {
+      console.log("[Philixa Voice] WebSocket connected.");
+      resetSilenceTimer();
+    };
+
+    voiceWs.onmessage = async (event) => {
+      resetSilenceTimer();
+      try {
+        const data = JSON.parse(event.data);
+
+        if (data.action === "processing") {
+          return;
         }
 
-        const source = voiceAudioContext.createMediaStreamSource(voiceAudioStream);
-        voiceWorkletNode = new AudioWorkletNode(voiceAudioContext, "pcm-processor");
-
-        const apiKeyEl = document.getElementById("apiKey");
-        const apiKey = apiKeyEl ? apiKeyEl.value : "";
-        
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = protocol + "//" + window.location.host + "/api/v1/live/transcribe?api_key=" + apiKey + "&sample_rate=48000&diarize=false";
-        
-        voiceWs = new WebSocket(wsUrl);
-        voiceWs.binaryType = "arraybuffer";
-
-        voiceWs.onopen = () => {
-            console.log("[Philixa Voice] Connected to Deepgram.");
-            resetSilenceTimer();
-        };
-
-        voiceWs.onmessage = async (event) => {
-            resetSilenceTimer();
-            const data = JSON.parse(event.data);
-            if (data.action === "stopped" && data.confirmed) {
-                const transcript = data.confirmed.trim();
-                console.log("[Philixa Voice] Heard:", transcript);
-                await processUserTranscript(transcript);
-            } else if (data.action === "stopped" && !data.confirmed) {
-                setVoiceState("idle");
+        if (data.action === "stopped") {
+          if (data.confirmed && data.confirmed.trim()) {
+            const transcript = data.confirmed.trim();
+            console.log("[Philixa Voice] Heard:", transcript);
+            await processUserTranscript(transcript);
+          } else {
+            if (data.error) {
+              console.warn("[Philixa Voice] Transcribe warning/error:", data.error);
             }
-        };
+            setVoiceState("idle");
+          }
+        }
+      } catch (parseErr) {
+        console.error("[Philixa Voice] Error parsing WebSocket message:", parseErr);
+      }
+    };
 
-        voiceWorkletNode.port.onmessage = (event) => {
-            if (voiceWs && voiceWs.readyState === WebSocket.OPEN) {
-                voiceWs.send(event.data);
-            }
-        };
-
-        source.connect(voiceWorkletNode);
-        voiceWorkletNode.connect(voiceAudioContext.destination);
-    } catch (err) {
-        console.error("Voice listening failed:", err);
+    voiceWs.onclose = (event) => {
+      console.log(`[Philixa Voice] WebSocket closed (code: ${event.code})`);
+      if (event.code === 1008) {
+        console.error("[Philixa Voice] Policy violation (1008):", event.reason);
+        if (typeof window.showToast === "function") {
+          window.showToast(`Voice auth failed: ${event.reason || "Session expired"}`, true);
+        }
+        cleanupAudioResources();
         setVoiceState("idle");
-    }
+        return;
+      }
+
+      if (voiceState === "listening" && event.code !== 1000) {
+        cleanupAudioResources();
+        setVoiceState("idle");
+      }
+    };
+
+    voiceWs.onerror = (err) => {
+      console.error("[Philixa Voice] WebSocket error:", err);
+    };
+
+    // 5. Pipe PCM chunks to WebSocket
+    voiceWorkletNode.port.onmessage = (event) => {
+      if (voiceWs && voiceWs.readyState === WebSocket.OPEN) {
+        voiceWs.send(event.data);
+      }
+    };
+
+    source.connect(voiceWorkletNode);
+    voiceWorkletNode.connect(voiceAudioContext.destination);
+
+  } catch (err) {
+    console.error("[Philixa Voice] Listening start failed:", err);
+    cleanupAudioResources();
+    setVoiceState("idle");
+  }
 }
 
 async function stopVoiceListening() {
-    if (silenceTimeout) clearTimeout(silenceTimeout);
-    setVoiceState("thinking");
-    
-    if (voiceWorkletNode) voiceWorkletNode.disconnect();
-    if (voiceAudioContext) voiceAudioContext.close();
-    if (voiceAudioStream) voiceAudioStream.getTracks().forEach((t) => t.stop());
+  cleanupAudioResources();
+  setVoiceState("thinking");
 
-    if (voiceWs && voiceWs.readyState === WebSocket.OPEN) {
-        voiceWs.send(JSON.stringify({ action: "stop" }));
-    }
+  if (voiceWs && voiceWs.readyState === WebSocket.OPEN) {
+    voiceWs.send(JSON.stringify({ action: "stop" }));
+  }
 }
 
 async function processUserTranscript(transcript) {
-    if (!transcript || transcript.trim() === "") {
-        console.log("[Philixa Voice] Empty transcript ignored.");
-        setVoiceState("idle");
-        return;
-    }
-    
-    try {
-        setVoiceState("thinking");
-        
-        const response = await fetch("/api/v1/voice/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                text: transcript,
-                conversation_history: conversationHistory
-            })
-        });
+  if (!transcript || !transcript.trim()) {
+    console.log("[Philixa Voice] Empty transcript ignored.");
+    setVoiceState("idle");
+    return;
+  }
 
-        if (!response.ok) throw new Error("Chat API failed");
-        
-        const data = await response.json();
-        const aiResponseText = data.response;
-        
-        console.log("[Philixa Voice] AI Response:", aiResponseText);
-        
-        conversationHistory.push({ role: "user", content: transcript });
-        conversationHistory.push({ role: "assistant", content: aiResponseText });
-        
-        await speakAIResponse(aiResponseText);
-    } catch (err) {
-        console.error("[Philixa Voice] Process error:", err);
-        setVoiceState("idle");
+  try {
+    setVoiceState("thinking");
+
+    const response = await voiceFetchWithAuth("/api/v1/voice/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text: transcript,
+        conversation_history: conversationHistory,
+      }),
+    });
+
+    if (!response.ok) throw new Error(`Chat API failed with status ${response.status}`);
+
+    const data = await response.json();
+    const aiResponseText = data.response;
+
+    console.log("[Philixa Voice] AI Response:", aiResponseText);
+
+    conversationHistory.push({ role: "user", content: transcript });
+    conversationHistory.push({ role: "assistant", content: aiResponseText });
+
+    if (conversationHistory.length > 10) {
+      conversationHistory = conversationHistory.slice(-10);
     }
+
+    await speakAIResponse(aiResponseText);
+  } catch (err) {
+    console.error("[Philixa Voice] Process error:", err);
+    if (typeof window.showToast === "function") {
+      window.showToast("Voice assistant error processing request.", true);
+    }
+    setVoiceState("idle");
+  }
 }
 
 async function speakAIResponse(text) {
-    try {
-        setVoiceState("speaking");
-        
-        const response = await fetch("/api/v1/voice/speak", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: text })
-        });
+  try {
+    setVoiceState("speaking");
 
-        if (!response.ok) throw new Error("TTS API failed");
+    const response = await voiceFetchWithAuth("/api/v1/voice/speak", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: text }),
+    });
 
-        const blob = await response.blob();
-        const audioUrl = URL.createObjectURL(blob);
-        const audio = new Audio(audioUrl);
-        
-        audio.onended = () => {
-            if (text.includes("?") || text.toLowerCase().includes("save")) {
-                startVoiceListening();
-            } else {
-                setVoiceState("idle");
-            }
-        };
-        
-        await audio.play();
-    } catch (err) {
-        console.error("[Philixa Voice] TTS error:", err);
+    if (!response.ok) throw new Error(`TTS API failed with status ${response.status}`);
+
+    const blob = await response.blob();
+    if (!blob || blob.size === 0) throw new Error("Empty audio stream from TTS API");
+
+    const audioUrl = URL.createObjectURL(blob);
+    const audio = new Audio(audioUrl);
+
+    audio.onended = () => {
+      URL.revokeObjectURL(audioUrl);
+      const lower = text.toLowerCase();
+      if (lower.includes("?") || lower.includes("save") || lower.includes("karein") || lower.includes("bataiye")) {
+        startVoiceListening();
+      } else {
         setVoiceState("idle");
-    }
+      }
+    };
+
+    audio.onerror = (err) => {
+      console.error("[Philixa Voice] Playback error:", err);
+      URL.revokeObjectURL(audioUrl);
+      setVoiceState("idle");
+    };
+
+    await audio.play();
+  } catch (err) {
+    console.error("[Philixa Voice] TTS error:", err);
+    setVoiceState("idle");
+  }
 }
 
 function resetSilenceTimer() {
-    if (silenceTimeout) clearTimeout(silenceTimeout);
-    silenceTimeout = setTimeout(() => {
-        console.log("[Philixa Voice] Silence detected. Stopping recording.");
-        if (voiceState === "listening") {
-            stopVoiceListening();
-        }
-    }, SILENCE_LIMIT_MS);
+  if (silenceTimeout) clearTimeout(silenceTimeout);
+  silenceTimeout = setTimeout(() => {
+    console.log("[Philixa Voice] Silence detected. Stopping recording.");
+    if (voiceState === "listening") {
+      stopVoiceListening();
+    }
+  }, SILENCE_LIMIT_MS);
 }
+

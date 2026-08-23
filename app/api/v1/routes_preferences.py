@@ -1,75 +1,77 @@
-from sqlalchemy.ext.asyncio import AsyncSession
+from __future__ import annotations
+
+import uuid
+from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
-from typing import Any
-import uuid
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import get_current_org_id
+from app.core.dependencies import CurrentPrincipal
 from app.database.session import get_db
 from app.models.notification import NotificationPreference
-from app.schemas.notification import NotificationPreferenceResponse, NotificationPreferenceUpdate, NotificationPreferenceCreate
+from app.schemas.notification import (
+    NotificationPreferenceCreate,
+    NotificationPreferenceResponse,
+    NotificationPreferenceUpdate,
+)
 
 router = APIRouter(
     prefix="/preferences",
     tags=["preferences"],
-    dependencies=[Depends(get_current_org_id)],
 )
+
 
 @router.get("", response_model=NotificationPreferenceResponse)
 async def get_preferences(
+    principal: CurrentPrincipal,
     db: AsyncSession = Depends(get_db),
-    org_id: str = Depends(get_current_org_id),
 ) -> Any:
-    user_id = "default"
-    # First look for a preference with the exact user_id
     pref = await db.scalar(
         select(NotificationPreference).where(
-            NotificationPreference.organization_id == org_id,
-            NotificationPreference.user_id == user_id
+            NotificationPreference.organization_id == principal.organization_id,
+            NotificationPreference.user_id == principal.user_id,
         )
     )
-    
+
     if not pref:
-        # If no explicit user_id match, try finding a generic one for the org or create a new one
         pref = NotificationPreference(
             id=str(uuid.uuid4()),
-            organization_id=org_id,
-            user_id=user_id,
-            is_opted_in=True
+            organization_id=principal.organization_id,
+            user_id=principal.user_id,
+            is_opted_in=True,
         )
         db.add(pref)
         await db.commit()
         await db.refresh(pref)
-        
+
     return pref
+
 
 @router.put("", response_model=NotificationPreferenceResponse)
 async def update_preferences(
     preference_update: NotificationPreferenceUpdate,
+    principal: CurrentPrincipal,
     db: AsyncSession = Depends(get_db),
-    org_id: str = Depends(get_current_org_id),
 ) -> Any:
-    user_id = "default"
     pref = await db.scalar(
         select(NotificationPreference).where(
-            NotificationPreference.organization_id == org_id,
-            NotificationPreference.user_id == user_id
+            NotificationPreference.organization_id == principal.organization_id,
+            NotificationPreference.user_id == principal.user_id,
         )
     )
-    
+
     if not pref:
-        # Create it if it doesn't exist
         pref = NotificationPreference(
             id=str(uuid.uuid4()),
-            organization_id=org_id,
-            user_id=user_id,
+            organization_id=principal.organization_id,
+            user_id=principal.user_id,
         )
         db.add(pref)
-    
+
     update_data = preference_update.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(pref, key, value)
-        
+
     await db.commit()
     await db.refresh(pref)
     return pref

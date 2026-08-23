@@ -3,6 +3,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import Principal
 from app.models.client import Client
 from app.models.commitment import Commitment
 from app.models.meeting import Meeting
@@ -21,7 +22,7 @@ class MemoryService:
         meetings = list(
             (await db.scalars(
                 select(Meeting)
-                .where(Meeting.client_id == client_id)
+                .where(Meeting.client_id == client_id, Meeting.organization_id == client.organization_id)
                 .order_by(Meeting.meeting_date.desc(), Meeting.created_at.desc())
                 .limit(5)
             )).all()
@@ -41,19 +42,30 @@ class MemoryService:
         await db.flush()
         return client
 
-    async def get_client_memory(self, db: AsyncSession, client_id: int) -> dict:
-        client = await db.get(Client, client_id)
+    async def get_client_memory(
+        self,
+        db: AsyncSession,
+        client_id: int,
+        principal: Principal | None = None,
+    ) -> dict:
+        if principal is not None:
+            from app.repositories.client_repository import ClientRepository
+            client = await ClientRepository().get_by_id(db, principal, client_id)
+        else:
+            client = await db.get(Client, client_id)
+
         if not client:
             raise ValueError("Client not found.")
+
         last_meeting = await db.scalar(
             select(Meeting)
-            .where(Meeting.client_id == client_id)
+            .where(Meeting.client_id == client_id, Meeting.organization_id == client.organization_id)
             .order_by(Meeting.meeting_date.desc(), Meeting.created_at.desc())
         )
         recent_meetings = list(
             (await db.scalars(
                 select(Meeting)
-                .where(Meeting.client_id == client_id)
+                .where(Meeting.client_id == client_id, Meeting.organization_id == client.organization_id)
                 .order_by(Meeting.meeting_date.desc(), Meeting.created_at.desc())
                 .limit(5)
             )).all()
@@ -227,7 +239,7 @@ class MemoryService:
             topic = self._meeting_topic(meeting)
             if topic:
                 parts.append(f"{client_name} discussed {topic}.")
-                
+
         concerns = self._collect_concerns([meeting])
         if concerns:
             parts.append(

@@ -1,31 +1,36 @@
-from typing import Annotated
+from __future__ import annotations
 
+from typing import Annotated
 from fastapi import APIRouter, Body, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.provider import AIExtractionError
-from app.core.security import require_api_key
+from app.core.arq import get_arq_pool
+from app.core.dependencies import CurrentPrincipal
 from app.database.session import get_db
+from app.models.commitment import Commitment, CommitmentMeetingLink
+from app.models.enums import MeetingStatus
+from app.models.meeting import Meeting
+from app.repositories.meeting_repository import MeetingRepository
 from app.schemas.meeting_note import (
     ClientConfirmationRequest,
     ClientConfirmationResponse,
     MeetingNoteProcessRequest,
     MeetingNoteProcessResponse,
 )
+from app.services.json_utils import from_json
 from app.services.meeting_processing_service import MeetingProcessingService
-from pydantic import BaseModel, Field
-from app.models.enums import MeetingStatus
-from app.core.arq import get_arq_pool
 
 
 class TranscriptUpdate(BaseModel):
     raw_notes: str = Field(..., description="The corrected meeting transcript")
 
+
 router = APIRouter(
     prefix="/meeting-notes",
     tags=["meeting notes"],
-    dependencies=[Depends(require_api_key)],
 )
 
 
@@ -52,10 +57,11 @@ async def process_meeting_note(
             }
         ),
     ],
+    principal: CurrentPrincipal,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     try:
-        return await MeetingProcessingService().process_notes(db, request)
+        return await MeetingProcessingService().process_notes(db, request, principal=principal)
     except AIExtractionError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -81,6 +87,7 @@ async def confirm_client(
             }
         ),
     ],
+    principal: CurrentPrincipal,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     try:
@@ -89,6 +96,7 @@ async def confirm_client(
             meeting_id=meeting_id,
             client_id=request.client_id,
             new_client_name=request.new_client_name,
+            principal=principal,
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
@@ -101,49 +109,39 @@ async def confirm_client(
 async def update_transcript(
     meeting_id: int,
     request: TranscriptUpdate,
-    db: AsyncSession = Depends(get_db)
-):
-    from app.models.meeting import Meeting
-
-    result = await db.execute(select(Meeting).where(Meeting.id == meeting_id))
-    meeting = result.scalar_one_or_none()
-    
+    principal: CurrentPrincipal,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    meeting = await MeetingRepository().get_by_id(db, principal, meeting_id)
     if not meeting:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found.")
-        
+
     meeting.raw_notes = request.raw_notes
     meeting.status = MeetingStatus.PROCESSING.value
     await db.commit()
-    
-    # TRIGGER ARQ BACKGROUND JOB
+
     pool = get_arq_pool()
     if pool:
         await pool.enqueue_job(
             "generate_meeting_embeddings",
             meeting.id,
-            organization_id="default",
-            user_id="default",
-            _job_id=f"generate_meeting_embeddings_{meeting.id}"
+            organization_id=principal.organization_id,
+            user_id=principal.user_id,
+            _job_id=f"generate_meeting_embeddings_{meeting.id}",
         )
-        
+
     return {"message": "Transcript updated successfully. Reprocessing queued.", "meeting_id": meeting.id}
 
 
 @router.get("/{meeting_id}", response_model=dict)
-async def get_meeting(meeting_id: int, db: AsyncSession = Depends(get_db)):
-    """Fetch audio-processing status and its displayable result for polling."""
-    from app.models.meeting import Meeting
-
-    result = await db.execute(select(Meeting).where(Meeting.id == meeting_id))
-    meeting = result.scalar_one_or_none()
+async def get_meeting(
+    meeting_id: int,
+    principal: CurrentPrincipal,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    meeting = await MeetingRepository().get_by_id(db, principal, meeting_id)
     if not meeting:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found.")
-
-    # Audio processing is asynchronous.  Once it completes the browser needs
-    # the same essentials it shows after a pasted-note request: summary and
-    # the commitments linked to this meeting.
-    from app.models.commitment import Commitment, CommitmentMeetingLink
-    from app.services.json_utils import from_json
 
     commitments_result = await db.execute(
         select(Commitment)
@@ -160,7 +158,7 @@ async def get_meeting(meeting_id: int, db: AsyncSession = Depends(get_db)):
         "status": meeting.status,
         "client_id": meeting.client_id,
         "client_identification_status": meeting.client_identification_status,
-        "suggested_name": getattr(meeting, "suggested_client_name", ""),
+        "suggested_name": getattr(meeting, "suggested_client_name", "") or "",
         "summary": meeting.summary,
         "key_discussion_points": from_json(meeting.key_discussion_points_json, []),
         "concerns": from_json(meeting.concerns_json, []),

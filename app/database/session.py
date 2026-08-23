@@ -11,10 +11,12 @@ from app.database.base import Base
 
 settings = get_settings()
 
+
 def _get_async_url(url: str) -> str:
     if url.startswith("postgresql://"):
         return url.replace("postgresql://", "postgresql+psycopg://")
     return url
+
 
 async_db_url = _get_async_url(settings.database_url)
 
@@ -31,13 +33,14 @@ AsyncSessionLocal = async_sessionmaker(
     class_=AsyncSession,
 )
 
+
 async def init_db() -> None:
-    from app.models import ai_extraction_log, client, commitment, meeting  # noqa: F401
-    
+    import app.models  # noqa: F401
+
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as db:
         yield db
-

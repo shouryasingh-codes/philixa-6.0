@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.models.client import Client
 from app.models.commitment import Commitment, CommitmentMeetingLink
 from app.utils.text_normalization import normalize_text, similarity
 
@@ -22,7 +23,15 @@ class CommitmentService:
         client_id: int,
         meeting_id: int,
         extracted_commitments: list[dict[str, Any]],
+        organization_id: str | None = None,
+        user_id: str | None = None,
     ) -> tuple[list[Commitment], list[Commitment]]:
+        if not organization_id or not user_id:
+            client = await db.get(Client, client_id)
+            if client:
+                organization_id = organization_id or client.organization_id
+                user_id = user_id or client.user_id
+
         created: list[Commitment] = []
         updated: list[Commitment] = []
         for item in extracted_commitments:
@@ -57,6 +66,8 @@ class CommitmentService:
                 continue
 
             commitment = Commitment(
+                organization_id=organization_id,
+                user_id=user_id,
                 client_id=client_id,
                 description=description,
                 normalized_description=normalized,
@@ -103,7 +114,7 @@ class CommitmentService:
 
         from app.services.rules_engine_service import RulesEngineService
         await RulesEngineService.sync_client_tasks_and_risks(db, commitment.client_id)
-        
+
         return commitment
 
     async def pending_for_client(self, db: AsyncSession, client_id: int) -> list[Commitment]:

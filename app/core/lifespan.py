@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -6,9 +7,9 @@ from fastapi import FastAPI
 from redis.asyncio import Redis
 from sqlalchemy import text
 
-from app.core.config import get_settings
+from app.core.arq import close_arq_pool, init_arq_pool
+from app.core.config import get_settings, validate_production_settings
 from app.database.session import async_engine
-from app.core.arq import init_arq_pool, close_arq_pool
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,13 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     settings = get_settings()
+
+    # Production safety guardrail validation
+    if settings.app_env.lower() in ("production", "prod"):
+        violations = validate_production_settings(settings)
+        if violations:
+            logger.error(f"Production startup validation failed: {violations}")
+            raise RuntimeError(f"Production startup validation failed: {'; '.join(violations)}")
 
     if settings.skip_startup_checks:
         logger.info("Startup checks skipped (PHILIXA_SKIP_STARTUP_CHECKS=1).")
@@ -48,13 +56,11 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     await init_arq_pool()
 
     # 5. Preload Embedding Model in background to prevent first-request cold start
-    import asyncio
     from app.services.embedding_service import get_embedding_model
     asyncio.create_task(asyncio.to_thread(get_embedding_model))
     logger.info("Triggered embedding model preload in background.")
 
     # 6. Preload Whisper + PyAnnote (TranscriptionService) in background.
-    # Without this, the first local request pays the full model load cost (~15s).
     if settings.transcription_mode == "local":
         def _preload_transcription():
             from app.services.transcription_service import transcription_service  # noqa: F401

@@ -1,20 +1,32 @@
-import sys
 import os
-from pathlib import Path
+import sys
 from logging.config import fileConfig
-
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from pathlib import Path
 
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
 # Ensure project root is always on the path regardless of working directory
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-# 2. Humara secure config aur database models
 from app.core.config import get_settings
 from app.database.base import Base
-from app.models import ai_extraction_log, client, commitment, meeting, follow_up_task, risk_signal, notification  # noqa: F401
+from app.models import (  # noqa: F401
+    ai_extraction_log,
+    auth_tokens,
+    client,
+    commitment,
+    follow_up_task,
+    meeting,
+    meeting_evidence,
+    notification,
+    organization,
+    organization_membership,
+    risk_signal,
+    user,
+    user_session,
+    workspace_invite,
+)
 
 # this is the Alembic Config object
 config = context.config
@@ -23,12 +35,13 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# 3. .env file se secure Database URL nikalna
+# .env file se secure Database URL nikalna
 settings = get_settings()
 config.set_main_option("sqlalchemy.url", settings.database_url)
 
-# 4. Alembic ko apne database ka blueprint (tables) bata diya
+# Alembic ko apne database ka blueprint (tables) bata diya
 target_metadata = Base.metadata
+
 
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
@@ -40,6 +53,7 @@ def run_migrations_offline() -> None:
     )
     with context.begin_transaction():
         context.run_migrations()
+
 
 def run_migrations_online() -> None:
     connectable = engine_from_config(
@@ -53,6 +67,7 @@ def run_migrations_online() -> None:
         )
         with context.begin_transaction():
             context.run_migrations()
+
 
 if context.is_offline_mode():
     run_migrations_offline()

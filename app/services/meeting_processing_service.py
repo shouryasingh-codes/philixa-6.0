@@ -9,6 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.provider import AIExtractionError, AIProvider, get_ai_provider
+from app.core.arq import get_arq_pool
+from app.core.auth import Principal
 from app.core.config import Settings, get_settings
 from app.models.ai_extraction_log import AIExtractionLog
 from app.models.client import Client
@@ -20,8 +22,6 @@ from app.services.client_identification_service import ClientIdentificationServi
 from app.services.commitment_service import CommitmentService
 from app.services.json_utils import from_json, to_json
 from app.services.memory_service import MemoryService
-from app.core.arq import get_arq_pool
-
 
 logger = logging.getLogger(__name__)
 
@@ -39,13 +39,24 @@ class MeetingProcessingService:
         self.memory = MemoryService()
 
     async def process_notes(
-        self, db: AsyncSession, request: MeetingNoteProcessRequest
+        self,
+        db: AsyncSession,
+        request: MeetingNoteProcessRequest,
+        principal: Principal | None = None,
+        organization_id: str | None = None,
+        user_id: str | None = None,
     ) -> dict[str, Any]:
         meeting_date = request.meeting_date or date.today()
+
+        if principal is not None:
+            organization_id = principal.organization_id
+            user_id = principal.user_id
 
         # Step 1: Persist the raw meeting immediately so that even a total
         # AI failure is tracked in the database as manual_review_required.
         meeting = Meeting(
+            organization_id=organization_id,
+            user_id=user_id,
             client_id=None,
             raw_notes=request.raw_notes,
             meeting_date=meeting_date,
@@ -60,15 +71,17 @@ class MeetingProcessingService:
         db.add(meeting)
         await db.flush()  # obtain meeting.id for the audit log
 
-        return await self._process_extracted_meeting(db, meeting, request.known_client_id)
+        return await self._process_extracted_meeting(db, meeting, request.known_client_id, raise_on_error=True)
 
     async def process_existing_meeting(
         self, db: AsyncSession, meeting: Meeting, known_client_id: int | None = None
     ) -> dict[str, Any]:
         """Process an already created meeting, like one created from an audio upload."""
-        return await self._process_extracted_meeting(db, meeting, known_client_id)
+        return await self._process_extracted_meeting(db, meeting, known_client_id, raise_on_error=False)
 
-    async def _process_extracted_meeting(self, db: AsyncSession, meeting: Meeting, known_client_id: int | None) -> dict[str, Any]:
+    async def _process_extracted_meeting(
+        self, db: AsyncSession, meeting: Meeting, known_client_id: int | None, raise_on_error: bool = False
+    ) -> dict[str, Any]:
         meeting_date = meeting.meeting_date or date.today()
         # Both failure paths are audit-logged inside the routing service.
         try:
@@ -76,7 +89,9 @@ class MeetingProcessingService:
             extraction = await routing.route_and_extract(
                 meeting.raw_notes, meeting_date, meeting.id
             )
-        except AIExtractionError:
+        except AIExtractionError as exc:
+            if raise_on_error:
+                raise exc
             # Both models failed — keep the meeting as manual_review_required
             # and commit so the record is visible for human triage.
             logger.error(
@@ -93,6 +108,7 @@ class MeetingProcessingService:
             suggested_name=client_info.get("suggested_client_name"),
             confidence=float(client_info.get("confidence") or 0.0),
             known_client_id=known_client_id,
+            organization_id=meeting.organization_id,
         )
         warnings.extend(extraction.get("warnings") or [])
 
@@ -123,9 +139,11 @@ class MeetingProcessingService:
                 client_id=client.id,
                 meeting_id=meeting.id,
                 extracted_commitments=extraction.get("commitments") or [],
+                organization_id=meeting.organization_id,
+                user_id=meeting.user_id,
             )
             await self.memory.update_client_memory(db, client.id)
-            
+
             from app.services.rules_engine_service import RulesEngineService
             await RulesEngineService.sync_client_tasks_and_risks(db, client.id)
 
@@ -133,13 +151,13 @@ class MeetingProcessingService:
 
         # TRIGGER ARQ BACKGROUND JOB
         pool = get_arq_pool()
-        if client and pool:
+        if client and pool and meeting.organization_id and meeting.user_id:
             await pool.enqueue_job(
                 "generate_meeting_embeddings",
                 meeting.id,
-                organization_id="default",
-                user_id="default",
-                _job_id=f"generate_meeting_embeddings_{meeting.id}"
+                organization_id=meeting.organization_id,
+                user_id=meeting.user_id,
+                _job_id=f"generate_meeting_embeddings_{meeting.id}",
             )
 
         return await self._response_payload(
@@ -160,19 +178,34 @@ class MeetingProcessingService:
         meeting_id: int,
         client_id: int | None = None,
         new_client_name: str | None = None,
+        principal: Principal | None = None,
     ) -> dict[str, Any] | None:
-        meeting = await db.get(Meeting, meeting_id)
+        if principal is not None:
+            from app.repositories.meeting_repository import MeetingRepository
+            meeting = await MeetingRepository().get_by_id(db, principal, meeting_id)
+        else:
+            meeting = await db.get(Meeting, meeting_id)
+
         if not meeting:
             return None
+
         if client_id and new_client_name:
             raise ValueError("Provide either client_id or new_client_name, not both.")
+
         if client_id:
-            client = await db.get(Client, client_id)
+            if principal is not None:
+                from app.repositories.client_repository import ClientRepository
+                client = await ClientRepository().get_by_id(db, principal, client_id)
+            else:
+                client = await db.get(Client, client_id)
+
             if not client:
                 raise ValueError("Client not found.")
             client_status = "identified"
         elif new_client_name:
             client = Client(
+                organization_id=meeting.organization_id,
+                user_id=meeting.user_id,
                 name=new_client_name,
                 normalized_name=self._normalize_client_name(new_client_name),
             )
@@ -198,9 +231,11 @@ class MeetingProcessingService:
             client_id=client.id,
             meeting_id=meeting.id,
             extracted_commitments=extraction.get("commitments") or [],
+            organization_id=meeting.organization_id,
+            user_id=meeting.user_id,
         )
         await self.memory.update_client_memory(db, client.id)
-        
+
         from app.services.rules_engine_service import RulesEngineService
         await RulesEngineService.sync_client_tasks_and_risks(db, client.id)
 
@@ -208,13 +243,13 @@ class MeetingProcessingService:
 
         # TRIGGER ARQ BACKGROUND JOB
         pool = get_arq_pool()
-        if pool:
+        if pool and meeting.organization_id and meeting.user_id:
             await pool.enqueue_job(
                 "generate_meeting_embeddings",
                 meeting.id,
-                organization_id="default",
-                user_id="default",
-                _job_id=f"generate_meeting_embeddings_{meeting.id}"
+                organization_id=meeting.organization_id,
+                user_id=meeting.user_id,
+                _job_id=f"generate_meeting_embeddings_{meeting.id}",
             )
 
         return await self._response_payload(
@@ -230,12 +265,6 @@ class MeetingProcessingService:
 
     @staticmethod
     def _manual_review_payload(meeting: Meeting) -> dict[str, Any]:
-        """Return a structured response for meetings where all AI models failed.
-
-        The meeting has already been committed to DB with status='manual_review_required'
-        so it will appear in admin/triage views. The response mirrors the normal
-        process response shape so callers don't need special-case handling.
-        """
         warning_msg = (
             "AI extraction failed after all model attempts. "
             "This meeting has been saved and requires manual review."

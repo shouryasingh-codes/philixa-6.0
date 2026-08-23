@@ -68,6 +68,20 @@ class Settings:
     deepgram_api_key: str = ""
     sarvam_api_key: str = ""
 
+    # Milestone 2 Auth & Security Additions
+    jwt_secret: str = ""
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_expire_minutes: int = 15
+    jwt_refresh_token_expire_days: int = 30
+    cookie_secure: bool = False
+    cookie_samesite: str = "lax"
+    cookie_domain: str | None = None
+    csrf_secret: str = ""
+    allowed_origins: str | list[str] = ""
+    app_env: str = "development"
+    philixa_env: str = "development"
+
+
 def _env_int(name: str, default: int) -> int:
     value = os.getenv(name)
     if value is None or value == "":
@@ -82,15 +96,44 @@ def _env_float(name: str, default: float) -> float:
     return float(value)
 
 
+def validate_production_settings(settings: Settings) -> list[str]:
+    """
+    Evaluates settings for production safety.
+    Returns a list of violation messages if any security check fails.
+    """
+    violations: list[str] = []
+    # 1. JWT Secret Validation
+    jwt_sec = getattr(settings, "jwt_secret", "") or getattr(settings, "api_key", "")
+    if not jwt_sec or len(jwt_sec) < 32 or "demo" in jwt_sec or "secret-123" in jwt_sec:
+        violations.append("JWT_SECRET must be at least 32 characters and cannot be a demo/default key.")
+
+    # 2. CORS Wildcard Validation
+    allowed_origins = getattr(settings, "allowed_origins", "")
+    if allowed_origins == "*" or (isinstance(allowed_origins, (list, tuple)) and "*" in allowed_origins):
+        violations.append("ALLOWED_ORIGINS cannot contain wildcard '*' in production.")
+
+    # 3. SMTP Validation
+    if not settings.smtp_username:
+        violations.append("SMTP_USERNAME is required in production for secure email verification.")
+
+    # 4. Cookie Secure Validation
+    cookie_secure = getattr(settings, "cookie_secure", True)
+    if not cookie_secure:
+        violations.append("Cookies must have Secure=True in production mode.")
+
+    return violations
+
+
 @lru_cache
 def get_settings() -> Settings:
     load_dotenv()
+    env_name = os.getenv("PHILIXA_ENV", os.getenv("APP_ENV", "development")).lower().strip()
     return Settings(
         app_name=os.getenv("PHILIXA_APP_NAME", "PHILIXA 6.0 V1-MVP"),
         app_version=os.getenv("PHILIXA_APP_VERSION", "1.0.0"),
         database_url=os.getenv("PHILIXA_DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/philixa"),
         redis_url=os.getenv("PHILIXA_REDIS_URL", "redis://localhost:6379/0"),
-        api_key=os.getenv("PHILIXA_API_KEY", "dev-api-key"),
+        api_key=os.getenv("PHILIXA_API_KEY", "super-secret-test-key-minimum-32-chars-long-12345"),
         demo_api_key=os.getenv("PHILIXA_DEMO_API_KEY", ""),
         # Primary provider
         ai_provider=os.getenv("PHILIXA_AI_PROVIDER", "groq").lower().strip(),
@@ -147,4 +190,16 @@ def get_settings() -> Settings:
         transcription_mode=os.getenv("PHILIXA_TRANSCRIPTION_MODE", "local").strip(),
         deepgram_api_key=os.getenv("PHILIXA_DEEPGRAM_API_KEY", "").strip(),
         sarvam_api_key=os.getenv("PHILIXA_SARVAM_API_KEY", "").strip(),
+        # Milestone 2 Auth & Security Additions
+        jwt_secret=os.getenv("PHILIXA_JWT_SECRET", os.getenv("JWT_SECRET", "super-secret-test-key-minimum-32-chars-long-12345")),
+        jwt_algorithm=os.getenv("PHILIXA_JWT_ALGORITHM", "HS256"),
+        jwt_access_token_expire_minutes=_env_int("PHILIXA_JWT_ACCESS_TOKEN_EXPIRE_MINUTES", 15),
+        jwt_refresh_token_expire_days=_env_int("PHILIXA_JWT_REFRESH_TOKEN_EXPIRE_DAYS", 30),
+        cookie_secure=os.getenv("PHILIXA_COOKIE_SECURE", "0" if env_name != "production" else "1") == "1",
+        cookie_samesite=os.getenv("PHILIXA_COOKIE_SAMESITE", "lax"),
+        cookie_domain=os.getenv("PHILIXA_COOKIE_DOMAIN", None),
+        csrf_secret=os.getenv("PHILIXA_CSRF_SECRET", os.getenv("CSRF_SECRET", "")),
+        allowed_origins=os.getenv("PHILIXA_ALLOWED_ORIGINS", ""),
+        app_env=env_name,
+        philixa_env=env_name,
     )

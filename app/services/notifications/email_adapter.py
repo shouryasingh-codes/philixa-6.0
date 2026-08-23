@@ -22,13 +22,13 @@ class EmailAdapter(NotificationAdapter):
         self.use_tls = use_tls
         self.from_address = from_address
 
-    async def send_message(self, to_destination: str, message_content: str) -> Dict[str, Any]:
+    async def send_message(self, to_destination: str, message_content: str, subject: str | None = None) -> Dict[str, Any]:
         logger.info(f"[EmailAdapter] Sending email to {to_destination}")
         
         message = EmailMessage()
         message["From"] = formataddr(("Philixa AI", self.from_address))
         message["To"] = to_destination
-        message["Subject"] = "Notification from Philixa AI"
+        message["Subject"] = subject or "Notification from Philixa AI"
         message.set_content(message_content)
 
         provider_message_id = f"email_{uuid.uuid4().hex}"
@@ -63,6 +63,9 @@ class EmailAdapter(NotificationAdapter):
                     "to": to_destination
                 }
             }
+
+    async def send_notification(self, to_destination: str, message_content: str, subject: str | None = None) -> Dict[str, Any]:
+        return await self.send_message(to_destination, message_content, subject=subject)
 
     async def get_message_status(self, provider_message_id: str) -> str:
         # Email status is inherently difficult to track once handed off to SMTP,
