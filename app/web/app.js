@@ -1112,25 +1112,34 @@ function renderMemory(payload) {
         </div>
       </div>
     </div>
-    <div class="memory-block narrative-block">
-      <h4>AI Memory Narrative</h4>
-      <p>${escapeHtml(payload.rolling_summary || payload.last_meeting_summary || "No rolling summary yet.")}</p>
+    <div class="panel-heading accordion-toggle" data-target="accordionDetailedHistory" style="margin-top: 15px; padding: 10px 0; border-top: 1px dashed var(--line); border-bottom: none;">
+      <div style="pointer-events: none; width: 100%;">
+        <h4 style="display:flex; align-items:center; justify-content: space-between; font-size: 13px; margin:0; color: var(--text);">
+          View Detailed History <span class="accordion-icon" style="font-size: 10px;">▼</span>
+        </h4>
+      </div>
     </div>
-    <div class="memory-block">
-      <h4>Last meeting summary</h4>
-      <p>${escapeHtml(payload.last_meeting_summary || "No recent summary.")}</p>
-    </div>
-    <div class="memory-block">
-      <h4>Pending commitments</h4>
-      ${commitments.length ? `<ul>${commitments.map((item) => `<li>${escapeHtml(item.description)} - ${escapeHtml(formatShortDate(item.due_date || item.due_date_text))}</li>`).join("")}</ul>` : `<span class="muted">No pending commitments.</span>`}
-    </div>
-    <div class="memory-block">
-      <h4>Concerns</h4>
-      ${concerns.length ? `<ul>${concerns.map((item) => `<li>${escapeHtml(item.description || item)}</li>`).join("")}</ul>` : `<span class="muted">No concerns captured.</span>`}
-    </div>
-    <div class="memory-block">
-      <h4>Recent notes</h4>
-      ${notes.length ? `<ul>${notes.map((note) => `<li>${escapeHtml(note)}</li>`).join("")}</ul>` : `<span class="muted">No recent notes.</span>`}
+    <div class="accordion-content collapsed" id="accordionDetailedHistory">
+      <div class="memory-block narrative-block" style="margin-top: 10px;">
+        <h4>AI Memory Narrative</h4>
+        <p>${escapeHtml(payload.rolling_summary || payload.last_meeting_summary || "No rolling summary yet.")}</p>
+      </div>
+      <div class="memory-block">
+        <h4>Last meeting summary</h4>
+        <p>${escapeHtml(payload.last_meeting_summary || "No recent summary.")}</p>
+      </div>
+      <div class="memory-block">
+        <h4>Pending commitments</h4>
+        ${commitments.length ? `<ul>${commitments.map((item) => `<li>${escapeHtml(item.description)} - ${escapeHtml(formatShortDate(item.due_date || item.due_date_text))}</li>`).join("")}</ul>` : `<span class="muted">No pending commitments.</span>`}
+      </div>
+      <div class="memory-block">
+        <h4>Concerns</h4>
+        ${concerns.length ? `<ul>${concerns.map((item) => `<li>${escapeHtml(item.description || item)}</li>`).join("")}</ul>` : `<span class="muted">No concerns captured.</span>`}
+      </div>
+      <div class="memory-block">
+        <h4>Recent notes</h4>
+        ${notes.length ? `<ul>${notes.map((note) => `<li>${escapeHtml(note)}</li>`).join("")}</ul>` : `<span class="muted">No recent notes.</span>`}
+      </div>
     </div>
   `;
 }
@@ -1890,32 +1899,60 @@ function bindEvents() {
 
   // Ask AI
   let askAiRec = null;
+  let isAskAiListening = false;
+  const askClientVoiceBtn = document.querySelector('#askClientVoiceBtn');
+  
   if ('webkitSpeechRecognition' in window) {
     askAiRec = new webkitSpeechRecognition();
     askAiRec.continuous = false;
     askAiRec.interimResults = false;
     askAiRec.lang = 'en-IN';
+    
+    const stopListeningUI = () => {
+      isAskAiListening = false;
+      if (els.askClientInput) els.askClientInput.placeholder = 'Ask AI about this client...';
+      if (askClientVoiceBtn) askClientVoiceBtn.style.color = '';
+    };
+
     askAiRec.onresult = (e) => {
-      els.askClientInput.value = e.results[0][0].transcript;
-      els.askClientInput.placeholder = 'Ask AI about this client...';
-      els.askClientBtn?.click();
+      if (els.askClientInput) {
+        els.askClientInput.value = e.results[0][0].transcript;
+        els.askClientBtn?.click();
+      }
+      stopListeningUI();
     };
+    
     askAiRec.onerror = (e) => {
-      console.error(e);
-      els.askClientInput.placeholder = 'Ask AI about this client...';
+      console.error("Speech recognition error:", e.error);
+      stopListeningUI();
     };
+    
     askAiRec.onend = () => {
-      els.askClientInput.placeholder = 'Ask AI about this client...';
+      stopListeningUI();
     };
   }
 
-  const askClientVoiceBtn = document.querySelector('#askClientVoiceBtn');
   if (askClientVoiceBtn) {
     askClientVoiceBtn.addEventListener('click', () => {
       if (askAiRec) {
-        els.askClientInput.value = '';
-        els.askClientInput.placeholder = 'Listening...';
-        askAiRec.start();
+        if (isAskAiListening) {
+          askAiRec.stop();
+          return;
+        }
+        try {
+          if (els.askClientInput) {
+            els.askClientInput.value = '';
+            els.askClientInput.placeholder = 'Listening...';
+          }
+          askClientVoiceBtn.style.color = 'var(--danger)';
+          isAskAiListening = true;
+          askAiRec.start();
+        } catch (err) {
+          console.warn("Speech API start error:", err);
+          isAskAiListening = false;
+          if (els.askClientInput) els.askClientInput.placeholder = 'Ask AI about this client...';
+          askClientVoiceBtn.style.color = '';
+        }
       } else {
         alert('Voice recognition not supported in this browser (Use Chrome or Edge).');
       }

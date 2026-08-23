@@ -251,10 +251,72 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  max-width: 1150px;
+  max-width: 1400px; /* Increased for side-by-side layout */
   margin: 0 auto;
   width: 100%;
   justify-self: center;
+}
+
+/* New 2-column Dashboard Layout */
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); /* Fixed: Prevents right column from crushing left */
+  gap: 24px;
+  align-items: start;
+}
+
+.context-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Sidebar Tabs */
+.sidebar-tabs {
+  display: flex;
+  gap: 8px;
+  background: var(--surface);
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+
+.sidebar-tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sidebar-tab-btn:hover {
+  color: var(--text);
+  background: rgba(0,0,0,0.02);
+}
+
+.sidebar-tab-btn.active {
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.dark-theme .sidebar-tab-btn:hover {
+  background: rgba(255,255,255,0.05);
+}
+.dark-theme .sidebar-tab-btn.active {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* Fallback for smaller screens */
+@media (max-width: 1024px) {
+  .dashboard-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 .topbar,
@@ -512,6 +574,34 @@ textarea:focus {
   display: grid;
   gap: 20px;
   min-height: 180px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding-right: 8px; /* Room for scrollbar */
+}
+
+/* Custom scrollbar styling for memory content */
+.memory-content::-webkit-scrollbar {
+  width: 10px; /* Made thicker so it's easier to grab */
+}
+.memory-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.03); /* Slight background to show it's a scroll track */
+  border-radius: 4px;
+}
+.memory-content::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.25); /* Darker thumb for better visibility */
+  border-radius: 4px;
+}
+.memory-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.4); /* Even darker on hover */
+}
+.dark-theme .memory-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+.dark-theme .memory-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+}
+.dark-theme .memory-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
 }
 
 .brief-card {
@@ -537,7 +627,7 @@ textarea:focus {
 
 .brief-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr; /* Changed from repeat(2, 1fr) for sidebar layout */
   gap: 12px;
 }
 

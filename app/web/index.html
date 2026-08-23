@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/styles.css?v=61" />
+  <link rel="stylesheet" href="/static/styles.css?v=75" />
   <style>
     /* Scoped Multi-Tenant & Auth Enhancements */
     .topbar-branding { display: flex; flex-direction: column; }
@@ -210,8 +210,11 @@
         </div>
       </section>
 
-      <!-- Hero Input Panel -->
-      <section class="panel primary-panel" id="notePanel" style="margin-bottom: 2rem; width: 100%;">
+      <!-- Dashboard Grid Layout -->
+      <div class="dashboard-layout">
+        
+        <!-- Left Column: Hero Input Panel -->
+        <section class="panel primary-panel" id="notePanel" style="margin-bottom: 2rem; width: 100%;">
         <div class="panel-heading" style="padding-bottom: 0; border-bottom: none; margin-bottom: 25px; display: flex; align-items: center; justify-content: space-between;">
           <div style="flex: 1; display: flex; justify-content: flex-start;">
             <h3 style="margin: 0;">Input Meeting Data</h3>
@@ -337,11 +340,17 @@
             <button id="confirmClient" type="button">Confirm client</button>
           </div>
         </div>
-      </section>
+        </section>
 
-      <!-- Bottom Layout: Client Memory & Commitments -->
-      <section class="grid-layout bottom-layout">
-        <section class="panel hero-panel" id="memoryPanel">
+        <!-- Right Column: Contextual Sidebars -->
+        <div class="context-sidebar">
+          
+          <div class="sidebar-tabs">
+            <button class="sidebar-tab-btn active" data-tab-target="memoryPanel">Client Memory</button>
+            <button class="sidebar-tab-btn" data-tab-target="commitmentPanel">Commitments</button>
+          </div>
+
+          <section class="panel hero-panel sidebar-tab-content" id="memoryPanel">
           <div class="panel-heading accordion-toggle" data-target="accordionMemoryContent">
             <div style="pointer-events: none;">
               <h3 style="display:flex; align-items:center; gap:8px;">Client memory <span class="accordion-icon">▼</span></h3>
@@ -362,11 +371,10 @@
             <div id="memoryContent" class="memory-content">
               <div class="empty-state">Select a client to view instant context.</div>
             </div>
-          </div>
-        </section>
+            </div>
+          </section>
 
-        <div style="display: flex; flex-direction: column; gap: 24px;">
-          <section class="panel support-panel" id="commitmentPanel">
+          <section class="panel support-panel sidebar-tab-content hidden" id="commitmentPanel">
             <div class="panel-heading accordion-toggle" data-target="accordionCommitmentContent">
               <div style="pointer-events: none;">
                 <h3 style="display:flex; align-items:center; gap:8px;">Commitments <span class="accordion-icon">▼</span></h3>
@@ -400,7 +408,7 @@
             </div>
           </section>
         </div>
-      </section>
+      </div>
 
     </main>
 </div>
@@ -668,7 +676,7 @@
   </div>
 
   <!-- Application Scripts -->
-  <script src="/static/app.js?v=45"></script>
+  <script src="/static/app.js?v=26"></script>
   <script src="/static/fast-dictation.js?v=1"></script>
   <script src="/static/philixa-voice.js?v=31"></script>
   <script>
@@ -679,19 +687,39 @@
       document.querySelector('.app-shell').classList.remove('sidebar-collapsed')
     );
 
-    // Accordion toggle logic
-    document.querySelectorAll('.accordion-toggle').forEach(toggle => {
-      toggle.addEventListener('click', (e) => {
-        if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT') return;
-        const targetId = toggle.getAttribute('data-target');
-        if (targetId) {
-          const content = document.getElementById(targetId);
-          if (content) {
-            content.classList.toggle('collapsed');
-            toggle.classList.toggle('collapsed');
-          }
+    // Accordion toggle logic using event delegation
+    document.addEventListener('click', (e) => {
+      const toggle = e.target.closest('.accordion-toggle');
+      if (!toggle) return;
+      if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT') return;
+      const targetId = toggle.getAttribute('data-target');
+      if (targetId) {
+        const content = document.getElementById(targetId);
+        if (content) {
+          content.classList.toggle('collapsed');
+          toggle.classList.toggle('collapsed');
         }
-      });
+      }
+    });
+
+    // Sidebar Tab switching logic
+    document.addEventListener('click', (e) => {
+      const tabBtn = e.target.closest('.sidebar-tab-btn');
+      if (!tabBtn) return;
+      
+      // Remove active class from all buttons
+      document.querySelectorAll('.sidebar-tab-btn').forEach(btn => btn.classList.remove('active'));
+      // Add active to clicked
+      tabBtn.classList.add('active');
+      
+      // Hide all tab contents
+      document.querySelectorAll('.sidebar-tab-content').forEach(content => content.classList.add('hidden'));
+      // Show target
+      const targetId = tabBtn.getAttribute('data-tab-target');
+      const targetPanel = document.getElementById(targetId);
+      if (targetPanel) {
+        targetPanel.classList.remove('hidden');
+      }
     });
   </script>
 </body>
