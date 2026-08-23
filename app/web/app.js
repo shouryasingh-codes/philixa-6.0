@@ -138,12 +138,6 @@ const els = {
   taskList: document.querySelector("#taskList"),
   riskList: document.querySelector("#riskList"),
   toast: document.querySelector("#toast"),
-  
-  // Copilot Sidebar
-  copilotSidebar: document.querySelector("#copilotSidebar"),
-  toggleCopilotBtn: document.querySelector("#toggleCopilotBtn"),
-  closeCopilotBtn: document.querySelector("#closeCopilotBtn"),
-
   askClientSection: document.querySelector("#askClientSection"),
   askClientInput: document.querySelector("#askClientInput"),
   askClientBtn: document.querySelector("#askClientBtn"),
@@ -1895,6 +1889,39 @@ function bindEvents() {
   });
 
   // Ask AI
+  let askAiRec = null;
+  if ('webkitSpeechRecognition' in window) {
+    askAiRec = new webkitSpeechRecognition();
+    askAiRec.continuous = false;
+    askAiRec.interimResults = false;
+    askAiRec.lang = 'en-IN';
+    askAiRec.onresult = (e) => {
+      els.askClientInput.value = e.results[0][0].transcript;
+      els.askClientInput.placeholder = 'Ask AI about this client...';
+      els.askClientBtn?.click();
+    };
+    askAiRec.onerror = (e) => {
+      console.error(e);
+      els.askClientInput.placeholder = 'Ask AI about this client...';
+    };
+    askAiRec.onend = () => {
+      els.askClientInput.placeholder = 'Ask AI about this client...';
+    };
+  }
+
+  const askClientVoiceBtn = document.querySelector('#askClientVoiceBtn');
+  if (askClientVoiceBtn) {
+    askClientVoiceBtn.addEventListener('click', () => {
+      if (askAiRec) {
+        els.askClientInput.value = '';
+        els.askClientInput.placeholder = 'Listening...';
+        askAiRec.start();
+      } else {
+        alert('Voice recognition not supported in this browser (Use Chrome or Edge).');
+      }
+    });
+  }
+
   els.askClientBtn?.addEventListener("click", () =>
     withLoading(els.askClientBtn, "Asking…", () => askClient()).catch((err) => showToast(err.message, true))
   );
@@ -2080,14 +2107,6 @@ function bindEvents() {
   // Sidebar Toggles
   els.sidebarToggleBtn?.addEventListener("click", () => {
     document.querySelector(".app-shell").classList.toggle("sidebar-collapsed");
-  });
-  
-  els.toggleCopilotBtn?.addEventListener("click", () => {
-    els.copilotSidebar?.classList.toggle("open");
-  });
-  
-  els.closeCopilotBtn?.addEventListener("click", () => {
-    els.copilotSidebar?.classList.remove("open");
   });
 
   // Theme Toggle

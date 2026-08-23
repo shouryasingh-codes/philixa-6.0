@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/styles.css?v=60" />
+  <link rel="stylesheet" href="/static/styles.css?v=61" />
   <style>
     /* Scoped Multi-Tenant & Auth Enhancements */
     .topbar-branding { display: flex; flex-direction: column; }
@@ -142,13 +142,6 @@
               <option value="" disabled selected>Loading...</option>
             </select>
           </div>
-
-          <!-- Role Badge Removed to avoid redundancy with Workspace dropdown -->
-
-          <!-- Copilot Toggle -->
-          <button id="toggleCopilotBtn" type="button" class="topbar-btn" title="Toggle AI Copilot" style="border-color: var(--accent); color: var(--accent);">
-            <span class="icon">🤖</span> Copilot
-          </button>
 
           <!-- Avatar Dropdown for User Actions -->
           <div class="avatar-dropdown-container" id="avatarDropdownContainer">
@@ -356,6 +349,16 @@
             <button id="loadSelectedMemory" type="button" onclick="event.stopPropagation()">Load memory</button>
           </div>
           <div class="accordion-content collapsed" id="accordionMemoryContent">
+            <div class="ask-client-section hidden" id="askClientSection" style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--line);">
+              <div class="ask-client-input-row" style="background: var(--bg);">
+                <input id="askClientInput" type="text"
+                  placeholder="Ask AI about this client... (e.g. What is the latest concern?)" />
+                <button id="askClientVoiceBtn" type="button" class="secondary-action" title="Hold or click to speak">🎙️</button>
+                <button id="askClientBtn" type="button" class="primary-action">Ask</button>
+              </div>
+              <div id="askClientResult" class="ask-client-result hidden"></div>
+            </div>
+            
             <div id="memoryContent" class="memory-content">
               <div class="empty-state">Select a client to view instant context.</div>
             </div>
@@ -400,26 +403,6 @@
       </section>
 
     </main>
-  
-  <aside id="copilotSidebar" class="copilot-sidebar">
-    <div class="copilot-header">
-      <h3 style="margin: 0; font-size: 16px; display: flex; align-items: center; gap: 8px;">
-        <span class="icon">🤖</span> AI Copilot
-      </h3>
-      <button id="closeCopilotBtn" type="button" class="close-btn" title="Close Copilot">✕</button>
-    </div>
-    <div class="copilot-content">
-      <div class="ask-client-section hidden" id="askClientSection">
-        <div class="ask-client-input-row">
-          <input id="askClientInput" type="text"
-            placeholder="Ask AI about this client... (e.g. What is the latest concern?)" />
-          <button id="askClientVoiceBtn" type="button" class="secondary-action" title="Hold or click to speak">🎙️</button>
-          <button id="askClientBtn" type="button" class="primary-action">Ask</button>
-        </div>
-        <div id="askClientResult" class="ask-client-result hidden"></div>
-      </div>
-    </div>
-  </aside>
 </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -685,7 +668,7 @@
   </div>
 
   <!-- Application Scripts -->
-  <script src="/static/app.js?v=43"></script>
+  <script src="/static/app.js?v=45"></script>
   <script src="/static/fast-dictation.js?v=1"></script>
   <script src="/static/philixa-voice.js?v=31"></script>
   <script>
