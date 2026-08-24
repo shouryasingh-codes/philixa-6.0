@@ -2,6 +2,8 @@ import json
 import logging
 import asyncio
 import re
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 from typing import TypedDict, Annotated, Literal
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -103,6 +105,66 @@ def _extract_client_lookup_name(query: str) -> str | None:
 
 def _is_greeting(query: str) -> bool:
     return query.strip().casefold().strip("!?.") in {"hi", "hii", "hiii", "hello", "hey", "namaste"}
+
+
+WEEKDAY_NAMES = {
+    "monday": 0,
+    "tuesday": 1,
+    "wednesday": 2,
+    "thursday": 3,
+    "friday": 4,
+    "saturday": 5,
+    "sunday": 6,
+}
+
+
+def _meeting_schedule_date(query: str) -> date | None:
+    """Return the upcoming requested weekday for meeting-schedule questions."""
+    normalized_query = query.casefold()
+    is_meeting_question = any(term in normalized_query for term in ("milna", "milne", "kisse", "kisee", "meet", "meeting"))
+    if not is_meeting_question:
+        return None
+
+    for weekday_name, weekday_number in WEEKDAY_NAMES.items():
+        if weekday_name in normalized_query:
+            # Portfolio dates are presented to the user in the product's IST timezone.
+            today = datetime.now(ZoneInfo("Asia/Kolkata")).date()
+            return today + timedelta(days=(weekday_number - today.weekday()) % 7)
+    return None
+
+
+async def _lookup_meetings_for_date(meeting_date: date, organization_id: str, db: AsyncSession) -> dict:
+    result = await db.execute(
+        text("""
+            SELECT COALESCE(c.name, m.suggested_client_name, 'Unassigned client') AS client_name,
+                   m.meeting_date,
+                   m.summary
+            FROM meetings m
+            LEFT JOIN clients c ON c.id = m.client_id
+            WHERE m.organization_id = :organization_id
+              AND m.meeting_date = :meeting_date
+            ORDER BY c.name NULLS LAST, m.id
+        """),
+        {"organization_id": organization_id, "meeting_date": meeting_date},
+    )
+    meetings = [dict(row) for row in result.mappings().all()]
+    day_label = meeting_date.strftime("%A, %d %b")
+    if not meetings:
+        return {
+            "answer": f"No meetings are recorded in your portfolio for {day_label}.",
+            "source_type": "meeting_schedule",
+            "data": [],
+        }
+
+    details = []
+    for meeting in meetings:
+        summary = (meeting.get("summary") or "").strip()
+        details.append(f"{meeting['client_name']}{f': {summary}' if summary else ''}")
+    return {
+        "answer": f"Your meetings for {day_label}: " + "; ".join(details) + ".",
+        "source_type": "meeting_schedule",
+        "data": meetings,
+    }
 
 
 async def _lookup_client_profile(name: str, organization_id: str, db: AsyncSession) -> dict:
@@ -216,6 +278,10 @@ async def _process_copilot_query(query: str, organization_id: str, db: AsyncSess
             "source_type": "local",
             "data": None,
         }
+
+    meeting_date = _meeting_schedule_date(query)
+    if meeting_date:
+        return await _lookup_meetings_for_date(meeting_date, organization_id, db)
 
     client_name = _extract_client_lookup_name(query)
     if client_name:
