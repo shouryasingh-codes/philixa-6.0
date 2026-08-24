@@ -2234,3 +2234,75 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
+// --- Portfolio Copilot UI Logic ---
+function initCopilot() {
+  const openCopilotBtn = document.getElementById('openCopilotBtn');
+  const closeCopilotBtn = document.getElementById('closeCopilotBtn');
+  const copilotModal = document.getElementById('copilotModal');
+  const copilotInput = document.getElementById('copilotInput');
+  const sendCopilotBtn = document.getElementById('sendCopilotBtn');
+  const copilotMessages = document.getElementById('copilotMessages');
+  
+  if (!openCopilotBtn || !copilotModal) return;
+
+  openCopilotBtn.addEventListener('click', () => {
+    copilotModal.classList.remove('hidden');
+    copilotInput.focus();
+  });
+
+  closeCopilotBtn.addEventListener('click', () => {
+    copilotModal.classList.add('hidden');
+  });
+
+  async function sendCopilotMessage() {
+    const text = copilotInput.value.trim();
+    if (!text) return;
+
+    // Add user message
+    const userMsg = document.createElement('div');
+    userMsg.className = 'chat-bubble user-bubble';
+    userMsg.textContent = text;
+    copilotMessages.appendChild(userMsg);
+    
+    copilotInput.value = '';
+    copilotMessages.scrollTop = copilotMessages.scrollHeight;
+
+    // Loading indicator
+    const aiLoadingMsg = document.createElement('div');
+    aiLoadingMsg.className = 'chat-bubble ai-bubble';
+    aiLoadingMsg.innerHTML = '<span class="loading-dots">Thinking...</span>';
+    copilotMessages.appendChild(aiLoadingMsg);
+    copilotMessages.scrollTop = copilotMessages.scrollHeight;
+
+    try {
+      const data = await api('/api/v1/dashboard/copilot/ask', {
+        method: 'POST',
+        body: JSON.stringify({ query: text, chat_history: [] })
+      });
+
+      aiLoadingMsg.textContent = data.answer;
+
+      if (data.source_type === 'sql') {
+        aiLoadingMsg.innerHTML += '<br><small style="color:var(--muted);font-size:10px;">✨ Generated via Database Search</small>';
+      } else if (data.source_type === 'vector') {
+        aiLoadingMsg.innerHTML += '<br><small style="color:var(--muted);font-size:10px;">✨ Generated via Vector Search</small>';
+      }
+    } catch (e) {
+      aiLoadingMsg.textContent = 'Error connecting to copilot: ' + e.message;
+    }
+    copilotMessages.scrollTop = copilotMessages.scrollHeight;
+  }
+
+  sendCopilotBtn.addEventListener('click', sendCopilotMessage);
+  copilotInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendCopilotMessage();
+  });
+}
+
+// Initialize Copilot UI logic
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initCopilot);
+} else {
+  initCopilot();
+}

@@ -14,6 +14,8 @@ from app.models.follow_up_task import FollowUpTask
 from app.models.meeting import Meeting
 from app.models.risk_signal import RiskSignal
 from app.schemas.dashboard import DailyPrioritiesResponse, FollowUpTaskRead, RiskSignalRead
+from app.schemas.portfolio_copilot import CopilotRequest, CopilotResponse
+from app.services.portfolio_copilot_service import process_copilot_query
 
 router = APIRouter(
     prefix="/dashboard",
@@ -111,3 +113,12 @@ async def get_dashboard_metrics(
         "active_clients": total_clients,
         "pending_commitments": pending_commitments,
     }
+
+@router.post("/copilot/ask", response_model=CopilotResponse)
+async def ask_portfolio_copilot(
+    request: CopilotRequest,
+    principal: CurrentPrincipal,
+    db: AsyncSession = Depends(get_db),
+) -> CopilotResponse:
+    result = await process_copilot_query(request.query, principal.organization_id, db)
+    return CopilotResponse(**result)

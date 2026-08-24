@@ -36,10 +36,8 @@ def generate_embeddings_for_text(text: str) -> list[dict]:
     results = []
     
     for idx, chunk in enumerate(chunks):
-        # IMPORTANT: E5 models require 'passage: ' prefix for indexing documents
-        prefixed_chunk = f"passage: {chunk}"
         # encode returns a numpy array, convert to list for pgvector
-        embedding = model.encode(prefixed_chunk).tolist()
+        embedding = model.encode(chunk).tolist()
         results.append({
             "chunk_index": idx,
             "chunk_text": chunk,
@@ -50,6 +48,4 @@ def generate_embeddings_for_text(text: str) -> list[dict]:
 def generate_query_embedding(query: str) -> list[float]:
     """Generates embedding for a search query."""
     model = get_embedding_model()
-    # IMPORTANT: E5 models require 'query: ' prefix for search queries
-    prefixed_query = f"query: {query}"
-    return model.encode(prefixed_query).tolist()
+    return model.encode(query).tolist()

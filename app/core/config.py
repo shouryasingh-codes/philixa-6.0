@@ -137,13 +137,13 @@ def get_settings() -> Settings:
         demo_api_key=os.getenv("PHILIXA_DEMO_API_KEY", ""),
         # Primary provider
         ai_provider=os.getenv("PHILIXA_AI_PROVIDER", "groq").lower().strip(),
-        ai_model=os.getenv("PHILIXA_AI_MODEL", "openai/gpt-oss-20b").strip(),
+        ai_model=os.getenv("PHILIXA_AI_MODEL", "groq/openai/gpt-oss-20b").strip(),
         ai_api_key=os.getenv("PHILIXA_AI_API_KEY", "").strip(),
         ai_base_url=os.getenv("PHILIXA_AI_BASE_URL", "").strip(),
         ai_timeout_seconds=_env_int("PHILIXA_AI_TIMEOUT_SECONDS", 20),
         # Dual-provider fallback
         ai_economy_provider=os.getenv("PHILIXA_AI_ECONOMY_PROVIDER", "groq").lower().strip(),
-        ai_economy_model=os.getenv("PHILIXA_AI_ECONOMY_MODEL", "openai/gpt-oss-20b").strip(),
+        ai_economy_model=os.getenv("PHILIXA_AI_ECONOMY_MODEL", "groq/openai/gpt-oss-20b").strip(),
         ai_review_provider=os.getenv("PHILIXA_AI_REVIEW_PROVIDER", "gemini").lower().strip(),
         ai_review_model=os.getenv("PHILIXA_AI_REVIEW_MODEL", "gemini-2.5-flash").strip(),
         # Per-provider keys
@@ -177,7 +177,7 @@ def get_settings() -> Settings:
         ),
         due_date_threshold=_env_float("PHILIXA_DUE_DATE_THRESHOLD", 0.75),
         skip_startup_checks=os.getenv("PHILIXA_SKIP_STARTUP_CHECKS", "0") == "1",
-        embedding_model=os.getenv("PHILIXA_EMBEDDING_MODEL", "intfloat/multilingual-e5-small").strip(),
+        embedding_model=os.getenv("PHILIXA_EMBEDDING_MODEL", "BAAI/bge-m3").strip(),
         # MinIO Audio Storage
         minio_url=os.getenv("PHILIXA_MINIO_URL", "localhost:9000").strip(),
         minio_access_key=os.getenv("PHILIXA_MINIO_ACCESS_KEY", "philixa_minio").strip(),

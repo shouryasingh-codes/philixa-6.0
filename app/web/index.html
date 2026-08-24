@@ -119,6 +119,14 @@
         <span id="healthText">Checking API</span>
       </div>
 
+      <!-- Copilot Trigger -->
+      <div style="padding: 0 16px 12px 16px;">
+        <button id="openCopilotBtn" class="copilot-trigger-btn" type="button">
+          <span class="icon">✨</span>
+          Portfolio Copilot
+        </button>
+      </div>
+
       <!-- Main Navigation -->
       <nav class="nav-list" aria-label="Dashboard sections">
         <a href="#notePanel">Process Notes</a>
@@ -676,7 +684,7 @@
   </div>
 
   <!-- Application Scripts -->
-  <script src="/static/app.js?v=26"></script>
+  <script src="/static/app.js?v=29"></script>
   <script src="/static/fast-dictation.js?v=1"></script>
   <script src="/static/philixa-voice.js?v=31"></script>
   <script>
@@ -722,6 +730,28 @@
       }
     });
   </script>
+
+  <!-- Copilot Chat Modal -->
+  <div id="copilotModal" class="copilot-modal hidden">
+    <div class="copilot-modal-header">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div class="brand-mark" style="width: 32px; height: 32px; font-size: 14px;">✨</div>
+        <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: var(--ink);">Portfolio Copilot</h3>
+      </div>
+      <button id="closeCopilotBtn" class="copilot-close-btn">&times;</button>
+    </div>
+    <div id="copilotMessages" class="copilot-messages">
+      <div class="chat-bubble ai-bubble">
+        Hello! I'm your Portfolio Copilot. Ask me about meetings, client sentiments, or upcoming commitments.
+      </div>
+    </div>
+    <div class="copilot-input-area">
+      <input type="text" id="copilotInput" placeholder="Ask about your portfolio..." autocomplete="off">
+      <button id="sendCopilotBtn" class="copilot-send-btn">
+        <svg fill="currentColor" viewBox="0 0 24 24" width="18" height="18"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+      </button>
+    </div>
+  </div>
 </body>
 </html>
 

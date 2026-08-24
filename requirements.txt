@@ -21,4 +21,5 @@ python-multipart>=0.0.9
 minio>=7.2.7
 faster-whisper>=1.0.3
 pyannote.audio>=3.1.1
-
+langgraph>=0.0.60
+litellm>=1.40.0
