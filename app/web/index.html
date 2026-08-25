@@ -119,13 +119,6 @@
         <span id="healthText">Checking API</span>
       </div>
 
-      <!-- Copilot Trigger -->
-      <div style="padding: 0 16px 12px 16px;">
-        <button id="openCopilotBtn" class="copilot-trigger-btn" type="button">
-          <span class="icon">✨</span>
-          Portfolio Copilot
-        </button>
-      </div>
 
       <!-- Main Navigation -->
       <nav class="nav-list" aria-label="Dashboard sections">
@@ -730,6 +723,11 @@
       }
     });
   </script>
+
+  <!-- Floating Action Button for Copilot -->
+  <button id="openCopilotBtn" class="fab-copilot-btn" type="button" aria-label="Open Portfolio Copilot">
+    <span class="icon" style="font-size: 20px;">✨</span>
+  </button>
 
   <!-- Copilot Chat Modal -->
   <div id="copilotModal" class="copilot-modal hidden">

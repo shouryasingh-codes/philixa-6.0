@@ -113,7 +113,7 @@ class GroqProvider(AIProvider):
         api_key = self.settings.ai_api_key or self.settings.groq_api_key
         if not api_key:
             raise AIExtractionError("Groq provider selected but PHILIXA_AI_API_KEY/PHILIXA_GROQ_API_KEY is missing.")
-        model = model_override or self.model_name
+        model = (model_override or self.model_name).replace("groq/", "")
         from datetime import timedelta
         calendar_ref = {"tomorrow": (meeting_date + timedelta(days=1)).isoformat()}
         for i in range(1, 8):
@@ -163,7 +163,7 @@ class GroqProvider(AIProvider):
         system_content = "You are a helpful assistant. Return JSON strictly conforming to the requested schema.\nSchema:\n" + json.dumps(schema)
         
         payload = {
-            "model": model,
+            "model": model.replace("groq/", ""),
             "temperature": 0,
             "messages": [
                 {"role": "system", "content": system_content},
@@ -185,7 +185,7 @@ class GroqProvider(AIProvider):
             raise AIExtractionError("Groq provider selected but API key is missing.")
         
         payload = {
-            "model": model,
+            "model": model.replace("groq/", ""),
             "temperature": 0.3,
             "messages": [
                 {"role": "system", "content": system_prompt},
@@ -215,7 +215,7 @@ class GroqProvider(AIProvider):
         )
         
         payload = {
-            "model": self.model_name,
+            "model": self.model_name.replace("groq/", ""),
             "temperature": 0,
             "messages": [
                 {"role": "system", "content": system_content},

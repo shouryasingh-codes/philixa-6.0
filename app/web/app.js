@@ -833,7 +833,7 @@ async function loadWorkspaceMembers() {
 
   try {
     const payload = await api("/api/v1/workspaces/members");
-    const members = payload.members || [];
+    const members = Array.isArray(payload) ? payload : (payload.members || []);
 
     if (els.memberCountBadge) {
       els.memberCountBadge.textContent = members.length;
