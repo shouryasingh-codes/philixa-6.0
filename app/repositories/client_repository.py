@@ -17,9 +17,10 @@ from app.utils.text_normalization import normalize_text
 
 
 class ClientRepository:
-    async def list(self, db: AsyncSession, principal: Principal) -> list[Client]:
-        stmt = select(Client).where(Client.organization_id == principal.organization_id)
-        if principal.role.lower() == "member":
+    async def list(self, db: AsyncSession, principal: Principal, scope: str = "team") -> list[Client]:
+        from sqlalchemy.orm import joinedload
+        stmt = select(Client).options(joinedload(Client.user)).where(Client.organization_id == principal.organization_id)
+        if principal.role.lower() == "member" or scope == "me":
             stmt = stmt.where(Client.user_id == principal.user_id)
         stmt = stmt.order_by(Client.updated_at.desc())
         result = await db.scalars(stmt)

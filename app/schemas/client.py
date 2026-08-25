@@ -16,6 +16,7 @@ class ClientListItem(BaseModel):
     last_meeting_summary: str | None
     created_at: datetime
     updated_at: datetime
+    owner_email: str | None = None
 
 
 class PreMeetingBriefResponse(BaseModel):

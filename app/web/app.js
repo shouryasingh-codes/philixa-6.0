@@ -22,6 +22,7 @@ const state = {
   priorities: { tasks: [], risks: [] },
   selectedClientId: null,
   pendingConfirmationMeetingId: null,
+  workspaceScope: 'team', // 'team' or 'me'
 };
 
 // --- DOM Elements Index ---
@@ -88,8 +89,9 @@ const els = {
   inviteAcceptSubmitBtn: document.querySelector("#inviteAcceptSubmitBtn"),
   linkToLoginFromInvite: document.querySelector("#linkToLoginFromInvite"),
 
-  // Topbar Controls & Profile
   workspaceSelect: document.querySelector("#workspaceSelect"),
+  scopeSelectorWrap: document.querySelector("#scopeSelectorWrap"),
+  scopeSelect: document.querySelector("#scopeSelect"),
   topbarPlanBadge: document.querySelector("#topbarPlanBadge"),
   topbarTitle: document.querySelector("#topbarTitle"),
   manageMembersBtn: document.querySelector("#manageMembersBtn"),
@@ -517,6 +519,11 @@ function applyRolePermissions() {
   // Manage members button: visible only to owner and admin
   if (els.manageMembersBtn) {
     els.manageMembersBtn.style.display = isAdmin ? "" : "none";
+  }
+
+  // Scope toggle: visible only to owner and admin
+  if (els.scopeSelectorWrap) {
+    els.scopeSelectorWrap.style.display = isAdmin ? "flex" : "none";
   }
 
   // Generic data-min-role and data-rbac DOM gating
@@ -978,7 +985,13 @@ async function checkHealth() {
 
 function clientNameById(clientId) {
   const match = state.clients.find((client) => client.id === Number(clientId));
-  return match ? match.name : `Client #${clientId}`;
+  if (!match) return `Client #${clientId}`;
+  let displayName = match.name;
+  const isAdmin = authState.role === "owner" || authState.role === "admin";
+  if (isAdmin && state.workspaceScope === "team" && match.owner_email) {
+    displayName += ` (${match.owner_email})`;
+  }
+  return displayName;
 }
 
 function updateMetrics() {
@@ -990,8 +1003,15 @@ function updateMetrics() {
 }
 
 function renderClientOptions() {
+  const isAdmin = authState.role === "owner" || authState.role === "admin";
   const clientOptions = state.clients
-    .map((client) => `<option value="${client.id}">${escapeHtml(client.name)}</option>`)
+    .map((client) => {
+      let displayName = escapeHtml(client.name);
+      if (isAdmin && state.workspaceScope === "team" && client.owner_email) {
+        displayName += ` (${escapeHtml(client.owner_email)})`;
+      }
+      return `<option value="${client.id}">${displayName}</option>`;
+    })
     .join("");
   if (els.knownClient) els.knownClient.innerHTML = `<option value="">Auto identify client</option>${clientOptions}`;
   if (els.confirmClientSelect) els.confirmClientSelect.innerHTML = `<option value="">Select existing client</option>${clientOptions}`;
@@ -1215,7 +1235,7 @@ function renderRisks() {
 }
 
 async function loadClients() {
-  state.clients = await api("/api/v1/clients");
+  state.clients = await api(`/api/v1/clients?scope=${state.workspaceScope}`);
   if (!state.selectedClientId && state.clients.length) {
     state.selectedClientId = state.clients[0].id;
   }
@@ -1224,8 +1244,10 @@ async function loadClients() {
 
 async function loadCommitments() {
   const filter = els.commitmentFilter ? els.commitmentFilter.value : "";
-  const query = filter ? `?status=${encodeURIComponent(filter)}` : "";
-  const payload = await api(`/api/v1/commitments${query}`);
+  const queryParams = new URLSearchParams();
+  if (filter) queryParams.append("status", filter);
+  queryParams.append("scope", state.workspaceScope);
+  const payload = await api(`/api/v1/commitments?${queryParams.toString()}`);
   state.commitments = payload.commitments || [];
   renderCommitments();
 }
@@ -1818,6 +1840,12 @@ function bindEvents() {
 
   // Topbar Workspace & Members Actions
   els.workspaceSelect?.addEventListener("change", (e) => handleSwitchWorkspace(e.target.value));
+  els.scopeSelect?.addEventListener("change", async (e) => {
+    state.workspaceScope = e.target.value;
+    state.selectedClientId = null;
+    await Promise.all([loadClients(), loadCommitments()]);
+    showToast("Workspace view updated", true);
+  });
   els.manageMembersBtn?.addEventListener("click", openMemberModal);
   els.closeMemberModalBtn?.addEventListener("click", closeMemberModal);
   els.inviteMemberForm?.addEventListener("submit", handleInviteMember);

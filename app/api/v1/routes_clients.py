@@ -52,10 +52,11 @@ async def create_client(
 @router.get("", response_model=list[ClientListItem])
 async def list_clients(
     principal: CurrentPrincipal,
+    scope: str = "team",
     db: AsyncSession = Depends(get_db),
 ) -> list[dict]:
     client_repo = ClientRepository()
-    clients = await client_repo.list(db, principal)
+    clients = await client_repo.list(db, principal, scope=scope)
     rows = []
     for client in clients:
         pending_stmt = select(func.count(Commitment.id)).where(
@@ -89,6 +90,7 @@ async def list_clients(
                 "last_meeting_summary": last_meeting.summary if last_meeting else None,
                 "created_at": client.created_at,
                 "updated_at": client.updated_at,
+                "owner_email": client.user.email if client.user else None,
             }
         )
     return rows

@@ -144,6 +144,15 @@
             </select>
           </div>
 
+          <!-- Scope Selector (My vs Team) - Only visible to Owner/Admin -->
+          <div class="workspace-selector-wrap" id="scopeSelectorWrap" title="View Scope" style="display: none;">
+            <span class="workspace-icon">👁️</span>
+            <select id="scopeSelect" class="workspace-select" aria-label="Select view scope">
+              <option value="team" selected>Team Workspace</option>
+              <option value="me">My Workspace</option>
+            </select>
+          </div>
+
           <!-- Avatar Dropdown for User Actions -->
           <div class="avatar-dropdown-container" id="avatarDropdownContainer">
             <button id="avatarBtn" class="avatar-btn" type="button" aria-haspopup="menu" aria-expanded="false" title="User Menu">U</button>

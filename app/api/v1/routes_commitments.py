@@ -22,6 +22,7 @@ router = APIRouter(
 @router.get("", response_model=CommitmentListResponse)
 async def list_commitments(
     principal: CurrentPrincipal,
+    scope: str = "team",
     status_filter: str | None = Query(default=None, alias="status"),
     client_id: int | None = None,
     due_before: date | None = None,
@@ -30,6 +31,7 @@ async def list_commitments(
     commitments = await CommitmentRepository().list(
         db,
         principal,
+        scope=scope,
         status=status_filter,
         client_id=client_id,
         due_before=due_before,

@@ -16,12 +16,13 @@ class CommitmentRepository:
         self,
         db: AsyncSession,
         principal: Principal,
+        scope: str = "team",
         status: str | None = None,
         client_id: int | None = None,
         due_before: date | None = None,
     ) -> list[Commitment]:
         stmt = select(Commitment).where(Commitment.organization_id == principal.organization_id)
-        if principal.role.lower() == "member":
+        if principal.role.lower() == "member" or scope == "me":
             stmt = stmt.where(Commitment.user_id == principal.user_id)
         if status:
             stmt = stmt.where(Commitment.status == status)
