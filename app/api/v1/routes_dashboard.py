@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -13,7 +13,15 @@ from app.models.commitment import Commitment
 from app.models.follow_up_task import FollowUpTask
 from app.models.meeting import Meeting
 from app.models.risk_signal import RiskSignal
-from app.schemas.dashboard import DailyPrioritiesResponse, FollowUpTaskRead, RiskSignalRead
+from app.models.user import User
+from app.models.organization_membership import OrganizationMembership
+from app.schemas.dashboard import (
+    DailyPrioritiesResponse,
+    FollowUpTaskRead,
+    RiskSignalRead,
+    TeamMemberStats,
+    TeamPerformanceResponse,
+)
 from app.schemas.portfolio_copilot import CopilotRequest, CopilotResponse
 from app.services.portfolio_copilot_service import process_copilot_query
 
@@ -114,11 +122,81 @@ async def get_dashboard_metrics(
         "pending_commitments": pending_commitments,
     }
 
+@router.get("/team-performance", response_model=TeamPerformanceResponse)
+async def get_team_performance(
+    principal: CurrentPrincipal,
+    db: AsyncSession = Depends(get_db),
+) -> TeamPerformanceResponse:
+    if principal.role.lower() not in ("owner", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only owners and admins can view team performance.",
+        )
+
+    try:
+        # Get all users in the organization (excluding the owner who is viewing it)
+        users_stmt = select(User).join(
+            OrganizationMembership, User.id == OrganizationMembership.user_id
+        ).where(
+            OrganizationMembership.organization_id == principal.organization_id,
+            User.id != principal.user_id
+        )
+        users = (await db.scalars(users_stmt)).all()
+
+        members_stats = []
+        for user in users:
+            # We can run grouped queries, but since N is small (e.g. 2-5 members), simple queries are fine
+            client_count = await db.scalar(
+                select(func.count(Client.id)).where(
+                    Client.organization_id == principal.organization_id, Client.user_id == user.id
+                )
+            ) or 0
+            
+            meeting_count = await db.scalar(
+                select(func.count(Meeting.id)).where(
+                    Meeting.organization_id == principal.organization_id, Meeting.user_id == user.id
+                )
+            ) or 0
+            
+            commitments_total = await db.scalar(
+                select(func.count(Commitment.id)).where(
+                    Commitment.organization_id == principal.organization_id, Commitment.user_id == user.id
+                )
+            ) or 0
+            
+            commitments_pending = await db.scalar(
+                select(func.count(Commitment.id)).where(
+                    Commitment.organization_id == principal.organization_id,
+                    Commitment.user_id == user.id,
+                    Commitment.status == "pending"
+                )
+            ) or 0
+            
+            commitments_completed = commitments_total - commitments_pending
+            
+            members_stats.append(
+                TeamMemberStats(
+                    user_id=user.id,
+                    email=user.email,
+                    total_clients=client_count,
+                    total_meetings=meeting_count,
+                    total_commitments=commitments_total,
+                    pending_commitments=commitments_pending,
+                    completed_commitments=commitments_completed
+                )
+            )
+
+        return TeamPerformanceResponse(members=members_stats)
+    except Exception as e:
+        import traceback
+        error_msg = f"{str(e)} | {traceback.format_exc()}"
+        raise HTTPException(status_code=500, detail=error_msg)
+
 @router.post("/copilot/ask", response_model=CopilotResponse)
 async def ask_portfolio_copilot(
     request: CopilotRequest,
     principal: CurrentPrincipal,
     db: AsyncSession = Depends(get_db),
 ) -> CopilotResponse:
-    result = await process_copilot_query(request.query, principal.organization_id, db)
+    result = await process_copilot_query(request.query, principal.organization_id, principal.user_id, principal.role, db)
     return CopilotResponse(**result)

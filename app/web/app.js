@@ -139,6 +139,11 @@ const els = {
   commitmentRows: document.querySelector("#commitmentRows"),
   taskList: document.querySelector("#taskList"),
   riskList: document.querySelector("#riskList"),
+  
+  // Team Performance
+  teamPerformanceSection: document.querySelector("#teamPerformanceSection"),
+  teamPerformanceBody: document.querySelector("#teamPerformanceBody"),
+
   toast: document.querySelector("#toast"),
   askClientSection: document.querySelector("#askClientSection"),
   askClientInput: document.querySelector("#askClientInput"),
@@ -1213,7 +1218,7 @@ function renderRisks() {
   if (!els.riskList) return;
   const risks = state.priorities.risks;
   if (!risks.length) {
-    els.riskList.innerHTML = `<div class="empty-state">🛡️ All clear. No active risk signals detected.</div>`;
+    els.riskList.innerHTML = `<div class="empty-state" style="padding:20px; background:transparent;">🛡️ All clear. No active risk signals detected.</div>`;
     return;
   }
   els.riskList.innerHTML = risks
@@ -1232,6 +1237,53 @@ function renderRisks() {
       `;
     })
     .join("");
+}
+
+async function loadTeamPerformance() {
+  if (authState.role !== "owner" && authState.role !== "admin") return;
+  if (state.workspaceScope !== "team") {
+    if (els.teamPerformanceSection) els.teamPerformanceSection.style.display = "none";
+    return;
+  }
+  
+  try {
+    const data = await api("/api/v1/dashboard/team-performance");
+    if (!els.teamPerformanceSection || !els.teamPerformanceBody) return;
+    
+    els.teamPerformanceSection.style.display = "block";
+    els.teamPerformanceBody.innerHTML = data.members.map(member => {
+      const completionRate = member.total_commitments > 0 
+        ? Math.round((member.completed_commitments / member.total_commitments) * 100) 
+        : 100;
+        
+      const barColor = completionRate >= 80 ? "#10b981" : (completionRate >= 50 ? "#f59e0b" : "#ef4444");
+      
+      return `
+        <tr>
+          <td><strong>${escapeHtml(member.email)}</strong></td>
+          <td>${member.total_clients}</td>
+          <td>${member.total_meetings}</td>
+          <td>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="flex: 1; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+                <div style="width: ${completionRate}%; height: 100%; background: ${barColor};"></div>
+              </div>
+              <span style="font-size: 12px; font-weight: 600; min-width: 30px;">${completionRate}%</span>
+              <span style="font-size: 11px; color: var(--muted); margin-left: 10px;">
+                (${member.completed_commitments}/${member.total_commitments} done, ${member.pending_commitments} pending)
+              </span>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join("");
+  } catch (error) {
+    console.error("Failed to load team performance:", error);
+    if (els.teamPerformanceSection && els.teamPerformanceBody) {
+      els.teamPerformanceSection.style.display = "block";
+      els.teamPerformanceBody.innerHTML = `<tr><td colspan="4" style="color:red; padding:20px;">Error loading team performance: ${error.message}</td></tr>`;
+    }
+  }
 }
 
 async function loadClients() {
@@ -1307,6 +1359,7 @@ async function refreshAll() {
   await loadClients();
   await loadCommitments();
   await loadPriorities();
+  await loadTeamPerformance();
 }
 
 async function withLoading(button, label, fn) {
@@ -1843,7 +1896,11 @@ function bindEvents() {
   els.scopeSelect?.addEventListener("change", async (e) => {
     state.workspaceScope = e.target.value;
     state.selectedClientId = null;
-    await Promise.all([loadClients(), loadCommitments()]);
+    await Promise.all([
+      loadClients(),
+      loadCommitments(),
+      loadTeamPerformance()
+    ]);
     showToast("Workspace view updated", true);
   });
   els.manageMembersBtn?.addEventListener("click", openMemberModal);

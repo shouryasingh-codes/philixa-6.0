@@ -30,3 +30,15 @@ class RiskSignalRead(BaseModel):
 class DailyPrioritiesResponse(BaseModel):
     tasks: list[FollowUpTaskRead]
     risks: list[RiskSignalRead]
+
+class TeamMemberStats(BaseModel):
+    user_id: str
+    email: str
+    total_clients: int
+    total_meetings: int
+    total_commitments: int
+    pending_commitments: int
+    completed_commitments: int
+
+class TeamPerformanceResponse(BaseModel):
+    members: list[TeamMemberStats]

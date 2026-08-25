@@ -309,3 +309,12 @@ NEW MAJOR FEATURE: PORTFOLIO COPILOT
    - Semantic Vector Search (Unstructured Data): You can ask "Who was interested in a business loan?" and it will search through the embeddings of your past meeting notes to find the exact client and context.
    - AI Synthesizer: It doesn't just return raw database rows; it passes the data to an LLM synthesizer node that formats the output into a friendly, human-readable chat response.
    - Contextually Secure: It restricts all SQL and Vector queries to the currently logged-in organization, ensuring strict data privacy between users.
+
+7. Team Performance Overview: 
+   Added a dashboard table that aggregates clients, meetings, and commitments per employee (excluding organization owners) to give a clear view of team productivity.
+
+8. Role-Based Access Control (RBAC) in Copilot: 
+   Enforced strict data segregation at the AI layer. Regular employees can only query their own clients and meetings via Copilot, while owners can query data across the entire organization.
+
+9. Employee Performance AI Queries: 
+   Expanded the Copilot's SQL generation schema to include `users` and `organization_memberships` tables. Owners can now directly ask the AI questions like "Which employee has the most clients?" or "Show me Aman's performance", with explicit prompt rules preventing client-vs-employee hallucinations and raw markdown table dumps.

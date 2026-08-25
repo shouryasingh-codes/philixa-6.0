@@ -53,6 +53,8 @@ async def _complete_with_retry(*, messages: list[dict], response_format: dict | 
 class GraphState(TypedDict):
     query: str
     organization_id: str
+    user_id: str
+    role: str
     route: str
     sql_query: str
     sql_error: str
@@ -133,20 +135,24 @@ def _meeting_schedule_date(query: str) -> date | None:
     return None
 
 
-async def _lookup_meetings_for_date(meeting_date: date, organization_id: str, db: AsyncSession) -> dict:
-    result = await db.execute(
-        text("""
-            SELECT COALESCE(c.name, m.suggested_client_name, 'Unassigned client') AS client_name,
-                   m.meeting_date,
-                   m.summary
-            FROM meetings m
-            LEFT JOIN clients c ON c.id = m.client_id
-            WHERE m.organization_id = :organization_id
-              AND m.meeting_date = :meeting_date
-            ORDER BY c.name NULLS LAST, m.id
-        """),
-        {"organization_id": organization_id, "meeting_date": meeting_date},
-    )
+async def _lookup_meetings_for_date(meeting_date: date, organization_id: str, user_id: str, role: str, db: AsyncSession) -> dict:
+    query_text = """
+        SELECT COALESCE(c.name, m.suggested_client_name, 'Unassigned client') AS client_name,
+               m.meeting_date,
+               m.summary
+        FROM meetings m
+        LEFT JOIN clients c ON c.id = m.client_id
+        WHERE m.organization_id = :organization_id
+          AND m.meeting_date = :meeting_date
+    """
+    params = {"organization_id": organization_id, "meeting_date": meeting_date}
+    if role != "owner" and role != "admin":
+        query_text += " AND m.user_id = :user_id"
+        params["user_id"] = user_id
+        
+    query_text += " ORDER BY c.name NULLS LAST, m.id"
+    
+    result = await db.execute(text(query_text), params)
     meetings = [dict(row) for row in result.mappings().all()]
     day_label = meeting_date.strftime("%A, %d %b")
     if not meetings:
@@ -167,18 +173,22 @@ async def _lookup_meetings_for_date(meeting_date: date, organization_id: str, db
     }
 
 
-async def _lookup_client_profile(name: str, organization_id: str, db: AsyncSession) -> dict:
-    result = await db.execute(
-        text("""
-            SELECT name, products_owned_json, rolling_summary, relationship_notes
-            FROM clients
-            WHERE organization_id = :organization_id
-              AND lower(name) = lower(:name)
-              AND is_active = true
-            LIMIT 1
-        """),
-        {"organization_id": organization_id, "name": name},
-    )
+async def _lookup_client_profile(name: str, organization_id: str, user_id: str, role: str, db: AsyncSession) -> dict:
+    query_text = """
+        SELECT name, products_owned_json, rolling_summary, relationship_notes
+        FROM clients
+        WHERE organization_id = :organization_id
+          AND lower(name) = lower(:name)
+          AND is_active = true
+    """
+    params = {"organization_id": organization_id, "name": name}
+    if role != "owner" and role != "admin":
+        query_text += " AND user_id = :user_id"
+        params["user_id"] = user_id
+        
+    query_text += " LIMIT 1"
+    
+    result = await db.execute(text(query_text), params)
     row = result.mappings().first()
     if not row:
         return {
@@ -238,7 +248,14 @@ async def sql_generator_node(state: GraphState) -> GraphState:
     if state.get("sql_error"):
         error_context = f"\nPREVIOUS ERROR: {state['sql_error']}\nFix the query."
         
-    prompt = SQL_GENERATOR_PROMPT.format(organization_id=state["organization_id"])
+    rbac_filter = ""
+    if state["role"] not in ("owner", "admin"):
+        rbac_filter = f"\n- VERY IMPORTANT: Add AND user_id = '{state['user_id']}' to all WHERE clauses so employees only see their own data."
+        
+    prompt = SQL_GENERATOR_PROMPT.format(
+        organization_id=state["organization_id"],
+        rbac_filter=rbac_filter
+    )
     response = await _complete_with_retry(
         messages=[
             {"role": "system", "content": prompt},
@@ -271,7 +288,7 @@ workflow.add_edge("synthesizer_node", END)
 
 app_graph = workflow.compile()
 
-async def _process_copilot_query(query: str, organization_id: str, db: AsyncSession) -> dict:
+async def _process_copilot_query(query: str, organization_id: str, user_id: str, role: str, db: AsyncSession) -> dict:
     if _is_greeting(query):
         return {
             "answer": "Hi! Ask me about clients, meeting notes, concerns, or upcoming commitments.",
@@ -281,15 +298,17 @@ async def _process_copilot_query(query: str, organization_id: str, db: AsyncSess
 
     meeting_date = _meeting_schedule_date(query)
     if meeting_date:
-        return await _lookup_meetings_for_date(meeting_date, organization_id, db)
+        return await _lookup_meetings_for_date(meeting_date, organization_id, user_id, role, db)
 
     client_name = _extract_client_lookup_name(query)
     if client_name:
-        return await _lookup_client_profile(client_name, organization_id, db)
+        return await _lookup_client_profile(client_name, organization_id, user_id, role, db)
 
     initial_state = {
         "query": query,
         "organization_id": organization_id,
+        "user_id": user_id,
+        "role": role,
         "route": "",
         "sql_query": "",
         "sql_error": "",
@@ -353,14 +372,14 @@ async def _process_copilot_query(query: str, organization_id: str, db: AsyncSess
     }
 
 
-async def process_copilot_query(query: str, organization_id: str, db: AsyncSession) -> dict:
-    """Return a safe response even when an external AI dependency is down."""
+async def process_copilot_query(query: str, organization_id: str, user_id: str, role: str, db: AsyncSession) -> dict:
+    """Wrapper that prevents catastrophic errors from crashing the route."""
     try:
-        return await _process_copilot_query(query, organization_id, db)
-    except Exception:
-        logger.exception("Portfolio copilot request failed")
+        return await _process_copilot_query(query, organization_id, user_id, role, db)
+    except Exception as exc:
+        logger.exception("Catastrophic error in Copilot pipeline")
         return {
-            "answer": "Portfolio Copilot is temporarily unavailable. Please try again in a moment.",
-            "source_type": "unavailable",
+            "answer": "Copilot encountered an error while processing your request.",
+            "source_type": "error",
             "data": None,
         }

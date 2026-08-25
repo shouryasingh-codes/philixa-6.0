@@ -25,6 +25,11 @@
   --input-bg: #0f172a;
   --tab-bg: #0f172a;
   --active-tab-bg: #1e293b;
+  color-scheme: dark;
+}
+
+.dark-theme select {
+  color-scheme: dark;
 }
 
 * {
@@ -169,6 +174,11 @@ textarea {
   background: var(--input-bg);
   color: var(--ink);
   outline: none;
+}
+
+.dark-theme select option {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
 }
 
 input[type="checkbox"],
