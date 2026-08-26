@@ -8,7 +8,7 @@ settings = get_settings()
 # Singleton model instance to prevent multiple heavy loads in memory
 _model = None
 
-def get_embedding_model() -> SentenceTransformer:
+def get_embedding_model():
     global _model
     if _model is None:
         logger.info(f"Loading embedding model: {settings.embedding_model}")

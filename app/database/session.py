@@ -22,7 +22,7 @@ async_db_url = _get_async_url(settings.database_url)
 
 async_engine = create_async_engine(
     async_db_url,
-    future=True,
+    future=True, pool_size=15, max_overflow=5, pool_timeout=30, pool_pre_ping=True,
 )
 
 AsyncSessionLocal = async_sessionmaker(

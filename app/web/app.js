@@ -2386,8 +2386,24 @@ function initCopilot() {
 }
 
 // Initialize Copilot UI logic
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initCopilot);
-} else {
+async function bootstrapApp() {
+  try {
+    const res = await fetch('/health');
+    const health = await res.json();
+    if (health && health.enable_audio_upload === false) {
+      const tabBtn = document.getElementById('tabAudioBtn');
+      if (tabBtn) tabBtn.style.display = 'none';
+      const viewAudio = document.getElementById('viewAudio');
+      if (viewAudio) viewAudio.style.display = 'none';
+    }
+  } catch (e) {
+    console.error("Failed to load app config:", e);
+  }
   initCopilot();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootstrapApp);
+} else {
+  bootstrapApp();
 }

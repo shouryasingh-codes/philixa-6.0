@@ -67,6 +67,7 @@ class Settings:
     transcription_mode: str = "local"
     deepgram_api_key: str = ""
     sarvam_api_key: str = ""
+    enable_audio_upload: bool = False
 
     # Milestone 2 Auth & Security Additions
     jwt_secret: str = ""
@@ -80,6 +81,10 @@ class Settings:
     allowed_origins: str | list[str] = ""
     app_env: str = "development"
     philixa_env: str = "development"
+    db_pool_size: int = 15
+    db_max_overflow: int = 5
+    db_pool_timeout: int = 30
+    db_pool_pre_ping: bool = True
 
 
 def _env_int(name: str, default: int) -> int:
@@ -190,6 +195,7 @@ def get_settings() -> Settings:
         transcription_mode=os.getenv("PHILIXA_TRANSCRIPTION_MODE", "local").strip(),
         deepgram_api_key=os.getenv("PHILIXA_DEEPGRAM_API_KEY", "").strip(),
         sarvam_api_key=os.getenv("PHILIXA_SARVAM_API_KEY", "").strip(),
+        enable_audio_upload=bool(_env_int("PHILIXA_ENABLE_AUDIO_UPLOAD", 0)),
         # Milestone 2 Auth & Security Additions
         jwt_secret=os.getenv("PHILIXA_JWT_SECRET", os.getenv("JWT_SECRET", "super-secret-test-key-minimum-32-chars-long-12345")),
         jwt_algorithm=os.getenv("PHILIXA_JWT_ALGORITHM", "HS256"),

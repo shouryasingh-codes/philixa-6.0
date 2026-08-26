@@ -4,9 +4,9 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.routes_audio import router as audio_router
@@ -46,6 +46,23 @@ app = FastAPI(
     description="PHILIXA 6.0 Multi-Tenant SaaS Authentication & Copilot System.",
     lifespan=lifespan,
 )
+
+MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10MB
+
+
+@app.middleware("http")
+async def enforce_payload_size_limit(request: Request, call_next):
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > MAX_CONTENT_LENGTH:
+                return JSONResponse(
+                    status_code=413,
+                    content={"detail": "Payload Too Large: Maximum allowed request size is 10MB."},
+                )
+        except ValueError:
+            pass
+    return await call_next(request)
 
 # 1. CORS Middleware
 if settings.allowed_origins:

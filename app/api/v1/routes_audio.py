@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/audio", tags=["Audio"])
 
 ALLOWED_AUDIO_TYPES = ["audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/wav", "audio/x-wav", "video/mp4"]
-MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB ceiling
 
 
 @router.post("/upload")
@@ -42,7 +42,7 @@ async def upload_audio_meeting(
     # 1. Validation
     if file.content_type not in ALLOWED_AUDIO_TYPES:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"Unsupported file type: {file.content_type}. Please upload mp3, m4a, or wav.",
         )
 
@@ -53,13 +53,13 @@ async def upload_audio_meeting(
 
     if file_size > MAX_FILE_SIZE:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File is too large. Maximum size is 50MB.",
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="File is too large. Maximum size is 10MB.",
         )
 
     if file_size == 0:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail="File is empty.",
         )
 

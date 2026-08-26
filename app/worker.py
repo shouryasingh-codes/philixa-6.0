@@ -20,12 +20,14 @@ async def startup(ctx: Dict[str, Any]) -> None:
     ctx["db_session_factory"] = AsyncSessionLocal
     
     settings = get_settings()
-    if settings.transcription_mode == "local":
-        logger.info("Preloading AI Transcription Model...")
-        from app.services.transcription_service import transcription_service
-        # The singleton __init__ will automatically download and load the model here.
+    # Preload Whisper based on the feature flag.
+    # If AUDIO UPLOADS are disabled, we don't need Whisper in the worker, saving ~2GB RAM.
+    if settings.enable_audio_upload:
+        logger.info("Preloading Whisper + PyAnnote model into worker RAM...")
+        from app.services.transcription_service import transcription_service  # noqa: F401
+        logger.info("Whisper model ready. Audio file uploads will be served instantly.")
     else:
-        logger.info("Skipping AI Transcription Model preload (Cloud mode active).")
+        logger.info("Audio Upload disabled. Skipping Whisper preload (Saved ~2GB RAM!).")
     
     logger.info("Worker startup complete.")
 

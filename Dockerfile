@@ -16,6 +16,6 @@ RUN mkdir -p /app/data
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["gunicorn", "app.main:app", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--timeout", "60", "--graceful-timeout", "30"]
 
 RUN pip install --no-cache-dir python-jose[cryptography] passlib[bcrypt] itsdangerous

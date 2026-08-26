@@ -10,6 +10,7 @@ class HealthResponse(BaseModel):
     status: str
     app_version: str
     database: str
+    enable_audio_upload: bool
 
 router = APIRouter(tags=["health"])
 
@@ -26,4 +27,5 @@ async def health() -> HealthResponse:
         status="ok" if database_status == "ok" else "degraded",
         app_version=settings.app_version,
         database=database_status,
+        enable_audio_upload=settings.enable_audio_upload,
     )
