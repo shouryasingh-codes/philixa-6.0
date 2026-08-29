@@ -104,7 +104,14 @@ WEB_DIR = Path(__file__).resolve().parent / "web"
 def dashboard() -> HTMLResponse:
     # Explicitly read as UTF-8 to prevent browser charset misdetection
     content = (WEB_DIR / "index.html").read_text(encoding="utf-8")
-    return HTMLResponse(content=content)
+    return HTMLResponse(
+        content=content, 
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
+    )
 
 
 # 3. Public Health Router
