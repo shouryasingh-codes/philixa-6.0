@@ -1,4 +1,4 @@
-name: Deploy to Azure VM
+﻿name: Deploy to Azure VM
 
 on:
   push:
@@ -25,3 +25,4 @@ jobs:
             
             # Ensure the iptables port routing is active
             sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8000 || true
+
