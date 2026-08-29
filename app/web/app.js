@@ -1,4 +1,4 @@
-// =============================================================================
+﻿// =============================================================================
 // PHILIXA 6.0: Frontend Application & State Machine
 // Multi-Tenant SaaS Auth, CSRF Protection, Workspace Switching & RBAC
 // =============================================================================
@@ -505,7 +505,7 @@ function renderWorkspaceNav() {
 
   if (els.topbarPlanBadge && authState.activeOrganization) {
     const plan = authState.activeOrganization.plan || "PRO";
-    els.topbarPlanBadge.textContent = `${plan.toUpperCase()} • ${authState.activeOrganization.workspace_type || "workspace"}`;
+    els.topbarPlanBadge.textContent = `${plan.toUpperCase()} â€¢ ${authState.activeOrganization.workspace_type || "workspace"}`;
   }
 
   if (els.userEmailDisplay && authState.user) {
@@ -783,14 +783,14 @@ async function handleLogout() {
 function showAuthError(element, message) {
   if (!element) return;
   element.className = "alert-box error";
-  element.textContent = `⚠️ ${message}`;
+  element.textContent = `âš ï¸ ${message}`;
   element.classList.remove("hidden");
 }
 
 function showAuthSuccess(element, message) {
   if (!element) return;
   element.className = "alert-box success";
-  element.textContent = `✅ ${message}`;
+  element.textContent = `âœ… ${message}`;
   element.classList.remove("hidden");
 }
 
@@ -875,7 +875,7 @@ async function loadWorkspaceMembers() {
           `;
         }
 
-        let actionCell = `<span class="muted">—</span>`;
+        let actionCell = `<span class="muted">â€”</span>`;
         if ((isOwner || authState.role === "admin") && !isSelf && m.role !== "owner") {
           actionCell = `<button class="btn-remove-member" data-user-id="${m.user_id}" data-email="${escapeHtml(m.email)}">Remove</button>`;
         }
@@ -1140,7 +1140,7 @@ function renderMemory(payload) {
     <div class="panel-heading accordion-toggle" data-target="accordionDetailedHistory" style="margin-top: 15px; padding: 10px 0; border-top: 1px dashed var(--line); border-bottom: none;">
       <div style="pointer-events: none; width: 100%;">
         <h4 style="display:flex; align-items:center; justify-content: space-between; font-size: 13px; margin:0; color: var(--text);">
-          View Detailed History <span class="accordion-icon" style="font-size: 10px;">▼</span>
+          View Detailed History <span class="accordion-icon" style="font-size: 10px;">â–¼</span>
         </h4>
       </div>
     </div>
@@ -1185,7 +1185,7 @@ function renderTasks() {
   if (!els.taskList) return;
   const tasks = state.priorities.tasks;
   if (!tasks.length) {
-    els.taskList.innerHTML = `<div class="empty-state">✅ All caught up! No pressing tasks for today.</div>`;
+    els.taskList.innerHTML = `<div class="empty-state">âœ… All caught up! No pressing tasks for today.</div>`;
     return;
   }
   const today = todayIso();
@@ -1196,7 +1196,7 @@ function renderTasks() {
       let badgeLabel = due ? `Due ${due}` : "No due date";
       if (task.is_overdue || (due && due < today)) {
         variant = "overdue";
-        badgeLabel = `Overdue — ${due}`;
+        badgeLabel = `Overdue â€” ${due}`;
       } else if (task.is_due_today || due === today) {
         variant = "due-today";
         badgeLabel = "Due today";
@@ -1218,7 +1218,7 @@ function renderRisks() {
   if (!els.riskList) return;
   const risks = state.priorities.risks;
   if (!risks.length) {
-    els.riskList.innerHTML = `<div class="empty-state" style="padding:20px; background:transparent;">🛡️ All clear. No active risk signals detected.</div>`;
+    els.riskList.innerHTML = `<div class="empty-state" style="padding:20px; background:transparent;">ðŸ›¡ï¸ All clear. No active risk signals detected.</div>`;
     return;
   }
   els.riskList.innerHTML = risks
@@ -1749,7 +1749,7 @@ function connectLiveWebSocket(ticket, sampleRate, diarize = false) {
       const data = JSON.parse(event.data);
       if (data.action === "processing") {
         const statusEl = document.getElementById("liveStatusText");
-        if (statusEl) statusEl.textContent = "⏳ Processing audio...";
+        if (statusEl) statusEl.textContent = "â³ Processing audio...";
         return;
       }
       if (data.action === "stopped") {
@@ -1762,9 +1762,9 @@ function connectLiveWebSocket(ticket, sampleRate, diarize = false) {
           if (rawNotesEl) rawNotesEl.value = data.confirmed.trim();
           const tabTextBtn = document.getElementById("tabTextBtn");
           if (tabTextBtn) tabTextBtn.click();
-          showToast("✅ Transcript ready! Review and click Process Notes.");
+          showToast("âœ… Transcript ready! Review and click Process Notes.");
         } else {
-          showToast("⚠️ No audio recorded or transcription failed.", true);
+          showToast("âš ï¸ No audio recorded or transcription failed.", true);
         }
       }
     } catch (parseErr) {
@@ -1838,9 +1838,9 @@ function stopLiveRecording() {
 
 function updateLiveUI(uiState, message = "") {
   const states = {
-    recording: { text: "🔴 Recording...", startDisabled: true, stopDisabled: false },
-    stopped: { text: "⏸ Ready", startDisabled: false, stopDisabled: true },
-    error: { text: `❌ ${message}`, startDisabled: false, stopDisabled: true },
+    recording: { text: "ðŸ”´ Recording...", startDisabled: true, stopDisabled: false },
+    stopped: { text: "â¸ Ready", startDisabled: false, stopDisabled: true },
+    error: { text: `âŒ ${message}`, startDisabled: false, stopDisabled: true },
   };
   const s = states[uiState] || states.stopped;
   const statusEl = document.getElementById("liveStatusText");
@@ -1952,13 +1952,13 @@ function bindEvents() {
 
   // Process & Confirm Notes
   els.processNotes?.addEventListener("click", () =>
-    withLoading(els.processNotes, "Processing…", () => processNotes()).catch((err) => showToast(err.message, true))
+    withLoading(els.processNotes, "Processingâ€¦", () => processNotes()).catch((err) => showToast(err.message, true))
   );
   els.confirmClient?.addEventListener("click", () =>
-    withLoading(els.confirmClient, "Confirming…", () => confirmClient()).catch((err) => showToast(err.message, true))
+    withLoading(els.confirmClient, "Confirmingâ€¦", () => confirmClient()).catch((err) => showToast(err.message, true))
   );
   els.loadSelectedMemory?.addEventListener("click", () =>
-    withLoading(els.loadSelectedMemory, "Loading…", () => loadMemory()).catch((err) => showToast(err.message, true))
+    withLoading(els.loadSelectedMemory, "Loadingâ€¦", () => loadMemory()).catch((err) => showToast(err.message, true))
   );
   els.saveTranscriptBtn?.addEventListener("click", () =>
     withLoading(els.saveTranscriptBtn, "Saving...", () => saveTranscript()).catch((err) => {
@@ -2045,7 +2045,7 @@ function bindEvents() {
   }
 
   els.askClientBtn?.addEventListener("click", () =>
-    withLoading(els.askClientBtn, "Asking…", () => askClient()).catch((err) => showToast(err.message, true))
+    withLoading(els.askClientBtn, "Askingâ€¦", () => askClient()).catch((err) => showToast(err.message, true))
   );
   els.askClientInput?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") els.askClientBtn?.click();
@@ -2055,7 +2055,7 @@ function bindEvents() {
   els.settingsBtn?.addEventListener("click", openSettings);
   els.closeSettingsBtn?.addEventListener("click", closeSettings);
   els.saveSettingsBtn?.addEventListener("click", () =>
-    withLoading(els.saveSettingsBtn, "Saving…", () => saveSettings())
+    withLoading(els.saveSettingsBtn, "Savingâ€¦", () => saveSettings())
   );
   els.deleteAccountBtn?.addEventListener("click", async () => {
     if (window.confirm("Are you sure you want to permanently delete your account? This action cannot be undone.")) {
@@ -2236,7 +2236,7 @@ function bindEvents() {
     document.body.classList.toggle("dark-theme");
     const isDark = document.body.classList.contains("dark-theme");
     localStorage.setItem("theme", isDark ? "dark" : "light");
-    els.themeToggleBtn.innerHTML = isDark ? '<span class="icon">🌙</span> Toggle Theme' : '<span class="icon">☀️</span> Toggle Theme';
+    els.themeToggleBtn.innerHTML = isDark ? '<span class="icon">ðŸŒ™</span> Toggle Theme' : '<span class="icon">â˜€ï¸</span> Toggle Theme';
   });
 
   // Avatar Dropdown Toggle Logic
@@ -2307,7 +2307,7 @@ async function init() {
   const savedTheme = localStorage.getItem("theme");
   if (savedTheme === "dark") {
     document.body.classList.add("dark-theme");
-    if (els.themeToggleBtn) els.themeToggleBtn.textContent = "☀️";
+    if (els.themeToggleBtn) els.themeToggleBtn.textContent = "â˜€ï¸";
   }
 
   bindEvents();
@@ -2369,9 +2369,9 @@ function initCopilot() {
       aiLoadingMsg.textContent = data.answer;
 
       if (data.source_type === 'sql') {
-        aiLoadingMsg.innerHTML += '<br><small style="color:var(--muted);font-size:10px;">✨ Generated via Database Search</small>';
+        aiLoadingMsg.innerHTML += '<br><small style="color:var(--muted);font-size:10px;">âœ¨ Generated via Database Search</small>';
       } else if (data.source_type === 'vector') {
-        aiLoadingMsg.innerHTML += '<br><small style="color:var(--muted);font-size:10px;">✨ Generated via Vector Search</small>';
+        aiLoadingMsg.innerHTML += '<br><small style="color:var(--muted);font-size:10px;">âœ¨ Generated via Vector Search</small>';
       }
     } catch (e) {
       aiLoadingMsg.textContent = 'Error connecting to copilot: ' + e.message;
@@ -2430,3 +2430,4 @@ async function handleGoogleCredentialResponse(response) {
   }
 }
 window.handleGoogleCredentialResponse = handleGoogleCredentialResponse;
+
