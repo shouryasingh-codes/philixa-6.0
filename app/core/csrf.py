@@ -14,7 +14,9 @@ CSRF_EXEMPT_PATHS = {
     "/auth/register",
     "/api/v1/auth/register",
     "/auth/login",
-    "/api/v1/auth/login",`n    "/auth/google",`n    "/api/v1/auth/google",
+    "/api/v1/auth/login",
+    "/auth/google",
+    "/api/v1/auth/google",
     "/auth/verify-email",
     "/api/v1/auth/verify-email",
     "/auth/forgot-password",
@@ -99,4 +101,5 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
             set_csrf_cookie(response)
 
         return response
+
 
