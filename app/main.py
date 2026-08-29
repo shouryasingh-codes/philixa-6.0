@@ -6,7 +6,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.routes_audio import router as audio_router
@@ -64,21 +64,35 @@ async def enforce_payload_size_limit(request: Request, call_next):
             pass
     return await call_next(request)
 
-# 1. CORS Middleware
-if settings.allowed_origins:
-    origins = (
-        settings.allowed_origins
-        if isinstance(settings.allowed_origins, list)
-        else [o.strip() for o in settings.allowed_origins.split(",") if o.strip()]
+# 1. Strict CORS Middleware
+raw_origins = settings.allowed_origins
+if isinstance(raw_origins, list):
+    origins = [o.strip() for o in raw_origins if o.strip()]
+elif isinstance(raw_origins, str) and raw_origins.strip():
+    origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
+else:
+    origins = ["http://localhost:8000", "http://localhost:3000", "http://127.0.0.1:8000"]
+
+if "*" in origins:
+    origins = [o for o in origins if o != "*"]
+
+if origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+        allow_headers=[
+            "Authorization",
+            "Content-Type",
+            "X-CSRF-Token",
+            "X-Requested-With",
+            "Accept",
+            "Origin",
+        ],
+        expose_headers=["Content-Length", "X-CSRF-Token"],
+        max_age=600,
     )
-    if origins:
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=origins,
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
 
 # 2. CSRF Protection Middleware
 app.add_middleware(CSRFProtectionMiddleware)
@@ -87,8 +101,10 @@ WEB_DIR = Path(__file__).resolve().parent / "web"
 
 
 @app.get("/", include_in_schema=False)
-def dashboard() -> FileResponse:
-    return FileResponse(WEB_DIR / "index.html")
+def dashboard() -> HTMLResponse:
+    # Explicitly read as UTF-8 to prevent browser charset misdetection
+    content = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    return HTMLResponse(content=content)
 
 
 # 3. Public Health Router

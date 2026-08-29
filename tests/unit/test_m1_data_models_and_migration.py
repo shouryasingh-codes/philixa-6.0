@@ -96,6 +96,12 @@ class TestModelDeclarations:
             idx_names = {idx.name for idx in model.__table__.indexes if idx.name}
             assert idx_name in idx_names
 
+    def test_client_model_has_products_interested_and_owned(self) -> None:
+        client_cols = {c.name for c in Client.__table__.columns}
+        assert "products_owned_json" in client_cols
+        assert "products_interested_json" in client_cols
+
+
 
 from sqlalchemy.pool import StaticPool
 from app.database.base import Base

@@ -66,6 +66,7 @@ class MeetingExtractionRead(BaseModel):
     meeting_summary: str
     key_discussion_points: list[str]
     products_owned: list[str]
+    products_interested: list[str] = []
     concerns: list[ConcernRead]
     commitments: list[ExtractedCommitmentRead]
     action_items: list[str]

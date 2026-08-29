@@ -14,10 +14,13 @@ from app.models.user import User
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-async def cleanup_demo_accounts():
+from typing import Any, Dict
+
+async def cleanup_demo_accounts(ctx: Dict[str, Any] | None = None) -> None:
     logger.info("Starting demo account cleanup...")
     
-    async with AsyncSessionLocal() as db:
+    session_factory = (ctx.get("db_session_factory") if ctx else None) or AsyncSessionLocal
+    async with session_factory() as db:
         stmt = select(User).where(User.email.like("demo_guest_%"))
         result = await db.execute(stmt)
         users = result.scalars().all()

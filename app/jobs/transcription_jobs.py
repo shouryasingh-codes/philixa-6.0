@@ -15,6 +15,7 @@ from app.models.meeting import Meeting
 from app.models.notification import NotificationPreference
 from app.services.minio_service import minio_service
 from app.services.notification_service import NotificationService
+from app.services.transcription_service import transcription_service
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +119,7 @@ async def process_meeting_transcription(
             if not suffix:
                 suffix = ".mp3"
 
-            from app.services.transcription_service import transcription_service
+            # Removed lazy import
 
             # Fetch known client names scoped to this org to avoid hallucinations
             client_stmt = select(Client.name)

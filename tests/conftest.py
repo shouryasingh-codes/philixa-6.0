@@ -60,17 +60,9 @@ except ImportError:
 # -----------------------------------------------------------------------------
 # Security & Token Helpers for Fixtures
 # -----------------------------------------------------------------------------
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=12)
+from app.core.security import hash_password, verify_password
 TEST_JWT_SECRET = "super-secret-test-key-minimum-32-chars-long-12345"
 TEST_JWT_ALGORITHM = "HS256"
-
-
-def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
-
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
 
 
 def create_test_token(

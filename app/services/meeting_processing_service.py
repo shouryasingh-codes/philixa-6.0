@@ -133,7 +133,12 @@ class MeetingProcessingService:
         created: list = []
         updated: list = []
         if client:
-            self._merge_client_products(client, extraction.get("products_owned") or [])
+            client.products_owned_json = self._merge_string_list_field(
+                client.products_owned_json, extraction.get("products_owned") or []
+            )
+            client.products_interested_json = self._merge_string_list_field(
+                client.products_interested_json, extraction.get("products_interested") or []
+            )
             created, updated = await self.commitments.upsert_commitments(
                 db,
                 client_id=client.id,
@@ -225,7 +230,12 @@ class MeetingProcessingService:
         meeting.status = "processed"
         meeting.client_identification_status = client_status
         db.add(meeting)
-        self._merge_client_products(client, extraction.get("products_owned") or [])
+        client.products_owned_json = self._merge_string_list_field(
+            client.products_owned_json, extraction.get("products_owned") or []
+        )
+        client.products_interested_json = self._merge_string_list_field(
+            client.products_interested_json, extraction.get("products_interested") or []
+        )
         created, updated = await self.commitments.upsert_commitments(
             db,
             client_id=client.id,
@@ -287,6 +297,7 @@ class MeetingProcessingService:
                 "meeting_summary": "",
                 "key_discussion_points": [],
                 "products_owned": [],
+                "products_interested": [],
                 "concerns": [],
                 "commitments": [],
                 "action_items": [],
@@ -366,6 +377,7 @@ class MeetingProcessingService:
             "meeting_summary": extraction.get("meeting_summary") or "",
             "key_discussion_points": extraction.get("key_discussion_points") or [],
             "products_owned": extraction.get("products_owned") or [],
+            "products_interested": extraction.get("products_interested") or [],
             "concerns": extraction.get("concerns") or [],
             "commitments": extracted_commitments,
             "action_items": extraction.get("action_items")
@@ -389,22 +401,22 @@ class MeetingProcessingService:
             "confidence": float(item.get("confidence") or item.get("extraction_confidence") or 0.0),
         }
 
-    def _merge_client_products(self, client: Client, products: list[str]) -> None:
-        if not products:
-            return
-        existing = from_json(client.products_owned_json, [])
+    def _merge_string_list_field(self, current_json: str, new_items: list[str]) -> str:
+        if not new_items:
+            return current_json
+        existing = from_json(current_json, [])
         merged: list[str] = []
         seen: set[str] = set()
-        for value in [*existing, *products]:
-            product = str(value or "").strip()
-            if not product:
+        for value in [*existing, *new_items]:
+            val_str = str(value or "").strip()
+            if not val_str:
                 continue
-            key = product.casefold()
+            key = val_str.casefold()
             if key in seen:
                 continue
             seen.add(key)
-            merged.append(product)
-        client.products_owned_json = to_json(merged)
+            merged.append(val_str)
+        return to_json(merged)
 
 
 def meeting_to_dict(meeting: Meeting) -> dict[str, Any]:

@@ -46,12 +46,19 @@ class ClientRepository:
         else:
             products_owned_json = str(products_owned or "[]")
 
+        products_interested = data.get("products_interested", [])
+        if isinstance(products_interested, list):
+            products_interested_json = to_json(products_interested)
+        else:
+            products_interested_json = str(products_interested or "[]")
+
         client = Client(
             organization_id=principal.organization_id,
             user_id=principal.user_id,
             name=name,
             normalized_name=normalized_name,
             products_owned_json=products_owned_json,
+            products_interested_json=products_interested_json,
             rolling_summary=data.get("rolling_summary", ""),
             relationship_notes=data.get("relationship_notes", ""),
             is_active=data.get("is_active", True),
@@ -71,6 +78,10 @@ class ClientRepository:
             client.products_owned_json = to_json(data["products_owned"])
         if "products_owned_json" in data:
             client.products_owned_json = data["products_owned_json"]
+        if "products_interested" in data:
+            client.products_interested_json = to_json(data["products_interested"])
+        if "products_interested_json" in data:
+            client.products_interested_json = data["products_interested_json"]
         if "rolling_summary" in data:
             client.rolling_summary = data["rolling_summary"]
         if "relationship_notes" in data:

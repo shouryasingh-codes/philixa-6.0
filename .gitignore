@@ -13,3 +13,16 @@ tmp/
 *.db
 *.sqlite
 *.sqlite3
+
+# AI Planning / Scratch docs (never commit these)
+*_fixes*.md
+*_plan*.md
+*_checklist*.md
+*_report*.md
+*_summary*.md
+resume*.html
+resume*.md
+
+# Audio / media temp files
+*.mp3
+*.m4a

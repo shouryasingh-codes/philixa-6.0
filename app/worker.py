@@ -46,6 +46,7 @@ def get_redis_settings() -> RedisSettings:
 
 from arq.cron import cron
 from app.jobs.notification_jobs import send_client_followups, send_pre_interaction_briefs, retry_failed_notifications
+from scripts.cleanup_demo_accounts import cleanup_demo_accounts
 
 from app.jobs.embedding_jobs import generate_meeting_embeddings
 from app.jobs.transcription_jobs import process_meeting_transcription
@@ -57,6 +58,8 @@ class WorkerSettings:
     """
     functions = [generate_meeting_embeddings, process_meeting_transcription]  # Register background task functions here
     cron_jobs = [
+        # Hourly disk cleanup: delete expired demo guest accounts at minute 0 of every hour
+        cron(cleanup_demo_accounts, hour=None, minute=0),
         # Example: run every day at 08:00 UTC
         cron(send_client_followups, hour=8, minute=0),
         cron(send_pre_interaction_briefs, hour=7, minute=0),

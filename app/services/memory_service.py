@@ -31,12 +31,14 @@ class MemoryService:
         concerns = self._collect_concerns(meetings)
         latest_meeting = meetings[0] if meetings else None
         products_owned = from_json(client.products_owned_json, [])
+        products_interested = from_json(client.products_interested_json, [])
         client.rolling_summary = self._build_rolling_summary(
             client.name,
             latest_meeting,
             pending,
             concerns,
             products_owned,
+            products_interested,
         )
         db.add(client)
         await db.flush()
@@ -73,6 +75,7 @@ class MemoryService:
         major_concerns = self._collect_concerns(recent_meetings)
         pending_commitments = await self.commitments.pending_for_client(db, client_id)
         products_owned = from_json(client.products_owned_json, [])
+        products_interested = from_json(client.products_interested_json, [])
         last_meeting_summary = self._meeting_display_summary(
             client.name,
             last_meeting,
@@ -87,8 +90,10 @@ class MemoryService:
                 last_meeting,
                 pending_commitments,
                 major_concerns,
+                products_interested=products_interested,
             ),
             "products_owned": products_owned,
+            "products_interested": products_interested,
             "pending_commitments": pending_commitments,
             "major_concerns": major_concerns[:5],
             "recent_relationship_notes": [
@@ -104,6 +109,7 @@ class MemoryService:
                 pending_commitments,
                 major_concerns,
                 products_owned,
+                products_interested,
             ),
         }
 
@@ -129,6 +135,7 @@ class MemoryService:
         pending: list[Commitment],
         concerns: list[dict],
         products_owned: list[str],
+        products_interested: list[str] | None = None,
     ) -> str:
         parts: list[str] = []
         if latest_meeting:
@@ -143,6 +150,8 @@ class MemoryService:
                     parts.append(f"{client_name} had a recent client interaction.")
         if products_owned:
             parts.append(f"Tracked products include {', '.join(products_owned[:3])}.")
+        if products_interested:
+            parts.append(f"Client expressed interest in {', '.join(products_interested[:3])}.")
         if concerns:
             first_concern = self._format_concern(concerns[0].get("description"))
             if first_concern:
@@ -168,11 +177,14 @@ class MemoryService:
         last_meeting: Meeting | None,
         pending: list[Commitment],
         concerns: list[dict],
+        products_interested: list[str] | None = None,
     ) -> dict:
+        interested = products_interested or []
         top_concern = self._format_concern(concerns[0].get("description")) if concerns else ""
         return {
             "title": "Client Brief",
             "products_owned": products_owned[:3],
+            "products_interested": interested[:3],
             "last_meeting": self._meeting_title(last_meeting),
             "pending": [self._format_commitment_brief(item) for item in pending[:3]],
             "concern": self._sentence_case(top_concern) if top_concern else "No major concern captured",
@@ -182,6 +194,7 @@ class MemoryService:
                 last_meeting,
                 pending,
                 top_concern,
+                products_interested=interested,
             ),
         }
 
@@ -209,12 +222,15 @@ class MemoryService:
         last_meeting: Meeting | None,
         pending: list[Commitment],
         top_concern: str,
+        products_interested: list[str] | None = None,
     ) -> str:
         concern_lower = top_concern.casefold()
         if "processing time" in concern_lower or "timeline" in concern_lower:
             return "Explain loan processing timeline."
         if "approval" in concern_lower:
             return "Share a clear approval status update and next step."
+        if products_interested:
+            return f"Follow up on client's interest in {products_interested[0]}."
         if products_owned:
             return f"Reconfirm the client's priority around {products_owned[0]} and align on the next step."
         if pending:

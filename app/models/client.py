@@ -34,6 +34,7 @@ class Client(Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     normalized_name: Mapped[str] = mapped_column(String(140), nullable=False, index=True, default="")
     products_owned_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
+    products_interested_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
     rolling_summary: Mapped[str] = mapped_column(Text, default="", nullable=False)
     relationship_notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)

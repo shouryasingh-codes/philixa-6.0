@@ -89,13 +89,16 @@ def validate_production_settings(settings: Settings) -> list[str]:
     return violations
 
 
+from app.core.security import hash_password, verify_password
+
+
 # =============================================================================
 # Feature 1: Password Hashing & Bcrypt Cost Factor Tests
 # =============================================================================
 class TestBcryptPasswordHashing:
     def test_bcrypt_cost_factor_is_at_least_12(self) -> None:
         password = "SecurePassword123!"
-        hashed = pwd_context.hash(password)
+        hashed = hash_password(password)
         
         # Bcrypt hashes format: $2b$12$... or $2a$12$...
         parts = hashed.split("$")
@@ -107,42 +110,42 @@ class TestBcryptPasswordHashing:
 
     def test_bcrypt_generates_unique_salt_per_hash(self) -> None:
         password = "IdenticalPasswordForSaltTest!"
-        hash1 = pwd_context.hash(password)
-        hash2 = pwd_context.hash(password)
+        hash1 = hash_password(password)
+        hash2 = hash_password(password)
         
         assert hash1 != hash2, "Hashing identical passwords must produce different hashes with unique salts"
-        assert pwd_context.verify(password, hash1) is True
-        assert pwd_context.verify(password, hash2) is True
+        assert verify_password(password, hash1) is True
+        assert verify_password(password, hash2) is True
 
     def test_bcrypt_verification_success_for_matching_password(self) -> None:
         password = "CorrectHorseBatteryStaple#2026"
-        hashed = pwd_context.hash(password)
-        assert pwd_context.verify(password, hashed) is True
+        hashed = hash_password(password)
+        assert verify_password(password, hashed) is True
 
     def test_bcrypt_verification_failure_for_incorrect_password(self) -> None:
         password = "CorrectPassword123!"
-        hashed = pwd_context.hash(password)
-        assert pwd_context.verify("WrongPassword456!", hashed) is False
-        assert pwd_context.verify("correctpassword123!", hashed) is False  # Case sensitivity check
+        hashed = hash_password(password)
+        assert verify_password("WrongPassword456!", hashed) is False
+        assert verify_password("correctpassword123!", hashed) is False  # Case sensitivity check
 
     def test_bcrypt_rejects_empty_and_null_passwords(self) -> None:
-        hashed = pwd_context.hash("ValidPassword123!")
-        assert pwd_context.verify("", hashed) is False
+        hashed = hash_password("ValidPassword123!")
+        assert verify_password("", hashed) is False
         
         # Verify empty string hash produces valid bcrypt format but doesn't match other plaintexts
-        empty_hash = pwd_context.hash("")
-        assert pwd_context.verify("", empty_hash) is True
-        assert pwd_context.verify("any_text", empty_hash) is False
+        empty_hash = hash_password("")
+        assert verify_password("", empty_hash) is True
+        assert verify_password("any_text", empty_hash) is False
 
     def test_bcrypt_handles_unicode_and_special_characters(self) -> None:
         unicode_pass = "Pässwørd_日本語_🚀_₹10000_Банк"
-        hashed = pwd_context.hash(unicode_pass)
-        assert pwd_context.verify(unicode_pass, hashed) is True
-        assert pwd_context.verify("Passwørd_日本語_🚀_₹10000_Банк", hashed) is False
+        hashed = hash_password(unicode_pass)
+        assert verify_password(unicode_pass, hashed) is True
+        assert verify_password("Passwørd_日本語_🚀_₹10000_Банк", hashed) is False
 
     def test_bcrypt_never_stores_plaintext_in_hash(self) -> None:
         sensitive_pass = "SuperSecretBankManagerPassword999!"
-        hashed = pwd_context.hash(sensitive_pass)
+        hashed = hash_password(sensitive_pass)
         assert sensitive_pass not in hashed, "Plaintext password must NEVER appear in the hash string"
 
 

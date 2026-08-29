@@ -159,6 +159,12 @@ class MockAppDOM:
                 tag=raw["tag"],
                 class_list=raw["classes"]
             )
+        else:
+            self.els["activeRoleBadge"] = DOMElement(
+                id="activeRoleBadge",
+                tag="span",
+                class_list={"role-badge"}
+            )
 
     def apply_role_permissions(self, auth_role: str):
         """Exact JS mirror of applyRolePermissions() from app.js lines 494-523."""
@@ -173,7 +179,12 @@ class MockAppDOM:
 
         # Manage members button: visible only to owner and admin
         if "manageMembersBtn" in self.els:
-            self.els["manageMembersBtn"].style["display"] = "" if is_admin else "none"
+            if is_admin:
+                self.els["manageMembersBtn"].style["display"] = ""
+                self.els["manageMembersBtn"].remove_class("hidden")
+            else:
+                self.els["manageMembersBtn"].style["display"] = "none"
+                self.els["manageMembersBtn"].add_class("hidden")
 
         # Generic data-min-role and data-rbac DOM gating
         for el in self.elements:

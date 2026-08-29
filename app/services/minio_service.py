@@ -42,8 +42,8 @@ class MinioService:
             if not self.client.bucket_exists(self.bucket_name):
                 self.client.make_bucket(self.bucket_name)
                 logger.info(f"Created MinIO bucket: {self.bucket_name}")
-        except S3Error as e:
-            logger.error(f"Error checking/creating MinIO bucket: {e}")
+        except Exception as e:
+            logger.warning(f"Error checking/creating MinIO bucket: {e}")
 
     def build_audio_object_path(
         self,

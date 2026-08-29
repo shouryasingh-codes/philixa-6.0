@@ -11,6 +11,7 @@ class ClientListItem(BaseModel):
     id: int
     name: str
     products_owned: list[str]
+    products_interested: list[str] = []
     rolling_summary: str
     pending_commitments_count: int
     last_meeting_summary: str | None
@@ -22,6 +23,7 @@ class ClientListItem(BaseModel):
 class PreMeetingBriefResponse(BaseModel):
     title: str
     products_owned: list[str]
+    products_interested: list[str] = []
     last_meeting: str
     pending: list[str]
     concern: str
@@ -39,6 +41,7 @@ class ClientMemoryResponse(BaseModel):
                 "pre_meeting_brief": {
                     "title": "Client Brief",
                     "products_owned": ["Business Loan"],
+                    "products_interested": ["Term Insurance"],
                     "last_meeting": "Business Loan Discussion",
                     "pending": ["Send documents by Friday"],
                     "concern": "Processing time",
@@ -46,6 +49,7 @@ class ClientMemoryResponse(BaseModel):
                     "suggested_talking_point": "Explain loan processing timeline.",
                 },
                 "products_owned": ["Business Loan"],
+                "products_interested": ["Term Insurance"],
                 "pending_commitments": [],
                 "major_concerns": [
                     {
@@ -67,6 +71,7 @@ class ClientMemoryResponse(BaseModel):
     last_meeting_summary: str
     pre_meeting_brief: "PreMeetingBriefResponse"
     products_owned: list[str]
+    products_interested: list[str] = []
     pending_commitments: list[CommitmentRead]
     major_concerns: list[ConcernRead]
     recent_relationship_notes: list[str]
@@ -118,6 +123,7 @@ class MeetingRead(BaseModel):
 class ClientCreateRequest(BaseModel):
     name: str
     products_owned: list[str] | None = None
+    products_interested: list[str] | None = None
     rolling_summary: str | None = None
     relationship_notes: str | None = None
 
@@ -130,6 +136,7 @@ class ClientResponse(BaseModel):
     organization_id: str
     user_id: str
     products_owned: list[str] = []
+    products_interested: list[str] = []
     rolling_summary: str | None = ""
     relationship_notes: str | None = ""
     is_active: bool = True

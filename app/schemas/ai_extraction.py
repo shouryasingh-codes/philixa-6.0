@@ -148,7 +148,11 @@ class MeetingExtraction(BaseModel):
     )
     products_owned: list[str] = Field(
         default_factory=list,
-        description="Financial products the client owns or is interested in."
+        description="Financial products the client ALREADY owns or currently holds."
+    )
+    products_interested: list[str] = Field(
+        default_factory=list,
+        description="Financial products or services the client EXPRESSED INTEREST in, inquired about, or requested information on."
     )
     concerns: list[RiskSignal] = Field(
         default_factory=list,

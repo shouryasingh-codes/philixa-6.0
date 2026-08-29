@@ -3,6 +3,11 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# Force UTF-8 encoding for Python (fixes garbled emoji in Docker/Gunicorn)
+ENV PYTHONUTF8=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
 COPY requirements.txt .
 RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu

@@ -1,8 +1,20 @@
 import logging
 import os
-import torch
-from faster_whisper import WhisperModel
-from pyannote.audio import Pipeline
+try:
+    import torch
+except ImportError:
+    torch = None
+
+try:
+    from faster_whisper import WhisperModel
+except ImportError:
+    WhisperModel = None
+
+try:
+    from pyannote.audio import Pipeline
+except ImportError:
+    Pipeline = None
+
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -26,17 +38,21 @@ class TranscriptionService:
         model_size = 'large-v3-turbo'
         logger.info(f'Loading faster-whisper model {model_size} in int8 mode...')
         try:
-            self.model = WhisperModel(model_size, device='cpu', compute_type='int8')
-            logger.info('WhisperModel loaded successfully.')
+            if WhisperModel is not None:
+                self.model = WhisperModel(model_size, device='cpu', compute_type='int8')
+                logger.info('WhisperModel loaded successfully.')
+            else:
+                self.model = None
+                logger.warning('faster_whisper not installed; WhisperModel disabled.')
         except Exception as e:
             logger.error(f'Failed to load WhisperModel: {e}')
-            raise
+            self.model = None
 
         # 2. Load PyAnnote Diarization Pipeline
         logger.info('Loading PyAnnote Diarization Pipeline...')
         try:
-            if not settings.hf_token:
-                logger.warning('No HF_TOKEN found! Diarization will be disabled.')
+            if not settings.hf_token or Pipeline is None:
+                logger.warning('No HF_TOKEN found or pyannote not installed! Diarization will be disabled.')
                 self.diarization_pipeline = None
             else:
                 os.environ["HF_TOKEN"] = settings.hf_token
@@ -46,8 +62,9 @@ class TranscriptionService:
                 if self.diarization_pipeline is None:
                     logger.error("Failed to initialize PyAnnote pipeline (Auth token might be invalid).")
                 else:
-                    device = torch.device("cpu")
-                    self.diarization_pipeline.to(device)
+                    if torch is not None:
+                        device = torch.device("cpu")
+                        self.diarization_pipeline.to(device)
                     logger.info('PyAnnote Pipeline loaded successfully.')
         except Exception as e:
             logger.error(f'Failed to load PyAnnote: {e}')
