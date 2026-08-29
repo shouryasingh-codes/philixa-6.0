@@ -5,6 +5,7 @@ WORKDIR /app
 
 COPY requirements.txt .
 RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 RUN pip install -r requirements.txt
 
 COPY app ./app
