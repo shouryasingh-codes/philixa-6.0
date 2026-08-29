@@ -13,6 +13,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/styles.css?v=75" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     /* Scoped Multi-Tenant & Auth Enhancements */
     .topbar-branding { display: flex; flex-direction: column; }
@@ -451,20 +452,46 @@
       <div class="auth-card-header">
         <div class="brand-mark">P6</div>
         <h2 id="authTitle">Sign in to Philixa</h2>
-        <p id="authSubtitle">AI Copilot for Banking Relationship Managers</p>
       </div>
 
       <div class="auth-card-body">
         <!-- View 1: Login Form -->
         <div id="viewLogin" class="auth-view">
           <div id="loginError" class="alert-box error hidden"></div>
+          
+          <div id="g_id_onload"
+               data-client_id="401674766048-lofabuacl8s0f91siit3uh5glptfe7jt.apps.googleusercontent.com"
+               data-context="signin"
+               data-ux_mode="popup"
+               data-callback="handleGoogleCredentialResponse"
+               data-auto_prompt="false">
+          </div>
+          <div class="g_id_signin"
+               data-type="standard"
+               data-shape="rectangular"
+               data-theme="outline"
+               data-text="signin_with"
+               data-size="large"
+               data-logo_alignment="left"
+               style="display: flex; justify-content: center; margin-bottom: 16px;">
+          </div>
+          
+          <div style="display: flex; align-items: center; text-align: center; margin-bottom: 16px; color: var(--muted); font-size: 12px; font-weight: 600; text-transform: uppercase;">
+            <hr style="flex: 1; border: none; border-top: 1px solid var(--line);">
+            <span style="padding: 0 10px;">or sign in with email</span>
+            <hr style="flex: 1; border: none; border-top: 1px solid var(--line);">
+          </div>
+
           <form id="loginForm">
             <div class="form-group">
               <label for="loginEmail">Work Email</label>
               <input id="loginEmail" type="email" required autocomplete="username" placeholder="name@company.com" />
             </div>
             <div class="form-group">
-              <label for="loginPassword">Password</label>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label for="loginPassword">Password</label>
+                <a id="linkToForgotPassword" style="font-size: 12px; color: var(--accent); cursor: pointer; font-weight: 600; text-decoration: none;">Forgot password?</a>
+              </div>
               <input id="loginPassword" type="password" required autocomplete="current-password" placeholder="••••••••" />
             </div>
             <button id="loginSubmitBtn" type="submit" class="primary-action" style="width: 100%; margin-top: 8px;">Sign In</button>
@@ -472,7 +499,7 @@
           </form>
           <div class="auth-footer-links">
             <div>Don't have an account? <a id="linkToRegister">Create workspace</a></div>
-            <div><a id="linkToForgotPassword">Forgot password?</a> &nbsp;•&nbsp; <a id="linkToVerifyEmail">Verify email token</a></div>
+            <div><a id="linkToVerifyEmail">Verify 6-digit OTP</a></div>
           </div>
         </div>
 
@@ -516,19 +543,22 @@
         <div id="viewVerifyEmail" class="auth-view hidden">
           <div id="verifyMessage" class="alert-box hidden"></div>
           <div style="text-align: center; margin-bottom: 16px;">
-            <span style="font-size: 36px; display: block; margin-bottom: 8px;">📬</span>
+            <span style="font-size: 36px; display: block; margin-bottom: 8px;">📧</span>
             <p style="font-size: 14px; color: var(--muted); margin: 0;">
-              We sent a verification link to <strong id="verifyEmailDisplay" style="color: var(--ink);">your email</strong>.
+              We sent a 6-digit OTP to <strong id="verifyEmailDisplay" style="color: var(--ink);">your email</strong>.
             </p>
           </div>
           <form id="verifyEmailForm">
             <div class="form-group">
-              <label for="verifyTokenInput">Verification Token</label>
-              <input id="verifyTokenInput" type="text" required placeholder="Paste verification token here..." />
+              <label for="verifyTokenInput">6-Digit OTP</label>
+              <input id="verifyTokenInput" type="text" required placeholder="123456" maxlength="6" style="text-align: center; letter-spacing: 4px; font-size: 18px;" />
             </div>
-            <button id="verifyTokenSubmitBtn" type="submit" class="primary-action" style="width: 100%;">Verify Account</button>
+            <button id="verifyTokenSubmitBtn" type="submit" class="primary-action" style="width: 100%;">Verify OTP</button>
           </form>
           <div class="auth-footer-links">
+            <div><a id="linkToLoginFromVerify">Back to Sign In</a></div>
+          </div>
+        </div>ooter-links">
             <div><a id="linkToLoginFromVerify">Back to Sign In</a></div>
           </div>
         </div>

@@ -80,6 +80,7 @@ class Settings:
     csrf_secret: str = ""
     allowed_origins: str | list[str] = ""
     app_env: str = "development"
+    google_client_id: str | None = None
     philixa_env: str = "development"
     db_pool_size: int = 15
     db_max_overflow: int = 5
@@ -208,4 +209,5 @@ def get_settings() -> Settings:
         allowed_origins=os.getenv("PHILIXA_ALLOWED_ORIGINS", ""),
         app_env=env_name,
         philixa_env=env_name,
+        google_client_id='401674766048-lofabuacl8s0f91siit3uh5glptfe7jt.apps.googleusercontent.com',
     )

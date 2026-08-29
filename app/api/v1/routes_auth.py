@@ -5,6 +5,8 @@ import json
 import logging
 import re
 import secrets
+import string
+import random
 from typing import Any, Optional
 import uuid
 
@@ -52,6 +54,7 @@ from app.schemas.auth import (
     UserProfileResponse,
     UserRead,
     VerifyEmailRequest,
+    GoogleAuthRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -230,12 +233,12 @@ async def register_user(
     db.add(membership)
 
     # 5. Create Email Verification Token
-    raw_token = secrets.token_urlsafe(32)
+    raw_token = ''.join(random.choices(string.digits, k=6))
     token_record = EmailVerificationToken(
         id=secrets.token_hex(16),
         user_id=user_id,
         token_hash=hash_token(raw_token),
-        expires_at=utc_now() + timedelta(hours=24),
+        expires_at=utc_now() + timedelta(minutes=15),
     )
     db.add(token_record)
 
@@ -614,12 +617,12 @@ async def forgot_password(
     )).scalar_one_or_none()
 
     if user and user.is_active:
-        raw_token = secrets.token_urlsafe(32)
+        raw_token = ''.join(random.choices(string.digits, k=6))
         reset_token = PasswordResetToken(
             id=secrets.token_hex(16),
             user_id=user.id,
             token_hash=hash_token(raw_token),
-            expires_at=utc_now() + timedelta(hours=1),
+            expires_at=utc_now() + timedelta(minutes=15),
         )
         db.add(reset_token)
         await db.commit()
@@ -860,3 +863,102 @@ async def demo_login(
         "role": membership.role,
         "csrf_token": csrf_token,
     }
+
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+
+@router.post("/google", response_model=LoginResponse)
+async def google_login(
+    payload: GoogleAuthRequest,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    try:
+        idinfo = id_token.verify_oauth2_token(
+            payload.id_token, 
+            google_requests.Request(),
+            get_settings().google_client_id if hasattr(get_settings(), 'google_client_id') else None
+        )
+        email = idinfo['email'].lower()
+        
+        # Check if user exists
+        user = (await db.execute(select(User).where(User.email == email))).scalar_one_or_none()
+        
+        if not user:
+            # Create user
+            user_id = f"usr_{secrets.token_hex(12)}"
+            user = User(
+                id=user_id,
+                email=email,
+                hashed_password=hash_password(secrets.token_hex(16)),
+                is_active=True,
+                is_verified=True,
+            )
+            db.add(user)
+            
+            # Create Organization
+            org_id = f"org_{secrets.token_hex(12)}"
+            slug = await generate_unique_slug(db, f"{idinfo.get('given_name', 'User')}'s Workspace")
+            org = Organization(
+                id=org_id,
+                name=f"{idinfo.get('given_name', 'User')}'s Workspace",
+                workspace_type="individual",
+                slug=slug,
+                plan="free",
+                is_active=True,
+            )
+            db.add(org)
+            
+            # Create Membership
+            membership = OrganizationMembership(
+                user_id=user_id,
+                organization_id=org_id,
+                role=UserRole.OWNER.value,
+                status=MembershipStatus.ACTIVE.value,
+                joined_at=utc_now(),
+            )
+            db.add(membership)
+            await db.commit()
+            
+        else:
+            # Get active org
+            mem_result = await db.execute(
+                select(OrganizationMembership, Organization)
+                .join(Organization, OrganizationMembership.organization_id == Organization.id)
+                .where(
+                    OrganizationMembership.user_id == user.id,
+                    OrganizationMembership.status == MembershipStatus.ACTIVE.value
+                )
+            )
+            row = mem_result.first()
+            if not row:
+                raise HTTPException(status_code=403, detail="No active organization found.")
+            membership, org = row
+            
+        # Create session
+        session_id = f"sess_{secrets.token_hex(16)}"
+        new_session = UserSession(
+            id=session_id,
+            user_id=user.id,
+            organization_id=org.id,
+            ip_address=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent"),
+            expires_at=utc_now() + timedelta(days=7),
+            is_active=True
+        )
+        db.add(new_session)
+        await db.commit()
+        
+        # Set cookies
+        _set_auth_cookies(response, session_id)
+        
+        return {
+            "user": user,
+            "active_organization": org,
+            "role": membership.role,
+            "csrf_token": "dummy_csrf_token_for_now"
+        }
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid Google token")
+

@@ -2407,3 +2407,26 @@ if (document.readyState === 'loading') {
 } else {
   bootstrapApp();
 }
+
+// Handle Google SSO
+async function handleGoogleCredentialResponse(response) {
+  try {
+    const res = await fetch("/api/v1/auth/google", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ id_token: response.credential })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showError("loginError", data.detail || "Google Sign-In failed.");
+      return;
+    }
+    await checkSession();
+  } catch (err) {
+    console.error(err);
+    showError("loginError", "A network error occurred during Google Sign-In.");
+  }
+}
+window.handleGoogleCredentialResponse = handleGoogleCredentialResponse;
