@@ -1,12 +1,12 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description"
-    content="PHILIXA 6.0 — AI-powered Multi-Tenant Commitment and Memory Copilot for Banking Relationship Managers." />
-  <title>PHILIXA 6.0 — Commitment & Memory Copilot</title>
+    content="PHILIXA 6.0 â€” AI-powered Multi-Tenant Commitment and Memory Copilot for Banking Relationship Managers." />
+  <title>PHILIXA 6.0 â€” Commitment & Memory Copilot</title>
   <link rel="icon" type="image/svg+xml"
     href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230f766e'/%3E%3Ctext x='16' y='22' font-family='sans-serif' font-size='16' font-weight='900' fill='%23ffffff' text-anchor='middle'%3EP6%3C/text%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -139,7 +139,7 @@
         <div class="topbar-actions">
           <!-- Multi-Tenant Workspace Selector -->
           <div class="workspace-selector-wrap" title="Current Workspace">
-            <span class="workspace-icon">🏢</span>
+            <span class="workspace-icon">ðŸ¢</span>
             <select id="workspaceSelect" class="workspace-select" aria-label="Select active workspace">
               <option value="" disabled selected>Loading...</option>
             </select>
@@ -147,7 +147,7 @@
 
           <!-- Scope Selector (My vs Team) - Only visible to Owner/Admin -->
           <div class="workspace-selector-wrap" id="scopeSelectorWrap" title="View Scope" style="display: none;">
-            <span class="workspace-icon">👁️</span>
+            <span class="workspace-icon">ðŸ‘ï¸</span>
             <select id="scopeSelect" class="workspace-select" aria-label="Select view scope">
               <option value="team" selected>Team Workspace</option>
               <option value="me">My Workspace</option>
@@ -163,17 +163,17 @@
               </div>
               <div class="avatar-menu-body">
                 <button id="manageMembersBtn" type="button" class="avatar-menu-item" data-min-role="admin" role="menuitem">
-                  <span class="icon">👥</span> Manage Members
+                  <span class="icon">ðŸ‘¥</span> Manage Members
                 </button>
                 <button id="settingsBtn" type="button" class="avatar-menu-item" role="menuitem">
-                  <span class="icon">⚙️</span> Preferences
+                  <span class="icon">âš™ï¸</span> Preferences
                 </button>
                 <button id="themeToggleBtn" type="button" class="avatar-menu-item" role="menuitem">
-                  <span class="icon">🌙</span> Toggle Theme
+                  <span class="icon">ðŸŒ™</span> Toggle Theme
                 </button>
                 <div class="avatar-menu-divider"></div>
                 <button id="logoutBtn" type="button" class="avatar-menu-item logout-item" role="menuitem">
-                  <span class="icon">🚪</span> Sign Out
+                  <span class="icon">ðŸšª</span> Sign Out
                 </button>
               </div>
             </div>
@@ -208,14 +208,14 @@
             <h3 style="margin-top: 0; margin-bottom: 15px;">Daily Priorities</h3>
             <p class="eyebrow day4-col-label" style="margin-bottom: 12px;">Follow-up Tasks</p>
             <div class="task-list" id="taskList">
-              <div class="empty-state">✅ All caught up! No pressing tasks for today.</div>
+              <div class="empty-state">âœ… All caught up! No pressing tasks for today.</div>
             </div>
           </div>
           <div>
             <h3 style="margin-top: 0; margin-bottom: 15px; color: #ef4444;">Risk Signals</h3>
             <p class="eyebrow day4-col-label" style="margin-bottom: 12px; visibility: hidden;">Spacer</p>
             <div class="risk-list" id="riskList">
-              <div class="empty-state">🛡️ All clear. No active risk signals detected.</div>
+              <div class="empty-state">ðŸ›¡ï¸ All clear. No active risk signals detected.</div>
             </div>
           </div>
         </div>
@@ -253,7 +253,7 @@
           
           <div style="flex: 0 1 auto; display: flex; justify-content: center;">
             <button id="philixaVoiceBtn" class="copilot-box" title="Talk to Philixa" type="button">
-              <span class="copilot-icon">🎙️</span>
+              <span class="copilot-icon">ðŸŽ™ï¸</span>
               <span class="copilot-text" id="copilotText">PHILIXA</span>
             </button>
           </div>
@@ -268,8 +268,8 @@
         <div class="tabs-header">
           <button class="tab-btn active" id="tabTextBtn">Paste Notes</button>
           <button class="tab-btn" id="tabAudioBtn">Upload Audio</button>
-          <button class="tab-btn" id="tabLiveBtn"><span style="color:red;">🔴</span> Live Record</button>
-          <button class="tab-btn" id="tabFastDictationBtn">⚡ Fast Dictation</button>
+          <button class="tab-btn" id="tabLiveBtn"><span style="color:red;">ðŸ”´</span> Live Record</button>
+          <button class="tab-btn" id="tabFastDictationBtn">âš¡ Fast Dictation</button>
         </div>
 
         <!-- Tab: Text -->
@@ -290,7 +290,7 @@
           <div class="upload-box" id="uploadBox">
             <input type="file" id="audioFileInput" accept=".mp3, .m4a, .wav" class="file-input-hidden" />
             <label for="audioFileInput" class="file-input-label">
-              <span style="font-size: 24px; display: block; margin-bottom: 8px;">📁</span>
+              <span style="font-size: 24px; display: block; margin-bottom: 8px;">ðŸ“</span>
               <span id="uploadFileName">Click to select audio file</span>
               <span class="muted" style="display: block; font-size: 12px; margin-top: 4px;">.mp3, .m4a, .wav (Max 50MB)</span>
             </label>
@@ -315,35 +315,35 @@
         <!-- Tab: Live Record -->
         <div id="viewLive" class="tab-content hidden">
           <div style="display:flex; gap:12px; align-items:center; margin-bottom:14px; flex-wrap:wrap;">
-            <button id="startSoloBtn" type="button" style="background:var(--accent); color:#fff; font-weight:700; border:none; padding:8px 18px; border-radius:6px; cursor:pointer;">🎙 Solo Record</button>
-            <button id="startMeetingBtn" type="button" style="background:#6c63ff; color:#fff; font-weight:700; border:none; padding:8px 18px; border-radius:6px; cursor:pointer;">👥 Meeting Record</button>
-            <button id="stopLiveBtn" type="button" disabled style="background:var(--surface); color:var(--muted); border:1px solid var(--line); padding:8px 18px; border-radius:6px; cursor:pointer;">⏹ Stop &amp; Save</button>
-            <span id="liveStatusText" style="color:var(--muted); font-size:14px;">⏸ Ready</span>
+            <button id="startSoloBtn" type="button" style="background:var(--accent); color:#fff; font-weight:700; border:none; padding:8px 18px; border-radius:6px; cursor:pointer;">ðŸŽ™ Solo Record</button>
+            <button id="startMeetingBtn" type="button" style="background:#6c63ff; color:#fff; font-weight:700; border:none; padding:8px 18px; border-radius:6px; cursor:pointer;">ðŸ‘¥ Meeting Record</button>
+            <button id="stopLiveBtn" type="button" disabled style="background:var(--surface); color:var(--muted); border:1px solid var(--line); padding:8px 18px; border-radius:6px; cursor:pointer;">â¹ Stop &amp; Save</button>
+            <span id="liveStatusText" style="color:var(--muted); font-size:14px;">â¸ Ready</span>
           </div>
           <div style="font-size:11px; color:var(--muted); margin-bottom:10px;">
-            🎙 <strong>Solo</strong> — Only you are speaking (Fast, ~20s) &nbsp;|&nbsp; 👥 <strong>Meeting</strong> — Client is present, speaker labels included (Slow, ~60s)
+            ðŸŽ™ <strong>Solo</strong> â€” Only you are speaking (Fast, ~20s) &nbsp;|&nbsp; ðŸ‘¥ <strong>Meeting</strong> â€” Client is present, speaker labels included (Slow, ~60s)
           </div>
           <div style="border:1px solid var(--line); border-radius:8px; padding:24px 16px; min-height:130px; background:var(--bg); display:flex; align-items:center; justify-content:center; text-align:center;">
             <div>
-              <div id="liveRecordingIndicator" style="font-size:32px; margin-bottom:8px;">🎙</div>
-              <div style="color:var(--muted); font-size:14px; line-height:1.6;">Speak freely — recording in progress.<br>When you click Stop &amp; Save, Whisper will process the full audio at once.<br><strong style="color:var(--text);">No live text will appear — only the final accurate transcript.</strong></div>
+              <div id="liveRecordingIndicator" style="font-size:32px; margin-bottom:8px;">ðŸŽ™</div>
+              <div style="color:var(--muted); font-size:14px; line-height:1.6;">Speak freely â€” recording in progress.<br>When you click Stop &amp; Save, Whisper will process the full audio at once.<br><strong style="color:var(--text);">No live text will appear â€” only the final accurate transcript.</strong></div>
             </div>
           </div>
-          <p style="font-size:12px; color:var(--muted); margin-top:8px;">⚡ After Stop &amp; Save, the transcript will appear in Paste Notes — review and click Process.</p>
+          <p style="font-size:12px; color:var(--muted); margin-top:8px;">âš¡ After Stop &amp; Save, the transcript will appear in Paste Notes â€” review and click Process.</p>
         </div>
 
         <!-- Tab: Fast Dictation (Web Speech API) -->
         <div id="viewFastDictation" class="tab-content hidden">
           <div style="display:flex; gap:12px; align-items:center; margin-bottom:14px; flex-wrap:wrap;">
-            <button id="startDictationBtn" type="button" style="background:var(--accent); color:#fff; font-weight:700; border:none; padding:8px 18px; border-radius:6px; cursor:pointer;">🎙 Start Dictation</button>
-            <button id="stopDictationBtn" type="button" disabled style="background:var(--surface); color:var(--muted); border:1px solid var(--line); padding:8px 18px; border-radius:6px; cursor:pointer;">⏹ Stop &amp; Save</button>
-            <span id="dictationStatusText" style="color:var(--muted); font-size:14px;">⏸ Ready (Web Speech API)</span>
+            <button id="startDictationBtn" type="button" style="background:var(--accent); color:#fff; font-weight:700; border:none; padding:8px 18px; border-radius:6px; cursor:pointer;">ðŸŽ™ Start Dictation</button>
+            <button id="stopDictationBtn" type="button" disabled style="background:var(--surface); color:var(--muted); border:1px solid var(--line); padding:8px 18px; border-radius:6px; cursor:pointer;">â¹ Stop &amp; Save</button>
+            <span id="dictationStatusText" style="color:var(--muted); font-size:14px;">â¸ Ready (Web Speech API)</span>
           </div>
           <div style="border:1px solid var(--line); border-radius:8px; padding:16px; min-height:130px; background:var(--bg);">
             <div id="dictationResult" style="font-weight:600; color:var(--text); white-space:pre-wrap; font-size:15px; line-height:1.6;"></div>
             <div class="muted" style="font-size:12px; margin-top:12px;">Instant dictation using browser native speech API.</div>
           </div>
-          <p style="font-size:12px; color:var(--muted); margin-top:8px;">⚡ Stop &amp; Save saves transcript to Paste Notes — review and click Process.</p>
+          <p style="font-size:12px; color:var(--muted); margin-top:8px;">âš¡ Stop &amp; Save saves transcript to Paste Notes â€” review and click Process.</p>
         </div>
 
         <div class="result-box" id="processResult" style="margin-top: 15px;">
@@ -384,7 +384,7 @@
           <section class="panel hero-panel sidebar-tab-content" id="memoryPanel">
           <div class="panel-heading accordion-toggle" data-target="accordionMemoryContent">
             <div style="pointer-events: none;">
-              <h3 style="display:flex; align-items:center; gap:8px;">Client memory <span class="accordion-icon">▼</span></h3>
+              <h3 style="display:flex; align-items:center; gap:8px;">Client memory <span class="accordion-icon">â–¼</span></h3>
             </div>
             <button id="loadSelectedMemory" type="button" onclick="event.stopPropagation()">Load memory</button>
           </div>
@@ -393,7 +393,7 @@
               <div class="ask-client-input-row" style="background: var(--bg);">
                 <input id="askClientInput" type="text"
                   placeholder="Ask AI about this client... (e.g. What is the latest concern?)" />
-                <button id="askClientVoiceBtn" type="button" class="secondary-action" title="Hold or click to speak">🎙️</button>
+                <button id="askClientVoiceBtn" type="button" class="secondary-action" title="Hold or click to speak">ðŸŽ™ï¸</button>
                 <button id="askClientBtn" type="button" class="primary-action">Ask</button>
               </div>
               <div id="askClientResult" class="ask-client-result hidden"></div>
@@ -408,7 +408,7 @@
           <section class="panel support-panel sidebar-tab-content hidden" id="commitmentPanel">
             <div class="panel-heading accordion-toggle" data-target="accordionCommitmentContent">
               <div style="pointer-events: none;">
-                <h3 style="display:flex; align-items:center; gap:8px;">Commitments <span class="accordion-icon">▼</span></h3>
+                <h3 style="display:flex; align-items:center; gap:8px;">Commitments <span class="accordion-icon">â–¼</span></h3>
               </div>
               <select id="commitmentFilter" onclick="event.stopPropagation()">
                 <option value="">All</option>
@@ -492,7 +492,7 @@
                 <label for="loginPassword">Password</label>
                 <a id="linkToForgotPassword" style="font-size: 12px; color: var(--accent); cursor: pointer; font-weight: 600; text-decoration: none;">Forgot password?</a>
               </div>
-              <input id="loginPassword" type="password" required autocomplete="current-password" placeholder="••••••••" />
+              <input id="loginPassword" type="password" required autocomplete="current-password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" />
             </div>
             <button id="loginSubmitBtn" type="submit" class="primary-action" style="width: 100%; margin-top: 8px;">Sign In</button>
             <button id="demoLoginBtn" type="button" class="secondary-action" style="width: 100%; margin-top: 12px; background: #f8fafc; border-color: #cbd5e1; color: #334155; font-weight: 600;">Try Demo (For Recruiters/Guests)</button>
@@ -512,11 +512,11 @@
               <div class="segmented-control">
                 <label id="labelTypeCompany" class="active">
                   <input type="radio" name="workspaceType" id="typeCompany" value="company" checked />
-                  <span>🏢 Company</span>
+                  <span>ðŸ¢ Company</span>
                 </label>
                 <label id="labelTypeIndividual">
                   <input type="radio" name="workspaceType" id="typeIndividual" value="individual" />
-                  <span>👤 Individual</span>
+                  <span>ðŸ‘¤ Individual</span>
                 </label>
               </div>
             </div>
@@ -543,7 +543,7 @@
         <div id="viewVerifyEmail" class="auth-view hidden">
           <div id="verifyMessage" class="alert-box hidden"></div>
           <div style="text-align: center; margin-bottom: 16px;">
-            <span style="font-size: 36px; display: block; margin-bottom: 8px;">📧</span>
+            <span style="font-size: 36px; display: block; margin-bottom: 8px;">ðŸ“§</span>
             <p style="font-size: 14px; color: var(--muted); margin: 0;">
               We sent a 6-digit OTP to <strong id="verifyEmailDisplay" style="color: var(--ink);">your email</strong>.
             </p>
@@ -606,7 +606,7 @@
         <div id="viewInviteAccept" class="auth-view hidden">
           <div id="inviteAcceptMessage" class="alert-box hidden"></div>
           <div style="text-align: center; margin-bottom: 16px;">
-            <span style="font-size: 36px; display: block; margin-bottom: 8px;">🤝</span>
+            <span style="font-size: 36px; display: block; margin-bottom: 8px;">ðŸ¤</span>
             <p style="font-size: 14px; color: var(--muted); margin: 0;">You have been invited to collaborate in a Philixa workspace.</p>
           </div>
           <form id="acceptInviteForm">
@@ -736,7 +736,7 @@
   </div>
 
   <!-- Application Scripts -->
-  <script src="/static/app.js?v=29"></script>
+  <script src="/static/app.js?v=30"></script>
   <script src="/static/fast-dictation.js?v=1"></script>
   <script src="/static/philixa-voice.js?v=31"></script>
   <script>
@@ -785,14 +785,14 @@
 
   <!-- Floating Action Button for Copilot -->
   <button id="openCopilotBtn" class="fab-copilot-btn" type="button" aria-label="Open Portfolio Copilot">
-    <span class="icon" style="font-size: 20px;">✨</span>
+    <span class="icon" style="font-size: 20px;">âœ¨</span>
   </button>
 
   <!-- Copilot Chat Modal -->
   <div id="copilotModal" class="copilot-modal hidden">
     <div class="copilot-modal-header">
       <div style="display: flex; align-items: center; gap: 10px;">
-        <div class="brand-mark" style="width: 32px; height: 32px; font-size: 14px;">✨</div>
+        <div class="brand-mark" style="width: 32px; height: 32px; font-size: 14px;">âœ¨</div>
         <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: var(--ink);">Portfolio Copilot</h3>
       </div>
       <button id="closeCopilotBtn" class="copilot-close-btn">&times;</button>
@@ -811,4 +811,5 @@
   </div>
 </body>
 </html>
+
 
