@@ -2420,13 +2420,13 @@ async function handleGoogleCredentialResponse(response) {
     });
     const data = await res.json();
     if (!res.ok) {
-      showError("loginError", data.detail || "Google Sign-In failed.");
+      showAuthError(document.getElementById("loginError"), data.detail || "Google Sign-In failed.");
       return;
     }
-    await checkSession();
+    await bootstrapSession();
   } catch (err) {
     console.error(err);
-    showError("loginError", "A network error occurred during Google Sign-In.");
+    showAuthError(document.getElementById("loginError"), "A network error occurred during Google Sign-In.");
   }
 }
 window.handleGoogleCredentialResponse = handleGoogleCredentialResponse;
