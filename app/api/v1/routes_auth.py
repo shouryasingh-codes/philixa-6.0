@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 import json
@@ -936,29 +936,52 @@ async def google_login(
                 raise HTTPException(status_code=403, detail="No active organization found.")
             membership, org = row
             
-        # Create session
+        # Create User Session
         session_id = f"sess_{secrets.token_hex(16)}"
-        new_session = UserSession(
+        refresh_jwt = create_refresh_token(
+            user_id=user.id,
+            org_id=org.id,
+            role=membership.role,
+            session_id=session_id,
+        )
+        
+        ip_addr = request.client.host if request.client else None
+        user_agent = request.headers.get("User-Agent")
+        user_session = UserSession(
             id=session_id,
             user_id=user.id,
             organization_id=org.id,
-            ip_address=request.client.host if request.client else None,
-            user_agent=request.headers.get("user-agent"),
-            expires_at=utc_now() + timedelta(days=7),
-            is_active=True
+            refresh_token_hash=hash_token(refresh_jwt),
+            ip_address=ip_addr,
+            user_agent=user_agent[:255] if user_agent else None,
+            expires_at=utc_now() + timedelta(days=get_settings().jwt_refresh_token_expire_days),
         )
-        db.add(new_session)
+        db.add(user_session)
         await db.commit()
         
-        # Set cookies
-        _set_auth_cookies(response, session_id)
+        # Generate Access and CSRF tokens
+        access_jwt = create_access_token(
+            user_id=user.id,
+            org_id=org.id,
+            role=membership.role,
+            session_id=session_id,
+        )
+        csrf_token = generate_csrf_token()
+        
+        set_auth_cookies(
+            response=response,
+            access_token=access_jwt,
+            refresh_token=refresh_jwt,
+            csrf_token=csrf_token,
+        )
         
         return {
             "user": user,
             "active_organization": org,
             "role": membership.role,
-            "csrf_token": "dummy_csrf_token_for_now"
+            "csrf_token": csrf_token,
         }
     except ValueError:
         raise HTTPException(status_code=401, detail="Invalid Google token")
+
 
