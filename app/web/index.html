@@ -52,15 +52,40 @@
     .avatar-menu-item.logout-item:hover { background: #fef2f2; }
     .dark-theme .avatar-menu-item.logout-item:hover { background: rgba(220, 38, 38, 0.1); }
 
-    /* Auth Fullscreen Modal Overlay */
-    .auth-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
+    /* Auth Fullscreen Modal Overlay (Split-Screen Premium) */
+    .auth-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; z-index: 2000; overflow: hidden; }
     .auth-overlay.hidden { display: none; }
-    .auth-card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; width: 100%; max-width: 440px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); overflow: hidden; animation: slideUp 0.25s ease-out; }
-    .auth-card-header { padding: 24px 28px 16px; text-align: center; border-bottom: 1px solid var(--line); background: var(--bg); }
-    .auth-card-header .brand-mark { margin: 0 auto 12px; width: 44px; height: 44px; font-size: 16px; }
-    .auth-card-header h2 { margin: 0; font-size: 20px; font-weight: 800; color: var(--ink); }
-    .auth-card-header p { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
-    .auth-card-body { padding: 24px 28px; }
+    .auth-split-container { display: flex; width: 100%; height: 100%; }
+    
+    .auth-left-panel { flex: 0 0 50%; background: linear-gradient(135deg, #020617, #064e3b); position: relative; padding: 60px; padding-bottom: 120px; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+    .auth-left-panel::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at top right, rgba(20,184,166,0.15) 0%, transparent 60%); }
+    .auth-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 40px; position: relative; z-index: 2; }
+    .brand-mark-large { width: 48px; height: 48px; background: #0f766e; color: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 20px; }
+    .brand-name { color: white; font-size: 24px; font-weight: 800; letter-spacing: 0.05em; }
+    
+    .auth-copy { color: white; position: relative; z-index: 2; max-width: 500px; margin-bottom: 20px; }
+    .auth-badge { display: inline-block; padding: 6px 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 20px; font-size: 13px; font-weight: 600; margin-bottom: 16px; backdrop-filter: blur(10px); }
+    .auth-copy h1 { font-size: 40px; line-height: 1.2; font-weight: 800; margin-bottom: 20px; color: #f8fafc; }
+    .auth-benefits { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+    .auth-benefits li { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #cbd5e1; font-weight: 500; }
+    .check-icon { font-size: 18px; }
+    
+    .auth-preview-image { position: absolute; right: -80px; bottom: -80px; width: 600px; height: 600px; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); overflow: hidden; z-index: 1; opacity: 0.8; }
+    .auth-preview-image img { width: 100%; height: 100%; object-fit: cover; }
+    
+    .auth-right-panel { flex: 1; display: flex; align-items: center; justify-content: center; background: var(--bg); padding: 40px; overflow-y: auto; min-height: 0; }
+    .auth-card { background: transparent; border: none; border-radius: 0; width: 100%; max-width: 440px; box-shadow: none; overflow: visible; animation: slideUp 0.3s ease-out; margin: auto 0; }
+    .auth-card-header { padding: 0 0 20px; text-align: left; border-bottom: none; background: transparent; }
+    .auth-card-header h2 { margin: 0; font-size: 28px; font-weight: 800; color: var(--ink); }
+    .auth-card-body { padding: 0; }
+    
+    @media (max-width: 900px) {
+      .auth-left-panel { display: none; }
+      .auth-card-header.mobile-only { display: block !important; margin-bottom: 24px; text-align: center; }
+      .auth-card-header.mobile-only .brand-mark { margin: 0 auto; width: 48px; height: 48px; background: #0f766e; color: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 20px; }
+      .auth-card-header h2 { text-align: center; font-size: 24px; }
+      .auth-card-header p { text-align: center; }
+    }
     
     .segmented-control { display: flex; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 3px; margin-bottom: 18px; }
     .segmented-control label { flex: 1; text-align: center; padding: 8px 10px; font-size: 13px; font-weight: 600; cursor: pointer; border-radius: 6px; transition: all 0.15s ease; color: var(--muted); margin: 0; }
@@ -73,11 +98,14 @@
     .form-group input, .form-group select { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--input-bg); color: var(--ink); outline: none; }
     .form-group input:focus, .form-group select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15); }
     
-    .auth-footer-links { margin-top: 18px; text-align: center; font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 8px; }
+    .auth-footer-links { margin-top: 24px; text-align: center; font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 0; padding-top: 20px; border-top: 1px solid var(--line); }
+    .auth-footer-links > div { padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .auth-footer-links > div:last-child { border-bottom: none; }
     .auth-footer-links a { color: var(--accent); text-decoration: none; font-weight: 600; cursor: pointer; }
     .auth-footer-links a:hover { text-decoration: underline; }
 
     .alert-box { padding: 12px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .alert-box.hidden { display: none !important; }
     .alert-box.error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
     .alert-box.success { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
     .dark-theme .alert-box.error { background: #450a0a; color: #fca5a5; border-color: #7f1d1d; }
@@ -448,13 +476,40 @@
 
   <!-- Authentication Modal Overlay (6-View State Machine) -->
   <div id="authModal" class="auth-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="authTitle">
-    <div class="auth-card">
-      <div class="auth-card-header">
-        <div class="brand-mark">P6</div>
-        <h2 id="authTitle">Sign in to Philixa</h2>
+    <div class="auth-split-container">
+      
+      <!-- Left Panel (Marketing & Value Prop) -->
+      <div class="auth-left-panel">
+        <div class="auth-brand">
+          <div class="brand-mark-large">P6</div>
+          <span class="brand-name">PHILIXA 6.0</span>
+        </div>
+        <div class="auth-copy">
+          <div class="auth-badge">Now AI-ready ✨</div>
+          <h1>The AI-Powered Copilot for Banking RMs.</h1>
+          <ul class="auth-benefits">
+            <li><span class="check-icon">✅</span> Automated Meeting Notes & CRM Sync</li>
+            <li><span class="check-icon">✅</span> Intelligent Commitment Tracking</li>
+            <li><span class="check-icon">✅</span> Early Risk Signal Detection</li>
+          </ul>
+        </div>
+        <div class="auth-preview-image">
+          <img src="/static/premium_dashboard.jpg" alt="Philixa UI Preview" />
+        </div>
       </div>
 
-      <div class="auth-card-body">
+      <!-- Right Panel (Auth Form) -->
+      <div class="auth-right-panel">
+        <div class="auth-card">
+          <div class="auth-card-header mobile-only" style="display:none;">
+            <div class="brand-mark">P6</div>
+          </div>
+          <div class="auth-card-header">
+            <h2 id="authTitle">Sign in to Philixa</h2>
+            <p class="auth-subtitle" style="color: var(--muted); font-size: 14px; margin-top: 4px; margin-bottom: 24px;">Welcome back! Please enter your details.</p>
+          </div>
+
+          <div class="auth-card-body">
         <!-- View 1: Login Form -->
         <div id="viewLogin" class="auth-view">
           <div id="loginError" class="alert-box error hidden"></div>
@@ -473,12 +528,12 @@
                data-text="signin_with"
                data-size="large"
                data-logo_alignment="left"
-               style="display: flex; justify-content: center; margin-bottom: 16px;">
+               style="display: flex; justify-content: center; margin-bottom: 28px; padding-bottom: 8px;">
           </div>
           
-          <div style="display: flex; align-items: center; text-align: center; margin-bottom: 16px; color: var(--muted); font-size: 12px; font-weight: 600; text-transform: uppercase;">
+          <div style="display: flex; align-items: center; text-align: center; margin-top: 0; margin-bottom: 20px; color: var(--muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
             <hr style="flex: 1; border: none; border-top: 1px solid var(--line);">
-            <span style="padding: 0 10px;">or sign in with email</span>
+            <span style="padding: 0 14px; white-space: nowrap;">or sign in with email</span>
             <hr style="flex: 1; border: none; border-top: 1px solid var(--line);">
           </div>
 
@@ -495,7 +550,7 @@
               <input id="loginPassword" type="password" required autocomplete="current-password" placeholder="••••••••" />
             </div>
             <button id="loginSubmitBtn" type="submit" class="primary-action" style="width: 100%; margin-top: 8px;">Sign In</button>
-            <button id="demoLoginBtn" type="button" class="secondary-action" style="width: 100%; margin-top: 12px; background: #f8fafc; border-color: #cbd5e1; color: #334155; font-weight: 600;">Try Demo (For Recruiters/Guests)</button>
+            <button id="demoLoginBtn" type="button" class="secondary-action" style="width: 100%; margin-top: 12px; background: #f0fdf4; border: 1.5px solid #16a34a; color: #15803d; font-weight: 700; letter-spacing: 0.01em; transition: all 0.2s ease;" onmouseover="this.style.background='#dcfce7'; this.style.borderColor='#15803d';" onmouseout="this.style.background='#f0fdf4'; this.style.borderColor='#16a34a';">🎯 Try Demo</button>
           </form>
           <div class="auth-footer-links">
             <div>Don't have an account? <a id="linkToRegister">Create workspace</a></div>
@@ -624,6 +679,8 @@
           </div>
         </div>
 
+          </div>
+        </div>
       </div>
     </div>
   </div>
