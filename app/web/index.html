@@ -53,7 +53,6 @@
     .dark-theme .avatar-menu-item.logout-item:hover { background: rgba(220, 38, 38, 0.1); }
 
     /* Auth Fullscreen Modal Overlay (Unified Full-Screen Premium) */
-    body:has(.auth-overlay:not([style*="display: none"])) { overflow: hidden; }
     body:has(.auth-overlay:not(.hidden)) { overflow: hidden; }
     .auth-overlay { position: fixed; inset: 0; background: linear-gradient(135deg, #020617, #064e3b); display: flex; z-index: 2000; overflow: hidden; }
     .auth-overlay::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at top right, rgba(20,184,166,0.15) 0%, transparent 60%); pointer-events: none; }
