@@ -692,9 +692,13 @@ async function handleForgotPassword(e) {
       body: JSON.stringify({ email }),
     });
 
+    showAuthOverlay("reset-password");
+    if (document.querySelector("#resetEmail")) {
+      document.querySelector("#resetEmail").value = email;
+    }
     showAuthSuccess(
-      els.forgotPasswordMessage,
-      "If that email exists in our system, a password reset link has been dispatched."
+      document.querySelector("#resetPasswordMessage"),
+      "If that email exists, a token was sent. Please enter it below."
     );
   } catch (err) {
     showAuthError(els.forgotPasswordMessage, err.message);
