@@ -53,6 +53,8 @@
     .dark-theme .avatar-menu-item.logout-item:hover { background: rgba(220, 38, 38, 0.1); }
 
     /* Auth Fullscreen Modal Overlay (Unified Full-Screen Premium) */
+    body:has(.auth-overlay:not([style*="display: none"])) { overflow: hidden; }
+    body:has(.auth-overlay:not(.hidden)) { overflow: hidden; }
     .auth-overlay { position: fixed; inset: 0; background: linear-gradient(135deg, #020617, #064e3b); display: flex; z-index: 2000; overflow: hidden; }
     .auth-overlay::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at top right, rgba(20,184,166,0.15) 0%, transparent 60%); pointer-events: none; }
     .auth-overlay.hidden { display: none; }
@@ -76,7 +78,8 @@
     .auth-preview-image { position: absolute; right: -120px; top: 50%; transform: translateY(-50%); width: 800px; height: 650px; opacity: 0.25; z-index: 1; pointer-events: none; }
     .auth-preview-image img { width: 100%; height: 100%; object-fit: contain; mix-blend-mode: screen; -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 70%); mask-image: radial-gradient(circle at center, black 40%, transparent 70%); }
     
-    .auth-right-panel { flex: 1; display: flex; align-items: center; justify-content: center; background: transparent; padding: 40px; overflow-y: auto; min-height: 0; }
+    .auth-right-panel { flex: 1; display: flex; align-items: center; justify-content: center; background: transparent; padding: 40px; overflow-y: auto; min-height: 0; -ms-overflow-style: none; scrollbar-width: none; }
+    .auth-right-panel::-webkit-scrollbar { display: none; }
     .auth-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; width: 100%; max-width: 460px; box-shadow: 0 25px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1); overflow: visible; animation: slideUp 0.3s ease-out; margin: auto 0; padding: 40px; }
     .auth-card-header { padding: 0 0 20px; text-align: left; border-bottom: none; background: transparent; }
     .auth-card-header h2 { margin: 0; font-size: 28px; font-weight: 800; color: #ffffff; letter-spacing: -0.02em; }
