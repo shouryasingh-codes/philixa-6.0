@@ -22,7 +22,7 @@ async def startup(ctx: Dict[str, Any]) -> None:
     settings = get_settings()
     # Preload Whisper based on the feature flag.
     # If AUDIO UPLOADS are disabled, we don't need Whisper in the worker, saving ~2GB RAM.
-    if settings.enable_audio_upload:
+    if settings.enable_audio_upload and settings.transcription_mode == "local":
         logger.info("Preloading Whisper + PyAnnote model into worker RAM...")
         from app.services.transcription_service import transcription_service  # noqa: F401
         logger.info("Whisper model ready. Audio file uploads will be served instantly.")
