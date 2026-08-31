@@ -1,7 +1,12 @@
 import logging
 import os
 import torch
-import torchaudio
+import soundfile as sf
+
+try:
+    import torchaudio
+except ImportError:
+    torchaudio = None
 
 # torchaudio will automatically fall back to soundfile if torchcodec is uninstalled
 
@@ -154,7 +159,13 @@ class TranscriptionService:
             diarization = None
             if diarize and self.diarization_pipeline:
                 logger.info('Running PyAnnote Diarization on normalized audio...')
-                diarization = self.diarization_pipeline(normalized_audio_path)
+                # Bypass torchaudio/torchcodec by using soundfile directly
+                waveform_np, sample_rate = sf.read(normalized_audio_path)
+                if waveform_np.ndim == 1:
+                    waveform_np = waveform_np[:, None]
+                waveform = torch.from_numpy(waveform_np).T.float()
+                
+                diarization = self.diarization_pipeline({"waveform": waveform, "sample_rate": sample_rate})
             elif not diarize:
                 logger.info('Diarization skipped (Solo mode — single speaker).')
             
