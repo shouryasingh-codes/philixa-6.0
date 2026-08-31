@@ -20,8 +20,8 @@ jobs:
             cd ~/philixa
             git pull origin main
             
-            # Restart app to pick up new code (gentle, keeps DB connections)
-            sudo docker-compose restart app
+            # Rebuild images if needed and restart all containers (including worker)
+            sudo docker-compose up -d --build
             
             # Ensure the iptables port routing is active
             sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8000 || true
