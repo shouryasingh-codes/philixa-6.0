@@ -1,9 +1,10 @@
 import logging
 import os
-try:
-    import torch
-except ImportError:
-    torch = None
+import torch
+import torchaudio
+
+# Force torchaudio to use soundfile instead of failing on torchcodec
+torchaudio.set_audio_backend("soundfile")
 
 try:
     from faster_whisper import WhisperModel

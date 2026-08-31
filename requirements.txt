@@ -26,3 +26,5 @@ langgraph>=0.0.60
 litellm>=1.40.0
 google-auth
 
+
+soundfile==0.12.1
