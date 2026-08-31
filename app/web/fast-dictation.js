@@ -10,6 +10,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const dictationStatusText = document.getElementById("dictationStatusText");
   const dictationResult = document.getElementById("dictationResult");
   
+  if (!tabFastDictationBtn && !startDictationBtn) {
+    return; // Fast dictation controls not present on current layout
+  }
+  
   // Elements from existing app to switch tabs and dump text
   const viewText = document.getElementById("viewText");
   const viewAudio = document.getElementById("viewAudio");
@@ -82,7 +86,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       
       dictationResult.innerHTML = `
-        <span style="font-weight:600; color:var(--text);">${finalTranscript}</span>
+        <span style="font-weight:600; color:var(--ink);">${finalTranscript}</span>
         <span style="color:var(--muted); font-style:italic;">${interimTranscript}</span>
       `;
     };
@@ -90,30 +94,36 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- UI Interactions ---
 
-  tabFastDictationBtn.addEventListener("click", () => {
-    tabFastDictationBtn.classList.add("active");
-    viewFastDictation.classList.remove("hidden");
-    viewFastDictation.style.display = "block";
-    
-    [tabTextBtn, tabAudioBtn, tabLiveBtn].forEach(btn => {
-      if(btn) btn.classList.remove("active");
-    });
-    
-    [viewText, viewAudio, viewLive].forEach(view => {
-      if(view) {
-        view.classList.add("hidden");
-        view.classList.remove("active");
-        view.style.display = "none";
+  if (tabFastDictationBtn) {
+    tabFastDictationBtn.addEventListener("click", () => {
+      tabFastDictationBtn.classList.add("active");
+      if (viewFastDictation) {
+        viewFastDictation.classList.remove("hidden");
+        viewFastDictation.style.display = "block";
       }
+      
+      [tabTextBtn, tabAudioBtn, tabLiveBtn].forEach(btn => {
+        if(btn) btn.classList.remove("active");
+      });
+      
+      [viewText, viewAudio, viewLive].forEach(view => {
+        if(view) {
+          view.classList.add("hidden");
+          view.classList.remove("active");
+          view.style.display = "none";
+        }
+      });
     });
-  });
+  }
 
   [tabTextBtn, tabAudioBtn, tabLiveBtn].forEach(btn => {
     if(!btn) return;
     btn.addEventListener("click", () => {
-      tabFastDictationBtn.classList.remove("active");
-      viewFastDictation.classList.add("hidden");
-      viewFastDictation.style.display = "none";
+      if (tabFastDictationBtn) tabFastDictationBtn.classList.remove("active");
+      if (viewFastDictation) {
+        viewFastDictation.classList.add("hidden");
+        viewFastDictation.style.display = "none";
+      }
       if (recognition && isRecording) {
           isRecording = false;
           recognition.stop();
@@ -121,29 +131,33 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  startDictationBtn.addEventListener("click", () => {
-    if (recognition) {
-      try {
-        finalTranscript = "";
-        dictationResult.innerHTML = "";
-        isRecording = true;
-        recognition.start();
-      } catch (e) {
-        console.error(e);
+  if (startDictationBtn) {
+    startDictationBtn.addEventListener("click", () => {
+      if (recognition) {
+        try {
+          finalTranscript = "";
+          if (dictationResult) dictationResult.innerHTML = "";
+          isRecording = true;
+          recognition.start();
+        } catch (e) {
+          console.error(e);
+        }
       }
-    }
-  });
+    });
+  }
 
-  stopDictationBtn.addEventListener("click", () => {
-    if (recognition) {
-      isRecording = false;
-      recognition.stop();
-      
-      if (finalTranscript.trim()) {
-        const textToPaste = finalTranscript.trim();
-        rawNotes.value = textToPaste;
-        tabTextBtn.click();
+  if (stopDictationBtn) {
+    stopDictationBtn.addEventListener("click", () => {
+      if (recognition) {
+        isRecording = false;
+        recognition.stop();
+        
+        if (finalTranscript.trim()) {
+          const textToPaste = finalTranscript.trim();
+          if (rawNotes) rawNotes.value = textToPaste;
+          if (tabTextBtn) tabTextBtn.click();
+        }
       }
-    }
-  });
+    });
+  }
 });

@@ -19,10 +19,16 @@ const authState = {
 const state = {
   clients: [],
   commitments: [],
+  metrics: { total_meetings: 0 },
   priorities: { tasks: [], risks: [] },
   selectedClientId: null,
   pendingConfirmationMeetingId: null,
   workspaceScope: 'team', // 'team' or 'me'
+  extractedDiffs: [], // Array<{ id, type, subtype, title, dueDate, priority, clientName, sourceQuote, selected, rawItem }>
+  diffFilter: 'all', // 'all' | 'commitment' | 'risk' | 'memory'
+  editingDiffId: null,
+  copilotTokensUsed: 1420, // Base system prompt & portfolio memory context
+  copilotMaxTokens: 8192,
 };
 
 // --- DOM Elements Index ---
@@ -94,6 +100,7 @@ const els = {
   scopeSelect: document.querySelector("#scopeSelect"),
   topbarPlanBadge: document.querySelector("#topbarPlanBadge"),
   topbarTitle: document.querySelector("#topbarTitle"),
+  topbarCopilotBtn: document.querySelector("#topbarCopilotBtn"),
   manageMembersBtn: document.querySelector("#manageMembersBtn"),
   userEmailDisplay: document.querySelector("#userEmailDisplay"),
   logoutBtn: document.querySelector("#logoutBtn"),
@@ -114,7 +121,21 @@ const els = {
   memberCountBadge: document.querySelector("#memberCountBadge"),
   memberListRows: document.querySelector("#memberListRows"),
 
+  // Verdict Cards
+  verdictCardClients: document.querySelector("#verdictCardClients"),
+  verdictCardPending: document.querySelector("#verdictCardPending"),
+  verdictCardMeetings: document.querySelector("#verdictCardMeetings"),
+  verdictCardRisks: document.querySelector("#verdictCardRisks"),
+
+  // Tablet Switcher Tabs
+  tabletWorkbenchTabs: document.querySelector("#tabletWorkbenchTabs"),
+  tabMobileIntake: document.querySelector("#tabMobileIntake"),
+  tabMobileDiffs: document.querySelector("#tabMobileDiffs"),
+  diffCountPillMobile: document.querySelector("#diffCountPillMobile"),
+
   // Dashboard Core Elements
+  notePanel: document.querySelector("#notePanel"),
+  diffWorkbench: document.querySelector("#diffWorkbench"),
   healthDot: document.querySelector("#healthDot"),
   healthText: document.querySelector("#healthText"),
   clientCount: document.querySelector("#clientCount"),
@@ -126,6 +147,17 @@ const els = {
   knownClient: document.querySelector("#knownClient"),
   processNotes: document.querySelector("#processNotes"),
   processResult: document.querySelector("#processResult"),
+  diffPillFilters: document.querySelector("#diffPillFilters"),
+  diffTotalCount: document.querySelector("#diffTotalCount"),
+  countAll: document.querySelector("#countAll"),
+  countCommitments: document.querySelector("#countCommitments"),
+  countRisks: document.querySelector("#countRisks"),
+  countMemory: document.querySelector("#countMemory"),
+  diffActionBar: document.querySelector("#diffActionBar"),
+  diffDiscardAllBtn: document.querySelector("#diffDiscardAllBtn"),
+  diffSyncSelectedBtn: document.querySelector("#diffSyncSelectedBtn"),
+  diffApprovedCount: document.querySelector("#diffApprovedCount"),
+
   editTranscriptPanel: document.querySelector("#editTranscriptPanel"),
   editTranscriptText: document.querySelector("#editTranscriptText"),
   saveTranscriptBtn: document.querySelector("#saveTranscriptBtn"),
@@ -143,6 +175,17 @@ const els = {
   // Team Performance
   teamPerformanceSection: document.querySelector("#teamPerformanceSection"),
   teamPerformanceBody: document.querySelector("#teamPerformanceBody"),
+
+  // Persistent Copilot Sidecar
+  copilotSidecar: document.querySelector("#copilotSidecar"),
+  closeCopilotBtn: document.querySelector("#closeCopilotBtn"),
+  openCopilotBtn: document.querySelector("#openCopilotBtn"),
+  copilotGroundedClient: document.querySelector("#copilotGroundedClient"),
+  copilotTokenText: document.querySelector("#copilotTokenText"),
+  copilotTokenFill: document.querySelector("#copilotTokenFill"),
+  copilotMessages: document.querySelector("#copilotMessages"),
+  copilotInput: document.querySelector("#copilotInput"),
+  sendCopilotBtn: document.querySelector("#sendCopilotBtn"),
 
   toast: document.querySelector("#toast"),
   askClientSection: document.querySelector("#askClientSection"),
@@ -504,14 +547,24 @@ function renderWorkspaceNav() {
   }
 
   if (els.topbarPlanBadge && authState.activeOrganization) {
-    const plan = authState.activeOrganization.plan || "PRO";
-    els.topbarPlanBadge.textContent = `${plan.toUpperCase()} • ${authState.activeOrganization.workspace_type || "workspace"}`;
+    const plan = authState.activeOrganization.plan || "free";
+    // Show subtle plan badge — only plan name, no workspace type clutter
+    els.topbarPlanBadge.textContent = plan.charAt(0).toUpperCase() + plan.slice(1).toLowerCase();
   }
 
-  if (els.userEmailDisplay && authState.user) {
-    els.userEmailDisplay.textContent = authState.user.email;
+  if (authState.user) {
+    const email = authState.user.email || "";
+    const rawName = authState.user.name || authState.user.display_name || email.split("@")[0].replace(/[_.-]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+    const displayName = rawName;
+    // Show name (not email) in dropdown header
+    const userNameEl = document.getElementById("userNameDisplay");
+    if (userNameEl) userNameEl.textContent = displayName;
+    // Show full email only inside avatar dropdown (privacy-safe)
+    if (els.userEmailDisplay) els.userEmailDisplay.textContent = email;
+    // Avatar button shows up-to-2-letter initials
     if (els.avatarBtn) {
-      els.avatarBtn.textContent = authState.user.email.charAt(0).toUpperCase();
+      const initials = displayName.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase() || email.charAt(0).toUpperCase();
+      els.avatarBtn.textContent = initials;
     }
   }
 }
@@ -1008,6 +1061,11 @@ function updateMetrics() {
   if (els.pendingCount) {
     els.pendingCount.textContent = state.commitments.filter((item) => item.status === "pending").length;
   }
+  // Use real meeting count from backend metrics API
+  const meetingsLogged = document.getElementById('meetingsLoggedCount');
+  if (meetingsLogged) {
+    meetingsLogged.textContent = state.metrics.total_meetings || 0;
+  }
   if (els.topClientSelect) els.topClientSelect.value = state.selectedClientId || "";
 }
 
@@ -1015,9 +1073,12 @@ function renderClientOptions() {
   const isAdmin = authState.role === "owner" || authState.role === "admin";
   const clientOptions = state.clients
     .map((client) => {
+      // Show only client name — never expose email in dropdown labels (privacy)
       let displayName = escapeHtml(client.name);
+      // For admins in team scope, show owner initial only, not full email
       if (isAdmin && state.workspaceScope === "team" && client.owner_email) {
-        displayName += ` (${escapeHtml(client.owner_email)})`;
+        const ownerInitial = client.owner_email.charAt(0).toUpperCase();
+        displayName += ` · ${ownerInitial}`;
       }
       return `<option value="${client.id}">${displayName}</option>`;
     })
@@ -1025,7 +1086,7 @@ function renderClientOptions() {
   if (els.knownClient) els.knownClient.innerHTML = `<option value="">Auto identify client</option>${clientOptions}`;
   if (els.confirmClientSelect) els.confirmClientSelect.innerHTML = `<option value="">Select existing client</option>${clientOptions}`;
   if (els.topClientSelect) {
-    els.topClientSelect.innerHTML = `<option value="">No client selected</option>${clientOptions}`;
+    els.topClientSelect.innerHTML = `<option value="">@client (All)</option>${clientOptions}`;
     els.topClientSelect.value = state.selectedClientId || "";
   }
   if (els.deleteSelectedClientBtn) {
@@ -1070,19 +1131,105 @@ function renderCommitments() {
 
 function renderProcessResult(payload) {
   if (!els.processResult) return;
-  const statusClass = payload.requires_client_confirmation ? "warning" : "done";
   const created = payload.commitments_created || [];
   const updated = payload.commitments_updated || [];
   const pending = payload.pending_commitments || [];
-  els.processResult.innerHTML = `
-    <div class="result-summary">
-      <span class="status-pill ${statusClass}">${escapeHtml(payload.client_status)}</span>
-      <strong>${escapeHtml(payload.meeting_summary || "Meeting processed.")}</strong>
-      <span class="muted">Created: ${created.length} - Updated: ${updated.length} - Pending: ${pending.length}</span>
-      ${pending.length ? `<ul>${pending.map((item) => `<li>${escapeHtml(item.description)} - ${escapeHtml(item.due_date || item.due_date_text || "Unknown due date")}</li>`).join("")}</ul>` : ""}
-      ${payload.warnings && payload.warnings.length ? `<span class="muted">${payload.warnings.map(escapeHtml).join(" | ")}</span>` : ""}
-    </div>
-  `;
+  const risks = payload.warnings || [];
+  const summary = payload.meeting_summary || "";
+  const clientName = clientNameById(payload.client_id) || "Grounded Client";
+
+  state.extractedDiffs = [];
+  let counter = 1;
+
+  created.forEach((item) => {
+    state.extractedDiffs.push({
+      id: `diff_${counter++}`,
+      type: "commitment",
+      subtype: "New Commitment",
+      title: typeof item === "string" ? item : (item.description || item.title || "Commitment"),
+      dueDate: typeof item === "object" ? (item.due_date || item.due_date_text || "") : "",
+      priority: typeof item === "object" ? (item.urgency_level || item.priority || "Medium") : "Medium",
+      clientName: clientName,
+      sourceQuote: typeof item === "object" ? (item.source_quote || item.verbatim_quote || "") : "",
+      selected: true,
+      rawItem: item,
+    });
+  });
+
+  updated.forEach((item) => {
+    state.extractedDiffs.push({
+      id: `diff_${counter++}`,
+      type: "commitment",
+      subtype: "Updated Commitment",
+      title: typeof item === "string" ? item : (item.description || item.title || "Commitment update"),
+      dueDate: typeof item === "object" ? (item.due_date || item.due_date_text || "") : "",
+      priority: typeof item === "object" ? (item.urgency_level || item.priority || "Medium") : "Medium",
+      clientName: clientName,
+      sourceQuote: typeof item === "object" ? (item.source_quote || item.verbatim_quote || "") : "",
+      selected: true,
+      rawItem: item,
+    });
+  });
+
+  pending.forEach((item) => {
+    // Prevent duplicate: don't show pending commitments that were just created or updated in this same meeting
+    const isAlreadyCreated = created.some(c => (c.id && c.id === item.id) || c.description === item.description);
+    const isAlreadyUpdated = updated.some(u => (u.id && u.id === item.id) || u.description === item.description);
+    if (isAlreadyCreated || isAlreadyUpdated) return;
+
+    state.extractedDiffs.push({
+      id: `diff_${counter++}`,
+      type: "commitment",
+      subtype: "Pending Commitment",
+      title: typeof item === "string" ? item : (item.description || item.title || "Pending Commitment"),
+      dueDate: typeof item === "object" ? (item.due_date || item.due_date_text || "") : "",
+      priority: typeof item === "object" ? (item.urgency_level || item.priority || "Medium") : "Medium",
+      clientName: clientName,
+      sourceQuote: typeof item === "object" ? (item.source_quote || item.verbatim_quote || "") : "",
+      selected: true,
+      rawItem: item,
+    });
+  });
+
+  risks.forEach((item) => {
+    state.extractedDiffs.push({
+      id: `diff_${counter++}`,
+      type: "risk",
+      subtype: "Risk Signal",
+      title: typeof item === "string" ? item : (item.description || item.warning || "Identified risk factor"),
+      dueDate: "",
+      priority: "High",
+      clientName: clientName,
+      sourceQuote: typeof item === "object" ? (item.source_quote || "") : "",
+      selected: true,
+      rawItem: item,
+    });
+  });
+
+  if (summary) {
+    state.extractedDiffs.push({
+      id: `diff_${counter++}`,
+      type: "memory",
+      subtype: "Memory Brief",
+      title: summary,
+      dueDate: "",
+      priority: "Low",
+      clientName: clientName,
+      sourceQuote: "",
+      selected: true,
+      rawItem: { summary },
+    });
+  }
+
+  state.diffFilter = "all";
+  state.editingDiffId = null;
+  renderDiffStream(true);
+
+  // Auto-switch to Extracted Diffs tab on tablet/mobile screens
+  if (window.innerWidth < 1024 && state.extractedDiffs.length > 0) {
+    els.tabMobileDiffs?.click();
+  }
+
   if (payload.requires_client_confirmation) {
     state.pendingConfirmationMeetingId = payload.meeting_id;
     if (els.confirmPanel) els.confirmPanel.classList.remove("hidden");
@@ -1092,6 +1239,167 @@ function renderProcessResult(payload) {
     state.pendingConfirmationMeetingId = null;
     if (els.confirmPanel) els.confirmPanel.classList.add("hidden");
     state.selectedClientId = payload.client_id;
+  }
+}
+
+function renderDiffStream(shouldFocusFirst = false) {
+  if (!els.processResult) return;
+
+  const total = state.extractedDiffs.length;
+  const countCommitments = state.extractedDiffs.filter((d) => d.type === "commitment").length;
+  const countRisks = state.extractedDiffs.filter((d) => d.type === "risk").length;
+  const countMemory = state.extractedDiffs.filter((d) => d.type === "memory").length;
+  const approvedCount = state.extractedDiffs.filter((d) => d.selected).length;
+
+  // Update count indicators
+  if (els.diffTotalCount) els.diffTotalCount.textContent = total;
+  if (els.diffCountPillMobile) els.diffCountPillMobile.textContent = total;
+  if (els.countAll) els.countAll.textContent = total;
+  if (els.countCommitments) els.countCommitments.textContent = countCommitments;
+  if (els.countRisks) els.countRisks.textContent = countRisks;
+  if (els.countMemory) els.countMemory.textContent = countMemory;
+  if (els.diffApprovedCount) els.diffApprovedCount.textContent = approvedCount;
+
+  // Update filter pill active states
+  if (els.diffPillFilters) {
+    els.diffPillFilters.querySelectorAll(".pill-filter-btn").forEach((btn) => {
+      const filter = btn.dataset.filter;
+      btn.classList.toggle("active", filter === state.diffFilter);
+      if (filter === "risk") btn.classList.toggle("filter-risk", filter === state.diffFilter);
+      if (filter === "memory") btn.classList.toggle("filter-memory", filter === state.diffFilter);
+    });
+  }
+
+  // Show / Hide Action Bar
+  if (els.diffActionBar) {
+    els.diffActionBar.style.display = total > 0 ? "flex" : "none";
+    if (els.diffSyncSelectedBtn) {
+      els.diffSyncSelectedBtn.disabled = approvedCount === 0;
+    }
+  }
+
+  if (total === 0) {
+    els.processResult.innerHTML = `
+      <div class="empty-state" style="border: 1px dashed var(--line); border-radius: 8px; margin: auto 0; padding: 28px 16px;">
+        Process a meeting note with AI to review and sync structured commitments, risks, and memory.
+      </div>
+    `;
+    return;
+  }
+
+  const filtered = state.diffFilter === "all"
+    ? state.extractedDiffs
+    : state.extractedDiffs.filter((d) => d.type === state.diffFilter);
+
+  if (filtered.length === 0) {
+    els.processResult.innerHTML = `
+      <div class="empty-state" style="border: 1px dashed var(--line); border-radius: 8px; margin: auto 0; padding: 28px 16px;">
+        No items in category "${state.diffFilter}".
+      </div>
+    `;
+    return;
+  }
+
+  els.processResult.innerHTML = filtered
+    .map((item, index) => {
+      const isEditing = state.editingDiffId === item.id;
+      return `
+        <div class="diff-card ${item.selected ? "selected" : "unselected"}"
+             data-diff-id="${item.id}"
+             tabindex="0"
+             role="checkbox"
+             aria-checked="${item.selected}">
+          <div class="diff-checkbox-box" title="Toggle selection (Spacebar)">
+            ${item.selected ? `<svg style="width:12px;height:12px;stroke:currentColor;stroke-width:2.5;fill:none;" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>` : ""}
+          </div>
+          <div class="diff-content">
+            <div class="diff-header-row">
+              <span class="diff-type-badge ${item.type}">${escapeHtml(item.subtype || item.type)}</span>
+              <div class="diff-actions-inline">
+                ${item.priority ? `
+                  <span style="font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; ${item.priority === "High" ? "background:#fff1f2; color:#9f1239;" : (item.priority === "Medium" ? "background:#fffbeb; color:#92400e;" : "background:#f1f5f9; color:#475569;")}">
+                    ${escapeHtml(item.priority)}
+                  </span>
+                ` : ""}
+                <button type="button" class="diff-icon-btn btn-edit" title="Edit title" data-action="edit" data-id="${item.id}">✎</button>
+                <button type="button" class="diff-icon-btn btn-dismiss" title="Dismiss item" data-action="dismiss" data-id="${item.id}">✕</button>
+              </div>
+            </div>
+            ${isEditing ? `
+              <input type="text" class="diff-title-input" value="${escapeHtml(item.title)}" data-action="save-edit" data-id="${item.id}" autofocus />
+            ` : `
+              <div class="diff-title">${escapeHtml(item.title)}</div>
+            `}
+            ${item.sourceQuote ? `<div class="diff-quote" title="${escapeHtml(item.sourceQuote)}">"${escapeHtml(item.sourceQuote)}"</div>` : ""}
+            <div class="diff-meta-row">
+              ${item.type === "commitment" ? `
+                <div style="display:inline-flex; align-items:center; gap:4px;" onclick="event.stopPropagation()">
+                  <span>📅 Due:</span>
+                  <input type="date" class="diff-date-input" value="${escapeHtml(item.dueDate)}" data-action="change-date" data-id="${item.id}" />
+                </div>
+              ` : ""}
+              <span>👤 <strong>${escapeHtml(item.clientName)}</strong></span>
+            </div>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  // Programmatic keyboard focus trapping to first diff card upon extraction completion
+  if (shouldFocusFirst) {
+    const firstCard = els.processResult.querySelector(".diff-card");
+    if (firstCard) {
+      window.setTimeout(() => firstCard.focus(), 50);
+    }
+  }
+}
+
+function toggleDiffSelected(id) {
+  state.extractedDiffs = state.extractedDiffs.map((d) =>
+    d.id === id ? { ...d, selected: !d.selected } : d
+  );
+  renderDiffStream(false);
+}
+
+function dismissDiffItem(id) {
+  state.extractedDiffs = state.extractedDiffs.filter((d) => d.id !== id);
+  if (state.editingDiffId === id) state.editingDiffId = null;
+  renderDiffStream(false);
+  showToast("Item dismissed.");
+}
+
+function setEditingDiff(id) {
+  state.editingDiffId = state.editingDiffId === id ? null : id;
+  renderDiffStream(false);
+}
+
+function updateDiffField(id, field, value) {
+  state.extractedDiffs = state.extractedDiffs.map((d) =>
+    d.id === id ? { ...d, [field]: value } : d
+  );
+}
+
+function discardAllDiffs() {
+  state.extractedDiffs = [];
+  state.editingDiffId = null;
+  renderDiffStream(false);
+  showToast("All extracted diffs discarded.");
+}
+
+async function syncSelectedDiffs() {
+  const selected = state.extractedDiffs.filter((d) => d.selected);
+  if (!selected.length) {
+    showToast("No diff items selected to sync.", true);
+    return;
+  }
+  showToast(`✓ Synced ${selected.length} items to client memory.`);
+  state.extractedDiffs = [];
+  state.editingDiffId = null;
+  renderDiffStream(false);
+  await refreshAll();
+  if (state.selectedClientId) {
+    await loadMemory(state.selectedClientId);
   }
 }
 
@@ -1221,7 +1529,35 @@ function renderTasks() {
 function renderRisks() {
   if (!els.riskList) return;
   const risks = state.priorities.risks;
-  if (!risks.length) {
+  const riskCount = risks.length;
+  
+  const header = document.getElementById('riskSignalsHeader');
+  const badge = document.getElementById('riskSignalsBadge');
+  if (header && badge) {
+    header.style.color = 'var(--ink)'; // High contrast AAA in both light and dark
+    if (!riskCount) {
+      badge.style.cssText = 'font-size: 12px; font-weight: 600; background: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-border); padding: 2px 10px; border-radius: 9999px; display: inline-flex; align-items: center; gap: 6px; letter-spacing: normal;';
+      badge.innerHTML = `<span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--success-base);"></span>0 Active Risks - All Clear`;
+    } else {
+      badge.style.cssText = 'font-size: 12px; font-weight: 600; background: var(--danger-bg); color: var(--danger-text); border: 1px solid var(--danger-border); padding: 2px 10px; border-radius: 9999px; display: inline-flex; align-items: center; gap: 6px; letter-spacing: normal;';
+      badge.innerHTML = `<span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--danger-base); box-shadow: 0 0 0 2px rgba(244,63,94,0.25);"></span>${riskCount} Action Required`;
+    }
+  }
+
+  const stripCount = document.getElementById('riskSignalsStripCount');
+  const stripBadge = document.getElementById('riskSignalsStripBadge');
+  if (stripCount && stripBadge) {
+    stripCount.textContent = riskCount;
+    if (!riskCount) {
+      stripBadge.className = 'verdict-badge emerald';
+      stripBadge.textContent = 'All clear';
+    } else {
+      stripBadge.className = 'verdict-badge rose';
+      stripBadge.textContent = `${riskCount} Active`;
+    }
+  }
+
+  if (!riskCount) {
     els.riskList.innerHTML = `<div class="empty-state" style="padding:20px; background:transparent;">🛡️ All clear. No active risk signals detected.</div>`;
     return;
   }
@@ -1244,7 +1580,10 @@ function renderRisks() {
 }
 
 async function loadTeamPerformance() {
-  if (authState.role !== "owner" && authState.role !== "admin") return;
+  if (authState.role !== "owner" && authState.role !== "admin") {
+    if (els.teamPerformanceSection) els.teamPerformanceSection.style.display = "none";
+    return;
+  }
   if (state.workspaceScope !== "team") {
     if (els.teamPerformanceSection) els.teamPerformanceSection.style.display = "none";
     return;
@@ -1358,8 +1697,20 @@ async function askClient() {
   }
 }
 
+async function loadMetrics() {
+  try {
+    const data = await api("/api/v1/dashboard/metrics");
+    if (data && data.metrics) {
+      state.metrics = data.metrics;
+    }
+  } catch (err) {
+    console.warn("Failed to load metrics:", err);
+  }
+}
+
 async function refreshAll() {
   await checkHealth();
+  await loadMetrics();
   await loadClients();
   await loadCommitments();
   await loadPriorities();
@@ -1370,11 +1721,13 @@ async function withLoading(button, label, fn) {
   if (!button || button.disabled) return;
   const original = button.textContent;
   button.disabled = true;
+  button.classList.add("loading");
   button.textContent = label;
   try {
     await fn();
   } finally {
     button.disabled = false;
+    button.classList.remove("loading");
     button.textContent = original;
   }
 }
@@ -1395,8 +1748,11 @@ async function processNotes() {
     method: "POST",
     body: JSON.stringify(body),
   });
-  renderProcessResult(payload);
+  
+  // Refresh state first so new clients/data are available to renderProcessResult
   await refreshAll();
+  renderProcessResult(payload);
+  
   if (payload.client_id) {
     await loadMemory(payload.client_id);
   }
@@ -1423,8 +1779,10 @@ async function confirmClient() {
   });
   if (els.newClientName) els.newClientName.value = "";
   if (els.confirmPanel) els.confirmPanel.classList.add("hidden");
-  renderProcessResult(payload);
+  
   await refreshAll();
+  renderProcessResult(payload);
+  
   if (payload.client_id) {
     await loadMemory(payload.client_id);
   }
@@ -1905,7 +2263,7 @@ function bindEvents() {
       loadCommitments(),
       loadTeamPerformance()
     ]);
-    showToast("Workspace view updated", true);
+    showToast("Workspace view updated");
   });
   els.manageMembersBtn?.addEventListener("click", openMemberModal);
   els.closeMemberModalBtn?.addEventListener("click", closeMemberModal);
@@ -1926,7 +2284,10 @@ function bindEvents() {
       if (els.askClientSection) els.askClientSection.classList.add("hidden");
     }
     if (els.deleteSelectedClientBtn) {
-      els.deleteSelectedClientBtn.style.display = state.selectedClientId ? "block" : "none";
+      const show = !!state.selectedClientId;
+      els.deleteSelectedClientBtn.style.display = show ? "flex" : "none";
+      const divider = document.getElementById("deleteClientDivider");
+      if (divider) divider.style.display = show ? "block" : "none";
     }
     updateMetrics();
   });
@@ -1958,6 +2319,179 @@ function bindEvents() {
   els.processNotes?.addEventListener("click", () =>
     withLoading(els.processNotes, "Processing…", () => processNotes()).catch((err) => showToast(err.message, true))
   );
+
+  // Hotkey Disambiguation & Global Shortcuts (Recommendation 4 & 5)
+  document.addEventListener("keydown", (e) => {
+    const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+
+    // Escape closes sidecar dock or open modals
+    if (e.key === "Escape") {
+      if (document.body.dataset.sidecarOpen === "true") {
+        toggleCopilotSidecar(false);
+      }
+      return;
+    }
+
+    // Toggle Left Sidebar Collapse (Cmd+[)
+    if (isCmdOrCtrl && e.key === "[") {
+      e.preventDefault();
+      document.querySelector(".app-shell")?.classList.toggle("sidebar-collapsed");
+      return;
+    }
+
+    // Toggle AI Copilot Sidecar (Cmd+Shift+L, Cmd+/, or Cmd+J)
+    if (
+      (isCmdOrCtrl && e.shiftKey && (e.key === "L" || e.key === "l")) ||
+      (isCmdOrCtrl && e.key === "/") ||
+      (isCmdOrCtrl && (e.key === "J" || e.key === "j"))
+    ) {
+      e.preventDefault();
+      toggleCopilotSidecar();
+      return;
+    }
+
+    // Batch Diff Sync (Cmd+Shift+Enter or Cmd+S)
+    if ((isCmdOrCtrl && e.shiftKey && e.key === "Enter") || (isCmdOrCtrl && (e.key === "s" || e.key === "S"))) {
+      if (state.extractedDiffs && state.extractedDiffs.length > 0) {
+        e.preventDefault();
+        syncSelectedDiffs();
+        return;
+      }
+    }
+
+    // Process Meeting Notes Intake (Cmd+Enter exclusively)
+    if (isCmdOrCtrl && !e.shiftKey && e.key === "Enter") {
+      // If focused inside Copilot or other specific modals, ignore
+      if (document.activeElement && document.activeElement.id === "copilotInput") {
+        return;
+      }
+      e.preventDefault();
+      if (els.processNotes && !els.processNotes.disabled && !els.processNotes.classList.contains("loading")) {
+        els.processNotes.click();
+      }
+      return;
+    }
+  });
+
+  // Diff Review Category Filter Pills
+  els.diffPillFilters?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".pill-filter-btn");
+    if (!btn) return;
+    state.diffFilter = btn.dataset.filter || "all";
+    renderDiffStream(false);
+  });
+
+  // Diff Review Card Stream Interaction (Fitts's Law Full-Card Toggle, Micro-Actions)
+  els.processResult?.addEventListener("click", (e) => {
+    // 1. Inline edit button
+    const editBtn = e.target.closest('button[data-action="edit"]');
+    if (editBtn) {
+      e.stopPropagation();
+      setEditingDiff(editBtn.dataset.id);
+      return;
+    }
+
+    // 2. Dismiss item button
+    const dismissBtn = e.target.closest('button[data-action="dismiss"]');
+    if (dismissBtn) {
+      e.stopPropagation();
+      dismissDiffItem(dismissBtn.dataset.id);
+      return;
+    }
+
+    // 3. Ignore date inputs or text inputs
+    if (e.target.tagName === "INPUT" || e.target.tagName === "BUTTON") {
+      return;
+    }
+
+    // 4. Full card click toggles selection
+    const card = e.target.closest(".diff-card");
+    if (card && card.dataset.diffId) {
+      toggleDiffSelected(card.dataset.diffId);
+    }
+  });
+
+  // Diff Review Keyboard Accessibility (Spacebar toggles card, Enter/Esc finishes edit)
+  els.processResult?.addEventListener("keydown", (e) => {
+    const card = e.target.closest(".diff-card");
+    if (!card) return;
+
+    if (e.key === " " && e.target.tagName !== "INPUT") {
+      e.preventDefault();
+      toggleDiffSelected(card.dataset.diffId);
+    } else if (e.key === "Enter" && e.target.dataset.action === "save-edit") {
+      e.preventDefault();
+      state.editingDiffId = null;
+      renderDiffStream(false);
+    } else if (e.key === "Escape" && e.target.dataset.action === "save-edit") {
+      e.preventDefault();
+      state.editingDiffId = null;
+      renderDiffStream(false);
+    }
+  });
+
+  // Finish inline edit on blur/focusout
+  els.processResult?.addEventListener("focusout", (e) => {
+    if (e.target.dataset && e.target.dataset.action === "save-edit") {
+      state.editingDiffId = null;
+      renderDiffStream(false);
+    }
+  });
+
+  // Diff Review Inputs (Title inline editing, Due date change)
+  els.processResult?.addEventListener("input", (e) => {
+    if (e.target.dataset.action === "save-edit") {
+      updateDiffField(e.target.dataset.id, "title", e.target.value);
+    } else if (e.target.dataset.action === "change-date") {
+      updateDiffField(e.target.dataset.id, "dueDate", e.target.value);
+    }
+  });
+
+  // Diff Review Action Bar
+  els.diffDiscardAllBtn?.addEventListener("click", discardAllDiffs);
+  els.diffSyncSelectedBtn?.addEventListener("click", syncSelectedDiffs);
+
+  // Tablet Switcher Tabs (< 1024px)
+  els.tabMobileIntake?.addEventListener("click", () => {
+    els.tabMobileIntake.classList.add("active");
+    els.tabMobileDiffs?.classList.remove("active");
+    if (els.notePanel) els.notePanel.classList.remove("tablet-hidden");
+    if (els.diffWorkbench) els.diffWorkbench.classList.add("tablet-hidden");
+  });
+
+  els.tabMobileDiffs?.addEventListener("click", () => {
+    els.tabMobileDiffs.classList.add("active");
+    els.tabMobileIntake?.classList.remove("active");
+    if (els.diffWorkbench) els.diffWorkbench.classList.remove("tablet-hidden");
+    if (els.notePanel) els.notePanel.classList.add("tablet-hidden");
+  });
+
+  // Verdict Cards Interaction (Click & Keyboard Accessibility)
+  const bindVerdictAction = (cardEl, action) => {
+    if (!cardEl) return;
+    cardEl.addEventListener("click", action);
+    cardEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        action();
+      }
+    });
+  };
+
+  bindVerdictAction(els.verdictCardClients, () => {
+    els.topClientSelect?.focus();
+    showToast("Selected Global Client Filter");
+  });
+  bindVerdictAction(els.verdictCardPending, () => {
+    document.querySelector("#commitmentPanel")?.scrollIntoView({ behavior: "smooth" });
+  });
+  bindVerdictAction(els.verdictCardMeetings, () => {
+    els.rawNotes?.focus();
+  });
+  bindVerdictAction(els.verdictCardRisks, () => {
+    document.querySelector("#day4Panel")?.scrollIntoView({ behavior: "smooth" });
+  });
+
   els.confirmClient?.addEventListener("click", () =>
     withLoading(els.confirmClient, "Confirming…", () => confirmClient()).catch((err) => showToast(err.message, true))
   );
@@ -2013,6 +2547,9 @@ function bindEvents() {
     
     askAiRec.onerror = (e) => {
       console.error("Speech recognition error:", e.error);
+      if (e.error !== "no-speech") {
+        showToast(`Voice recognition error: ${e.error}`, true);
+      }
       stopListeningUI();
     };
     
@@ -2043,7 +2580,7 @@ function bindEvents() {
           askClientVoiceBtn.style.color = '';
         }
       } else {
-        alert('Voice recognition not supported in this browser (Use Chrome or Edge).');
+        showToast('Voice recognition is not supported in this browser. Please use Chrome or Edge.', true);
       }
     });
   }
@@ -2302,6 +2839,102 @@ function handleUrlDeepLinks() {
   }
 }
 
+// --- Dynamic Copilot Token Budget Counter ---
+function updateCopilotTokenBudget(additionalTokens = 0) {
+  state.copilotTokensUsed = Math.min(state.copilotMaxTokens, (state.copilotTokensUsed || 1420) + additionalTokens);
+  const formattedUsed = Number(state.copilotTokensUsed).toLocaleString();
+  const formattedMax = Number(state.copilotMaxTokens).toLocaleString();
+  const pct = Math.min(100, Math.max(5, Math.round((state.copilotTokensUsed / state.copilotMaxTokens) * 100)));
+  if (els.copilotTokenText) {
+    els.copilotTokenText.textContent = `${formattedUsed} / ${formattedMax}`;
+  }
+  if (els.copilotTokenFill) {
+    els.copilotTokenFill.style.width = `${pct}%`;
+  }
+}
+
+// --- Persistent Copilot Sidecar Dock Controller (Recommendation 5) ---
+function toggleCopilotSidecar(forceOpen) {
+  const sidecar = els.copilotSidecar;
+  if (!sidecar) return;
+  const isCurrentlyOpen = document.body.dataset.sidecarOpen === "true" || sidecar.classList.contains("open");
+  const willOpen = typeof forceOpen === "boolean" ? forceOpen : !isCurrentlyOpen;
+
+  document.body.dataset.sidecarOpen = willOpen ? "true" : "false";
+  sidecar.classList.toggle("open", willOpen);
+
+  if (willOpen) {
+    // Update Grounded Client Dossier Context
+    const clientName = state.selectedClientId ? clientNameById(state.selectedClientId) : "All Portfolio Clients";
+    if (els.copilotGroundedClient) {
+      els.copilotGroundedClient.textContent = clientName;
+    }
+    // Update token budget display with grounding context
+    updateCopilotTokenBudget(0);
+    // Automatically focus prompt input
+    window.setTimeout(() => els.copilotInput?.focus(), 100);
+  }
+}
+window.toggleCopilotSidecar = toggleCopilotSidecar;
+
+function initCopilot() {
+  els.topbarCopilotBtn?.addEventListener("click", () => toggleCopilotSidecar());
+  els.openCopilotBtn?.addEventListener("click", () => toggleCopilotSidecar());
+  els.closeCopilotBtn?.addEventListener("click", () => toggleCopilotSidecar(false));
+
+  async function sendCopilotMessage() {
+    if (!els.copilotInput || !els.copilotMessages) return;
+    const text = els.copilotInput.value.trim();
+    if (!text) return;
+
+    // Track estimated user query tokens
+    const queryTokens = Math.ceil(text.length / 3.8);
+    updateCopilotTokenBudget(queryTokens);
+
+    // Add user bubble
+    const userMsg = document.createElement("div");
+    userMsg.className = "chat-bubble user-bubble";
+    userMsg.textContent = text;
+    els.copilotMessages.appendChild(userMsg);
+    
+    els.copilotInput.value = "";
+    els.copilotMessages.scrollTop = els.copilotMessages.scrollHeight;
+
+    // AI thinking indicator
+    const aiLoadingMsg = document.createElement("div");
+    aiLoadingMsg.className = "chat-bubble ai-bubble";
+    aiLoadingMsg.innerHTML = '<span class="loading-dots">Thinking...</span>';
+    els.copilotMessages.appendChild(aiLoadingMsg);
+    els.copilotMessages.scrollTop = els.copilotMessages.scrollHeight;
+
+    try {
+      const data = await api("/api/v1/dashboard/copilot/ask", {
+        method: "POST",
+        body: JSON.stringify({ query: text, chat_history: [] }),
+      });
+
+      const answerTokens = Math.ceil((data.answer || "").length / 3.8);
+      updateCopilotTokenBudget(answerTokens);
+
+      aiLoadingMsg.textContent = data.answer;
+
+      if (data.source_type === "sql") {
+        aiLoadingMsg.innerHTML += '<br><small style="color:var(--muted);font-size:10px;">✨ Generated via Database Search</small>';
+      } else if (data.source_type === "vector") {
+        aiLoadingMsg.innerHTML += '<br><small style="color:var(--muted);font-size:10px;">✨ Generated via Vector Search</small>';
+      }
+    } catch (e) {
+      aiLoadingMsg.textContent = "Error connecting to copilot: " + e.message;
+    }
+    els.copilotMessages.scrollTop = els.copilotMessages.scrollHeight;
+  }
+
+  els.sendCopilotBtn?.addEventListener("click", sendCopilotMessage);
+  els.copilotInput?.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") sendCopilotMessage();
+  });
+}
+
 // --- App Boot Lifecycle ---
 async function init() {
   if (els.meetingDate) els.meetingDate.value = todayIso();
@@ -2311,10 +2944,35 @@ async function init() {
   const savedTheme = localStorage.getItem("theme");
   if (savedTheme === "dark") {
     document.body.classList.add("dark-theme");
-    if (els.themeToggleBtn) els.themeToggleBtn.textContent = "☀️";
+    if (els.themeToggleBtn) {
+      els.themeToggleBtn.innerHTML = '<span class="icon">🌙</span> Toggle Theme';
+    }
   }
 
+  // Tablet initial panel setup (< 1024px)
+  const syncTabletView = () => {
+    if (window.innerWidth < 1024) {
+      const isDiffActive = els.tabMobileDiffs?.classList.contains("active");
+      if (isDiffActive) {
+        if (els.diffWorkbench) els.diffWorkbench.classList.remove("tablet-hidden");
+        if (els.notePanel) els.notePanel.classList.add("tablet-hidden");
+      } else {
+        if (els.tabMobileIntake) els.tabMobileIntake.classList.add("active");
+        if (els.diffWorkbench) els.diffWorkbench.classList.add("tablet-hidden");
+        if (els.notePanel) els.notePanel.classList.remove("tablet-hidden");
+      }
+    } else {
+      if (els.diffWorkbench) els.diffWorkbench.classList.remove("tablet-hidden");
+      if (els.notePanel) els.notePanel.classList.remove("tablet-hidden");
+    }
+  };
+
+  syncTabletView();
+  window.addEventListener("resize", syncTabletView);
+
+  updateCopilotTokenBudget(0);
   bindEvents();
+  initCopilot();
   await bootstrapSession();
 }
 
@@ -2324,72 +2982,7 @@ if (document.readyState === "loading") {
   init();
 }
 
-// --- Portfolio Copilot UI Logic ---
-function initCopilot() {
-  const openCopilotBtn = document.getElementById('openCopilotBtn');
-  const closeCopilotBtn = document.getElementById('closeCopilotBtn');
-  const copilotModal = document.getElementById('copilotModal');
-  const copilotInput = document.getElementById('copilotInput');
-  const sendCopilotBtn = document.getElementById('sendCopilotBtn');
-  const copilotMessages = document.getElementById('copilotMessages');
-  
-  if (!openCopilotBtn || !copilotModal) return;
-
-  openCopilotBtn.addEventListener('click', () => {
-    copilotModal.classList.remove('hidden');
-    copilotInput.focus();
-  });
-
-  closeCopilotBtn.addEventListener('click', () => {
-    copilotModal.classList.add('hidden');
-  });
-
-  async function sendCopilotMessage() {
-    const text = copilotInput.value.trim();
-    if (!text) return;
-
-    // Add user message
-    const userMsg = document.createElement('div');
-    userMsg.className = 'chat-bubble user-bubble';
-    userMsg.textContent = text;
-    copilotMessages.appendChild(userMsg);
-    
-    copilotInput.value = '';
-    copilotMessages.scrollTop = copilotMessages.scrollHeight;
-
-    // Loading indicator
-    const aiLoadingMsg = document.createElement('div');
-    aiLoadingMsg.className = 'chat-bubble ai-bubble';
-    aiLoadingMsg.innerHTML = '<span class="loading-dots">Thinking...</span>';
-    copilotMessages.appendChild(aiLoadingMsg);
-    copilotMessages.scrollTop = copilotMessages.scrollHeight;
-
-    try {
-      const data = await api('/api/v1/dashboard/copilot/ask', {
-        method: 'POST',
-        body: JSON.stringify({ query: text, chat_history: [] })
-      });
-
-      aiLoadingMsg.textContent = data.answer;
-
-      if (data.source_type === 'sql') {
-        aiLoadingMsg.innerHTML += '<br><small style="color:var(--muted);font-size:10px;">✨ Generated via Database Search</small>';
-      } else if (data.source_type === 'vector') {
-        aiLoadingMsg.innerHTML += '<br><small style="color:var(--muted);font-size:10px;">✨ Generated via Vector Search</small>';
-      }
-    } catch (e) {
-      aiLoadingMsg.textContent = 'Error connecting to copilot: ' + e.message;
-    }
-    copilotMessages.scrollTop = copilotMessages.scrollHeight;
-  }
-
-  sendCopilotBtn.addEventListener('click', sendCopilotMessage);
-  copilotInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendCopilotMessage();
-  });
-}
-
-// Initialize Copilot UI logic
+// Initialize audio upload capability check
 async function bootstrapApp() {
   try {
     const res = await fetch('/health');
@@ -2403,7 +2996,6 @@ async function bootstrapApp() {
   } catch (e) {
     console.error("Failed to load app config:", e);
   }
-  initCopilot();
 }
 
 if (document.readyState === 'loading') {

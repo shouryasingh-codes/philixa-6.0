@@ -96,7 +96,11 @@ async def get_dashboard_metrics(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     client_stmt = select(func.count(Client.id)).where(Client.organization_id == principal.organization_id)
-    meeting_stmt = select(func.count(Meeting.id)).where(Meeting.organization_id == principal.organization_id)
+    # Only count meetings that are linked to a client (avoid confusing the user with orphaned meeting counts)
+    meeting_stmt = select(func.count(Meeting.id)).where(
+        Meeting.organization_id == principal.organization_id,
+        Meeting.client_id.is_not(None)
+    )
     pending_comm_stmt = select(func.count(Commitment.id)).where(
         Commitment.organization_id == principal.organization_id,
         Commitment.status == "pending",

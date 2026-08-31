@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/styles.css?v=75" />
+  <link rel="stylesheet" href="/static/styles.css?v=1.7" />
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     /* Scoped Multi-Tenant & Auth Enhancements */
@@ -25,6 +25,23 @@
     .role-owner { background: #dbeafe; color: #1e40af; }
     .role-admin { background: #e0e7ff; color: #3730a3; }
     .role-member { background: #f1f5f9; color: #475569; }
+    
+    /* Force Grid Collapse (Bypass CSS Cache) */
+    .app-shell.sidebar-collapsed {
+      grid-template-columns: 72px minmax(0, 1fr) !important;
+    }
+    .app-shell.sidebar-collapsed .sidebar {
+      width: 72px !important;
+      min-width: 0 !important;
+      padding-left: 13px !important;
+      padding-right: 13px !important;
+      overflow-x: hidden !important;
+    }
+    .workspace {
+      max-width: 100% !important;
+      margin: 0 !important;
+      justify-self: stretch !important;
+    }
     .dark-theme .role-owner { background: #1e3a8a; color: #93c5fd; }
     .dark-theme .role-admin { background: #312e81; color: #c7d2fe; }
     .dark-theme .role-member { background: #334155; color: #cbd5e1; }
@@ -68,9 +85,6 @@
     .auth-badge { display: inline-block; padding: 6px 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 20px; font-size: 13px; font-weight: 600; margin-bottom: 16px; backdrop-filter: blur(10px); }
     .auth-copy h1 { font-size: 40px; line-height: 1.2; font-weight: 800; margin-bottom: 20px; color: #f8fafc; }
     .auth-benefits { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
-    .auth-benefits li { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #cbd5e1; font-weight: 500; }
-    .check-icon { font-size: 18px; }
-    
     .auth-benefits li { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #cbd5e1; font-weight: 500; }
     .check-icon { font-size: 18px; }
     
@@ -134,42 +148,50 @@
     <aside class="sidebar">
       <div class="brand-block" style="display: flex; align-items: center; justify-content: space-between; white-space: nowrap; overflow: hidden; padding-right: 12px;">
         <div style="display: flex; align-items: center; gap: 12px;">
-          <div class="brand-mark" style="flex-shrink: 0; cursor: pointer;" id="logoToggleBtn">P6</div>
+          <div class="brand-mark" style="flex-shrink: 0; cursor: pointer;" id="logoToggleBtn" title="Toggle Sidebar Expand">P6</div>
           <div class="brand-text">
             <h1>PHILIXA 6.0</h1>
             <p>Commitment and Memory</p>
           </div>
         </div>
-        <button id="sidebarToggleBtn" class="hamburger-btn" title="Toggle Sidebar" type="button" style="flex-shrink: 0; background: transparent; color: var(--muted); border: none; cursor: pointer;">
+        <button id="sidebarToggleBtn" class="hamburger-btn" title="Toggle Sidebar (Cmd+[)" type="button" style="flex-shrink: 0; background: transparent; color: var(--muted); border: none; cursor: pointer;">
           <svg focusable="false" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
             <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"></path>
           </svg>
         </button>
       </div>
 
-      <!-- System status indicator -->
-      <div class="system-strip">
-        <span class="status-dot" id="healthDot"></span>
-        <span id="healthText">Checking API</span>
-      </div>
-
 
       <!-- Main Navigation -->
       <nav class="nav-list" aria-label="Dashboard sections">
         <a href="#notePanel">Process Notes</a>
+        <a href="#diffWorkbench">Review Workbench</a>
+        <a href="#day4Panel">Daily Priorities</a>
         <a href="#memoryPanel">Client Memory</a>
         <a href="#commitmentPanel">Commitments</a>
-        <a href="#day4Panel">Daily Priorities</a>
       </nav>
     </aside>
 
     <main class="workspace">
       <header class="topbar">
         <div class="topbar-branding">
-          <p class="eyebrow" id="topbarPlanBadge">V1-Beta</p>
-          <h2 id="topbarTitle">RM meeting memory workspace</h2>
+          <h2 id="topbarTitle">Philixa 6.0</h2>
+          <span class="topbar-plan-badge" id="topbarPlanBadge">Free</span>
         </div>
         <div class="topbar-actions">
+          <!-- Global Client Filter Selector -->
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="workspace-selector-wrap" title="Global Client Filter">
+              <span class="workspace-icon">👤</span>
+              <select id="topClientSelect" class="workspace-select" aria-label="Select active client filter">
+                <option value="">@client (All)</option>
+              </select>
+            </div>
+            <button id="deleteSelectedClientBtn" class="topbar-icon-btn danger-hover" type="button" title="Delete Selected Client" style="display: none; padding: 6px; border-radius: 6px; background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.2); cursor: pointer; color: #dc2626; transition: all 0.2s; display: flex; align-items: center; justify-content: center;">
+              <span class="icon" style="font-size: 14px;">🗑️</span>
+            </button>
+          </div>
+
           <!-- Multi-Tenant Workspace Selector -->
           <div class="workspace-selector-wrap" title="Current Workspace">
             <span class="workspace-icon">🏢</span>
@@ -187,11 +209,17 @@
             </select>
           </div>
 
-          <!-- Avatar Dropdown for User Actions -->
+          <!-- Copilot Toggle -->
+          <button id="topbarCopilotBtn" class="topbar-btn" type="button" title="Open AI Copilot (Cmd+Shift+L)" aria-label="Open AI Copilot">
+            <span class="icon">✨</span> Copilot
+          </button>
+
+          <!-- Avatar Dropdown -->
           <div class="avatar-dropdown-container" id="avatarDropdownContainer">
             <button id="avatarBtn" class="avatar-btn" type="button" aria-haspopup="menu" aria-expanded="false" title="User Menu">U</button>
             <div id="avatarMenu" class="avatar-menu hidden" role="menu">
               <div class="avatar-menu-header">
+                <span id="userNameDisplay" class="user-name-text" style="font-weight: 600; font-size: 13px; color: var(--text);">User</span>
                 <span id="userEmailDisplay" class="user-email-text" title="Logged in user">user@example.com</span>
               </div>
               <div class="avatar-menu-body">
@@ -214,39 +242,255 @@
         </div>
       </header>
 
-      <section class="metric-grid" aria-label="Dashboard summary">
-        <div class="metric">
-          <span>Clients</span>
-          <strong id="clientCount">0</strong>
+      <!-- 1. Homogeneous 4-Card Verdict Strip (Recommendation 2) -->
+      <section class="verdict-strip" aria-label="Dashboard metrics summary">
+        <!-- Card 1: Active Clients -->
+        <div class="verdict-card" id="verdictCardClients" role="button" tabindex="0" aria-label="Active Clients Metric">
+          <div class="verdict-card-header">
+            <span class="verdict-card-label">Active Clients</span>
+            <div class="verdict-card-icon" style="background: var(--primary-bg); color: var(--primary-base);">👥</div>
+          </div>
+          <div class="verdict-card-body">
+            <span class="verdict-card-value" id="clientCount">0</span>
+          </div>
         </div>
-        <div class="metric">
-          <span>Pending commitments</span>
-          <strong id="pendingCount">0</strong>
+
+        <!-- Card 2: Pending Commitments -->
+        <div class="verdict-card" id="verdictCardPending" role="button" tabindex="0" aria-label="Pending Commitments Metric">
+          <div class="verdict-card-header">
+            <span class="verdict-card-label">Pending Commit</span>
+            <div class="verdict-card-icon" style="background: var(--warning-bg); color: var(--warning-base);">⏳</div>
+          </div>
+          <div class="verdict-card-body">
+            <span class="verdict-card-value" id="pendingCount">0</span>
+          </div>
         </div>
-        <div class="metric" style="display: flex; flex-direction: column; justify-content: center;">
-          <span>Selected client</span>
-          <div style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
-            <select id="topClientSelect" class="form-input" style="flex: 1; padding: 10px 12px; font-size: 16px; font-weight: 600; cursor: pointer; border-radius: 8px;">
-              <option value="">No client selected</option>
-            </select>
-            <button id="deleteSelectedClientBtn" class="delete-client btn" style="display: none; padding: 8px 12px; background-color: rgba(255, 77, 79, 0.1); color: #ff4d4f; border: 1px solid rgba(255, 77, 79, 0.3); border-radius: 8px; cursor: pointer;">Delete</button>
+
+        <!-- Card 3: Meetings Logged -->
+        <div class="verdict-card" id="verdictCardMeetings" role="button" tabindex="0" aria-label="Meetings Logged Metric">
+          <div class="verdict-card-header">
+            <span class="verdict-card-label">Meetings (Mo)</span>
+            <div class="verdict-card-icon" style="background: var(--primary-bg); color: var(--primary-base);">📅</div>
+          </div>
+          <div class="verdict-card-body">
+            <span class="verdict-card-value" id="meetingsLoggedCount">24</span>
+          </div>
+        </div>
+
+        <!-- Card 4: Risk Signals -->
+        <div class="verdict-card" id="verdictCardRisks" role="button" tabindex="0" aria-label="Risk Signals Metric">
+          <div class="verdict-card-header">
+            <span class="verdict-card-label">Risk Alerts</span>
+            <div class="verdict-card-icon" style="background: var(--danger-bg); color: var(--danger-base);">🛡️</div>
+          </div>
+          <div class="verdict-card-body">
+            <span class="verdict-card-value" id="riskSignalsStripCount">0</span>
+            <span class="verdict-badge emerald" id="riskSignalsStripBadge">All clear</span>
           </div>
         </div>
       </section>
 
-      <!-- Daily Priorities & Risk Signals -->
-      <section class="panel day4-panel" id="day4Panel" style="margin-bottom: 2rem; padding: 24px;">
+      <!-- Tablet Mode Segmented Tab Switcher (< 1024px) -->
+      <div class="tablet-workbench-tabs" id="tabletWorkbenchTabs">
+        <button class="tablet-tab-btn active" id="tabMobileIntake" type="button">
+          📝 Meeting Note Intake
+        </button>
+        <button class="tablet-tab-btn" id="tabMobileDiffs" type="button">
+          ✨ Extracted Diffs (<span id="diffCountPillMobile">0</span>)
+        </button>
+      </div>
+
+      <!-- 2. Master-Detail 60/40 Split Intake & Structured Diff Workbench (Recommendation 4) -->
+      <div class="dashboard-layout">
+        <!-- Left Pane (60%): Smart Intake Editor -->
+        <section class="panel primary-panel" id="notePanel" aria-label="Meeting Note Ingestion Editor">
+          <div class="panel-heading" style="padding-bottom: 0; border-bottom: none; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="flex: 1; display: flex; justify-content: flex-start;">
+              <h3 style="margin: 0; font-size: 17px; font-weight: 700;">📝 Smart Intake Editor</h3>
+            </div>
+            
+            <div style="flex: 0 1 auto; display: flex; justify-content: center;">
+              <button id="philixaVoiceBtn" class="copilot-box" title="Talk to Philixa Voice Assistant" type="button">
+                <span class="copilot-icon">🎙️</span>
+                <span class="copilot-text" id="copilotText">PHILIXA</span>
+              </button>
+            </div>
+
+            <div style="flex: 1; display: flex; justify-content: flex-end;">
+              <select id="knownClient" style="width: auto; max-width: 220px;" aria-label="Auto identify client">
+                <option value="">Auto identify client</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="tabs-header">
+            <button class="tab-btn active" id="tabTextBtn" type="button">Paste Notes</button>
+            <button class="tab-btn" id="tabAudioBtn" type="button">Upload Audio</button>
+            <button class="tab-btn" id="tabLiveBtn" type="button"><span style="color:red;">🔴</span> Live Record</button>
+            <button class="tab-btn" id="tabFastDictationBtn" type="button">⚡ Fast Dictation</button>
+          </div>
+
+          <!-- Tab: Text -->
+          <div id="viewText" class="tab-content active">
+            <textarea id="rawNotes"
+              spellcheck="true"
+              placeholder="Paste meeting notes or client conversation here...">Met Rajesh Sharma today. Interested in business loan. Concerned about processing time. Promised documents by Friday.</textarea>
+            <div class="form-row" style="margin-top: 12px;">
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;">
+                Meeting date
+                <input id="meetingDate" type="date" style="width: auto;" />
+              </label>
+              <button class="primary-action" id="processNotes" type="button" title="Process notes with AI (Cmd+Enter)">
+                ✨ Process with AI <span style="font-size: 11px; opacity: 0.8; font-weight: normal; margin-left: 4px;">(Cmd+↵)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Tab: Audio -->
+          <div id="viewAudio" class="tab-content hidden">
+            <div class="upload-box" id="uploadBox">
+              <input type="file" id="audioFileInput" accept=".mp3, .m4a, .wav" class="file-input-hidden" />
+              <label for="audioFileInput" class="file-input-label">
+                <span style="font-size: 24px; display: block; margin-bottom: 8px;">📁</span>
+                <span id="uploadFileName">Click to select audio file</span>
+                <span class="muted" style="display: block; font-size: 12px; margin-top: 4px;">.mp3, .m4a, .wav (Max 50MB)</span>
+              </label>
+            </div>
+            <div class="form-row" style="margin-top: 12px;">
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;">
+                Meeting date
+                <input id="meetingDateAudio" type="date" style="width: auto;" />
+              </label>
+              <button class="primary-action" id="processAudio" type="button" disabled>Upload & Process</button>
+            </div>
+            <div id="audioStatusBox" class="result-box hidden"
+              style="margin-top: 15px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span class="status-dot pulsing" id="audioStatusDot" style="background: var(--blue);"></span>
+                <strong id="audioStatusText" style="color: var(--blue);">Uploading...</strong>
+              </div>
+              <p class="muted" style="font-size: 12px; margin-top: 8px; margin-bottom: 0;" id="audioStatusDetails">Please wait while the file is sent to the server.</p>
+            </div>
+          </div>
+
+          <!-- Tab: Live Record -->
+          <div id="viewLive" class="tab-content hidden">
+            <div style="display:flex; gap:12px; align-items:center; margin-bottom:14px; flex-wrap:wrap;">
+              <button id="startSoloBtn" type="button" style="background:var(--accent); color:#fff; font-weight:700; border:none; padding:8px 18px; border-radius:6px; cursor:pointer;">🎙 Solo Record</button>
+              <button id="startMeetingBtn" type="button" style="background:#6c63ff; color:#fff; font-weight:700; border:none; padding:8px 18px; border-radius:6px; cursor:pointer;">👥 Meeting Record</button>
+              <button id="stopLiveBtn" type="button" disabled style="background:var(--surface); color:var(--muted); border:1px solid var(--line); padding:8px 18px; border-radius:6px; cursor:pointer;">⏹ Stop &amp; Save</button>
+              <span id="liveStatusText" style="color:var(--muted); font-size:14px;">⏸ Ready</span>
+            </div>
+            <div style="font-size:11px; color:var(--muted); margin-bottom:10px;">
+              🎙 <strong>Solo</strong> — Only you are speaking (Fast, ~20s) &nbsp;|&nbsp; 👥 <strong>Meeting</strong> — Client is present, speaker labels included (Slow, ~60s)
+            </div>
+            <div style="border:1px solid var(--line); border-radius:8px; padding:24px 16px; min-height:130px; background:var(--bg); display:flex; align-items:center; justify-content:center; text-align:center;">
+              <div>
+                <div id="liveRecordingIndicator" style="font-size:32px; margin-bottom:8px;">🎙</div>
+                <div style="color:var(--muted); font-size:14px; line-height:1.6;">Speak freely — recording in progress.<br>When you click Stop &amp; Save, Whisper will process the full audio at once.<br><strong style="color:var(--text);">No live text will appear — only the final accurate transcript.</strong></div>
+              </div>
+            </div>
+            <p style="font-size:12px; color:var(--muted); margin-top:8px; margin-bottom: 0;">⚡ After Stop &amp; Save, the transcript will appear in Paste Notes — review and click Process.</p>
+          </div>
+
+          <!-- Tab: Fast Dictation (Web Speech API) -->
+          <div id="viewFastDictation" class="tab-content hidden">
+            <div style="display:flex; gap:12px; align-items:center; margin-bottom:14px; flex-wrap:wrap;">
+              <button id="startDictationBtn" type="button" style="background:var(--accent); color:#fff; font-weight:700; border:none; padding:8px 18px; border-radius:6px; cursor:pointer;">🎙 Start Dictation</button>
+              <button id="stopDictationBtn" type="button" disabled style="background:var(--surface); color:var(--muted); border:1px solid var(--line); padding:8px 18px; border-radius:6px; cursor:pointer;">⏹ Stop &amp; Save</button>
+              <span id="dictationStatusText" style="color:var(--muted); font-size:14px;">⏸ Ready (Web Speech API)</span>
+            </div>
+            <div style="border:1px solid var(--line); border-radius:8px; padding:16px; min-height:130px; background:var(--bg);">
+              <div id="dictationResult" style="font-weight:600; color:var(--text); white-space:pre-wrap; font-size:15px; line-height:1.6;"></div>
+              <div class="muted" style="font-size:12px; margin-top:12px;">Instant dictation using browser native speech API.</div>
+            </div>
+            <p style="font-size:12px; color:var(--muted); margin-top:8px; margin-bottom: 0;">⚡ Stop &amp; Save saves transcript to Paste Notes — review and click Process.</p>
+          </div>
+
+          <!-- Audio Transcript Review Modal / Panel -->
+          <div id="editTranscriptPanel" class="hidden panel" style="margin-top: 15px; border: 1px solid var(--line); padding: 15px; border-radius: 8px; background: var(--bg);">
+            <p class="eyebrow">Manual Review Required</p>
+            <h4 style="margin-top: 4px; margin-bottom: 8px;">Edit Audio Transcript</h4>
+            <p class="muted" style="margin-bottom: 10px; font-size: 13px;">The AI could not automatically generate a summary from this audio. Please review and edit the transcript, then click 'Save & Re-process'.</p>
+            <textarea id="editTranscriptText" spellcheck="true" style="width: 100%; min-height: 150px; margin-bottom: 10px;"></textarea>
+            <button class="primary-action" id="saveTranscriptBtn" type="button">Save & Re-process</button>
+          </div>
+
+          <!-- Client Attachment Confirmation Panel -->
+          <div class="confirm-panel hidden" id="confirmPanel" style="margin-top: 15px;">
+            <div>
+              <p class="eyebrow">Confirmation required</p>
+              <h4 style="margin-top: 4px;">Attach this meeting to a client</h4>
+            </div>
+            <div class="confirm-grid">
+              <select id="confirmClientSelect">
+                <option value="">Select existing client</option>
+              </select>
+              <input id="newClientName" type="text" placeholder="Or create new client name" />
+              <button id="confirmClient" type="button">Confirm client</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Right Pane (40%): Structured Diff Review Workbench -->
+        <section class="review-workbench" id="diffWorkbench" aria-label="Structured Diff Review Workbench">
+          <!-- Workbench Header -->
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent);"></span>
+              <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: var(--ink);">✨ Structured Diff Review</h3>
+              <span class="badge" style="font-size: 11px; padding: 2px 8px; border-radius: 9999px; background: var(--primary-bg); color: var(--primary-text); border: 1px solid var(--primary-border); font-weight: 600;">
+                <span id="diffTotalCount">0</span> Items
+              </span>
+            </div>
+            <span class="muted" style="font-size: 11px; font-family: var(--font-mono);">Confidence: 96% • AI Extract</span>
+          </div>
+
+          <!-- Category Filter Pills (Scalability for 30+ Items) -->
+          <div class="pill-filters" id="diffPillFilters" style="margin-bottom: 8px;">
+            <button type="button" class="pill-filter-btn active" data-filter="all">All (<span id="countAll">0</span>)</button>
+            <button type="button" class="pill-filter-btn" data-filter="commitment">Commitments (<span id="countCommitments">0</span>)</button>
+            <button type="button" class="pill-filter-btn" data-filter="risk">Risks (<span id="countRisks">0</span>)</button>
+            <button type="button" class="pill-filter-btn" data-filter="memory">Memory (<span id="countMemory">0</span>)</button>
+          </div>
+
+          <!-- Diff Cards Stream Container -->
+          <div class="diff-stream-container" id="processResult" tabindex="-1" aria-live="polite" aria-label="Extracted diff items">
+            <div class="empty-state" style="border: 1px dashed var(--line); border-radius: 8px; margin: auto 0; padding: 28px 16px;">
+              Process a meeting note with AI to review and sync structured commitments, risks, and memory.
+            </div>
+          </div>
+
+          <!-- Diff Footer Action Bar -->
+          <div class="diff-action-footer" id="diffActionBar" style="display: none;">
+            <button type="button" class="diff-discard-btn" id="diffDiscardAllBtn">Discard All</button>
+            <button type="button" class="diff-sync-btn" id="diffSyncSelectedBtn">
+              <span>✓ Sync Selected (<span id="diffApprovedCount">0</span>)</span>
+              <kbd>⌘⇧↵</kbd>
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <!-- 3. Daily Priorities & Risk Signals (Recommendation 1 & 3) -->
+      <section class="panel day4-panel" id="day4Panel" style="margin-top: 24px; margin-bottom: 24px; padding: 24px;">
         <div class="day4-grid">
           <div>
-            <h3 style="margin-top: 0; margin-bottom: 15px;">Daily Priorities</h3>
-            <p class="eyebrow day4-col-label" style="margin-bottom: 12px;">Follow-up Tasks</p>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+              <h3 style="margin: 0; font-size: 16px; font-weight: 700;">Daily Priorities</h3>
+              <span class="eyebrow">Follow-up Tasks</span>
+            </div>
             <div class="task-list" id="taskList">
               <div class="empty-state">✅ All caught up! No pressing tasks for today.</div>
             </div>
           </div>
           <div>
-            <h3 style="margin-top: 0; margin-bottom: 15px; color: #ef4444;">Risk Signals</h3>
-            <p class="eyebrow day4-col-label" style="margin-bottom: 12px; visibility: hidden;">Spacer</p>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+              <h3 id="riskSignalsHeader" style="margin: 0; font-size: 16px; font-weight: 700; color: var(--ink);">Risk Signals</h3>
+              <span id="riskSignalsBadge" style="font-size: 12px; font-weight: 600; background: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-border); padding: 2px 10px; border-radius: 9999px; display: inline-flex; align-items: center; gap: 6px;">
+                <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--success-base);"></span>0 Active Risks - All Clear
+              </span>
+            </div>
             <div class="risk-list" id="riskList">
               <div class="empty-state">🛡️ All clear. No active risk signals detected.</div>
             </div>
@@ -254,7 +498,73 @@
         </div>
       </section>
 
-      <!-- Team Performance Overview (Owner Only) -->
+      <!-- 4. Client Memory & Commitments Section -->
+      <div class="context-sidebar" style="margin-bottom: 24px;">
+        <div class="tabs-header sidebar-tabs">
+          <button class="tab-btn sidebar-tab-btn active" data-tab-target="memoryPanel" type="button">Client Memory</button>
+          <button class="tab-btn sidebar-tab-btn" data-tab-target="commitmentPanel" type="button">Commitments</button>
+        </div>
+
+        <section class="panel hero-panel sidebar-tab-content" id="memoryPanel">
+          <div class="panel-heading accordion-toggle" data-target="accordionMemoryContent">
+            <div style="pointer-events: none;">
+              <h3 style="display:flex; align-items:center; gap:8px; margin:0;">Client memory <span class="accordion-icon">▼</span></h3>
+            </div>
+            <button id="loadSelectedMemory" type="button" onclick="event.stopPropagation()">Load memory</button>
+          </div>
+          <div class="accordion-content collapsed" id="accordionMemoryContent">
+            <div class="ask-client-section hidden" id="askClientSection" style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--line);">
+              <div class="ask-client-input-row" style="background: var(--bg);">
+                <input id="askClientInput" type="text"
+                  placeholder="Ask AI about this client... (e.g. What is the latest concern?)" />
+                <button id="askClientVoiceBtn" type="button" class="secondary-action" title="Hold or click to speak">🎙️</button>
+                <button id="askClientBtn" type="button" class="primary-action">Ask</button>
+              </div>
+              <div id="askClientResult" class="ask-client-result hidden"></div>
+            </div>
+            
+            <div id="memoryContent" class="memory-content">
+              <div class="empty-state">Select a client to view instant context.</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel support-panel sidebar-tab-content hidden" id="commitmentPanel">
+          <div class="panel-heading accordion-toggle" data-target="accordionCommitmentContent">
+            <div style="pointer-events: none;">
+              <h3 style="display:flex; align-items:center; gap:8px; margin:0;">Commitments <span class="accordion-icon">▼</span></h3>
+            </div>
+            <select id="commitmentFilter" onclick="event.stopPropagation()">
+              <option value="">All</option>
+              <option value="pending" selected>Pending</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+          <div class="accordion-content collapsed" id="accordionCommitmentContent">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Client</th>
+                    <th>Commitment</th>
+                    <th>Due</th>
+                    <th>Urgency</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="commitmentRows">
+                  <tr>
+                    <td colspan="6"><div class="empty-state" style="padding:20px; background:transparent;">No commitments loaded.</div></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- 5. Team Performance Overview (Owner/Admin Only) -->
       <section id="teamPerformanceSection" class="panel" style="display: none; margin-bottom: 2rem;">
         <h3 style="margin-top: 0; margin-bottom: 15px;">Team Performance Overview</h3>
         <div style="overflow-x: auto;">
@@ -274,209 +584,46 @@
         </div>
       </section>
 
-      <!-- Dashboard Grid Layout -->
-      <div class="dashboard-layout">
-        
-        <!-- Left Column: Hero Input Panel -->
-        <section class="panel primary-panel" id="notePanel" style="margin-bottom: 2rem; width: 100%;">
-        <div class="panel-heading" style="padding-bottom: 0; border-bottom: none; margin-bottom: 25px; display: flex; align-items: center; justify-content: space-between;">
-          <div style="flex: 1; display: flex; justify-content: flex-start;">
-            <h3 style="margin: 0;">Input Meeting Data</h3>
-          </div>
-          
-          <div style="flex: 0 1 auto; display: flex; justify-content: center;">
-            <button id="philixaVoiceBtn" class="copilot-box" title="Talk to Philixa" type="button">
-              <span class="copilot-icon">🎙️</span>
-              <span class="copilot-text" id="copilotText">PHILIXA</span>
-            </button>
-          </div>
+    </main>
+  </div>
 
-          <div style="flex: 1; display: flex; justify-content: flex-end;">
-            <select id="knownClient" style="width: auto;">
-              <option value="">Auto identify client</option>
-            </select>
-          </div>
+  <!-- 3. Persistent 380px AI Copilot Sidecar Dock (Recommendation 5) -->
+  <aside class="copilot-sidecar" id="copilotSidecar" aria-label="Portfolio AI Copilot Sidecar">
+    <div class="copilot-sidecar-header">
+      <div class="copilot-sidecar-topline">
+        <div class="copilot-sidecar-title">
+          <div class="brand-mark" style="width: 28px; height: 28px; font-size: 13px;">✨</div>
+          <span>Philixa Copilot</span>
         </div>
-
-        <div class="tabs-header">
-          <button class="tab-btn active" id="tabTextBtn">Paste Notes</button>
-          <button class="tab-btn" id="tabAudioBtn">Upload Audio</button>
-          <button class="tab-btn" id="tabLiveBtn"><span style="color:red;">🔴</span> Live Record</button>
-          <button class="tab-btn" id="tabFastDictationBtn">⚡ Fast Dictation</button>
+        <button id="closeCopilotBtn" class="copilot-sidecar-close" type="button" title="Close Sidecar (Esc)" aria-label="Close Copilot Sidecar">&times;</button>
+      </div>
+      <div class="copilot-grounding-row">
+        <div class="copilot-grounding-pill" title="Active Grounded Client Context">
+          <span>👤 Grounded:</span>
+          <strong id="copilotGroundedClient">All Portfolio Clients</strong>
         </div>
-
-        <!-- Tab: Text -->
-        <div id="viewText" class="tab-content active">
-          <textarea id="rawNotes"
-            spellcheck="true">Met Rajesh Sharma today. Interested in business loan. Concerned about processing time. Promised documents by Friday.</textarea>
-          <div class="form-row">
-            <label>
-              Meeting date
-              <input id="meetingDate" type="date" />
-            </label>
-            <button class="primary-action" id="processNotes" type="button">Process notes</button>
+        <div class="copilot-token-bar" title="Token Budget Consumption">
+          <span id="copilotTokenText">1,420 / 8,192</span>
+          <div class="copilot-token-track">
+            <div class="copilot-token-fill" id="copilotTokenFill" style="width: 17%;"></div>
           </div>
-        </div>
-
-        <!-- Tab: Audio -->
-        <div id="viewAudio" class="tab-content hidden">
-          <div class="upload-box" id="uploadBox">
-            <input type="file" id="audioFileInput" accept=".mp3, .m4a, .wav" class="file-input-hidden" />
-            <label for="audioFileInput" class="file-input-label">
-              <span style="font-size: 24px; display: block; margin-bottom: 8px;">📁</span>
-              <span id="uploadFileName">Click to select audio file</span>
-              <span class="muted" style="display: block; font-size: 12px; margin-top: 4px;">.mp3, .m4a, .wav (Max 50MB)</span>
-            </label>
-          </div>
-          <div class="form-row">
-            <label>
-              Meeting date
-              <input id="meetingDateAudio" type="date" />
-            </label>
-            <button class="primary-action" id="processAudio" type="button" disabled>Upload & Process</button>
-          </div>
-          <div id="audioStatusBox" class="result-box hidden"
-            style="margin-top: 15px; background: var(--bg); border: 1px solid var(--line);">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <span class="status-dot pulsing" id="audioStatusDot" style="background: var(--blue);"></span>
-              <strong id="audioStatusText" style="color: var(--blue);">Uploading...</strong>
-            </div>
-            <p class="muted" style="font-size: 12px; margin-top: 8px;" id="audioStatusDetails">Please wait while the file is sent to the server.</p>
-          </div>
-        </div>
-
-        <!-- Tab: Live Record -->
-        <div id="viewLive" class="tab-content hidden">
-          <div style="display:flex; gap:12px; align-items:center; margin-bottom:14px; flex-wrap:wrap;">
-            <button id="startSoloBtn" type="button" style="background:var(--accent); color:#fff; font-weight:700; border:none; padding:8px 18px; border-radius:6px; cursor:pointer;">🎙 Solo Record</button>
-            <button id="startMeetingBtn" type="button" style="background:#6c63ff; color:#fff; font-weight:700; border:none; padding:8px 18px; border-radius:6px; cursor:pointer;">👥 Meeting Record</button>
-            <button id="stopLiveBtn" type="button" disabled style="background:var(--surface); color:var(--muted); border:1px solid var(--line); padding:8px 18px; border-radius:6px; cursor:pointer;">⏹ Stop &amp; Save</button>
-            <span id="liveStatusText" style="color:var(--muted); font-size:14px;">⏸ Ready</span>
-          </div>
-          <div style="font-size:11px; color:var(--muted); margin-bottom:10px;">
-            🎙 <strong>Solo</strong> — Only you are speaking (Fast, ~20s) &nbsp;|&nbsp; 👥 <strong>Meeting</strong> — Client is present, speaker labels included (Slow, ~60s)
-          </div>
-          <div style="border:1px solid var(--line); border-radius:8px; padding:24px 16px; min-height:130px; background:var(--bg); display:flex; align-items:center; justify-content:center; text-align:center;">
-            <div>
-              <div id="liveRecordingIndicator" style="font-size:32px; margin-bottom:8px;">🎙</div>
-              <div style="color:var(--muted); font-size:14px; line-height:1.6;">Speak freely — recording in progress.<br>When you click Stop &amp; Save, Whisper will process the full audio at once.<br><strong style="color:var(--text);">No live text will appear — only the final accurate transcript.</strong></div>
-            </div>
-          </div>
-          <p style="font-size:12px; color:var(--muted); margin-top:8px;">⚡ After Stop &amp; Save, the transcript will appear in Paste Notes — review and click Process.</p>
-        </div>
-
-        <!-- Tab: Fast Dictation (Web Speech API) -->
-        <div id="viewFastDictation" class="tab-content hidden">
-          <div style="display:flex; gap:12px; align-items:center; margin-bottom:14px; flex-wrap:wrap;">
-            <button id="startDictationBtn" type="button" style="background:var(--accent); color:#fff; font-weight:700; border:none; padding:8px 18px; border-radius:6px; cursor:pointer;">🎙 Start Dictation</button>
-            <button id="stopDictationBtn" type="button" disabled style="background:var(--surface); color:var(--muted); border:1px solid var(--line); padding:8px 18px; border-radius:6px; cursor:pointer;">⏹ Stop &amp; Save</button>
-            <span id="dictationStatusText" style="color:var(--muted); font-size:14px;">⏸ Ready (Web Speech API)</span>
-          </div>
-          <div style="border:1px solid var(--line); border-radius:8px; padding:16px; min-height:130px; background:var(--bg);">
-            <div id="dictationResult" style="font-weight:600; color:var(--text); white-space:pre-wrap; font-size:15px; line-height:1.6;"></div>
-            <div class="muted" style="font-size:12px; margin-top:12px;">Instant dictation using browser native speech API.</div>
-          </div>
-          <p style="font-size:12px; color:var(--muted); margin-top:8px;">⚡ Stop &amp; Save saves transcript to Paste Notes — review and click Process.</p>
-        </div>
-
-        <div class="result-box" id="processResult" style="margin-top: 15px;">
-          <div class="empty-state">Process a meeting note to see extraction results here.</div>
-        </div>
-
-        <div id="editTranscriptPanel" class="hidden panel" style="margin-top: 15px; border: 1px solid var(--line); padding: 15px; border-radius: 6px; background: var(--bg);">
-          <p class="eyebrow">Manual Review Required</p>
-          <h4>Edit Audio Transcript</h4>
-          <p class="muted" style="margin-bottom: 10px; font-size: 13px;">The AI could not automatically generate a summary from this audio. Please review and edit the transcript, then click 'Save & Re-process'.</p>
-          <textarea id="editTranscriptText" spellcheck="true" style="width: 100%; min-height: 150px; margin-bottom: 10px;"></textarea>
-          <button class="primary-action" id="saveTranscriptBtn" type="button">Save & Re-process</button>
-        </div>
-
-        <div class="confirm-panel hidden" id="confirmPanel">
-          <div>
-            <p class="eyebrow">Confirmation required</p>
-            <h4>Attach this meeting to a client</h4>
-          </div>
-          <div class="confirm-grid">
-            <select id="confirmClientSelect">
-              <option value="">Select existing client</option>
-            </select>
-            <input id="newClientName" type="text" placeholder="Or create new client name" />
-            <button id="confirmClient" type="button">Confirm client</button>
-          </div>
-        </div>
-        </section>
-
-        <!-- Right Column: Contextual Sidebars -->
-        <div class="context-sidebar">
-          
-          <div class="sidebar-tabs">
-            <button class="sidebar-tab-btn active" data-tab-target="memoryPanel">Client Memory</button>
-            <button class="sidebar-tab-btn" data-tab-target="commitmentPanel">Commitments</button>
-          </div>
-
-          <section class="panel hero-panel sidebar-tab-content" id="memoryPanel">
-          <div class="panel-heading accordion-toggle" data-target="accordionMemoryContent">
-            <div style="pointer-events: none;">
-              <h3 style="display:flex; align-items:center; gap:8px;">Client memory <span class="accordion-icon">▼</span></h3>
-            </div>
-            <button id="loadSelectedMemory" type="button" onclick="event.stopPropagation()">Load memory</button>
-          </div>
-          <div class="accordion-content collapsed" id="accordionMemoryContent">
-            <div class="ask-client-section hidden" id="askClientSection" style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--line);">
-              <div class="ask-client-input-row" style="background: var(--bg);">
-                <input id="askClientInput" type="text"
-                  placeholder="Ask AI about this client... (e.g. What is the latest concern?)" />
-                <button id="askClientVoiceBtn" type="button" class="secondary-action" title="Hold or click to speak">🎙️</button>
-                <button id="askClientBtn" type="button" class="primary-action">Ask</button>
-              </div>
-              <div id="askClientResult" class="ask-client-result hidden"></div>
-            </div>
-            
-            <div id="memoryContent" class="memory-content">
-              <div class="empty-state">Select a client to view instant context.</div>
-            </div>
-            </div>
-          </section>
-
-          <section class="panel support-panel sidebar-tab-content hidden" id="commitmentPanel">
-            <div class="panel-heading accordion-toggle" data-target="accordionCommitmentContent">
-              <div style="pointer-events: none;">
-                <h3 style="display:flex; align-items:center; gap:8px;">Commitments <span class="accordion-icon">▼</span></h3>
-              </div>
-              <select id="commitmentFilter" onclick="event.stopPropagation()">
-                <option value="">All</option>
-                <option value="pending" selected>Pending</option>
-                <option value="completed">Completed</option>
-              </select>
-            </div>
-            <div class="accordion-content collapsed" id="accordionCommitmentContent">
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Client</th>
-                      <th>Commitment</th>
-                      <th>Due</th>
-                      <th>Urgency</th>
-                      <th>Status</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody id="commitmentRows">
-                    <tr>
-                      <td colspan="6"><div class="empty-state" style="padding:20px; background:transparent;">No commitments loaded.</div></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </section>
         </div>
       </div>
+    </div>
+    <div id="copilotMessages" class="copilot-messages">
+      <div class="chat-bubble ai-bubble">
+        Hello! I'm your Portfolio Copilot. Ask me about meetings, client sentiments, commitments, or risks.
+      </div>
+    </div>
+    <div class="copilot-input-area">
+      <input type="text" id="copilotInput" placeholder="Ask Copilot about your portfolio... (Enter)" autocomplete="off" />
+      <button id="sendCopilotBtn" class="copilot-send-btn" type="button" aria-label="Send message to Copilot">
+        <svg fill="currentColor" viewBox="0 0 24 24" width="18" height="18"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
+      </button>
+    </div>
+  </aside>
 
-    </main>
-</div>
-
+  <!-- Toast Notification Container -->
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <!-- Authentication Modal Overlay (6-View State Machine) -->
@@ -512,178 +659,178 @@
           </div>
           <div class="auth-card-header">
             <h2 id="authTitle">Sign in to Philixa</h2>
-            <p class="auth-subtitle" style="color: var(--muted); font-size: 14px; margin-top: 4px; margin-bottom: 24px;">Welcome back! Please enter your details.</p>
+            <p class="auth-subtitle" id="authSubtitle" style="color: var(--muted); font-size: 14px; margin-top: 4px; margin-bottom: 24px;">Welcome back! Please enter your details.</p>
           </div>
 
           <div class="auth-card-body">
-        <!-- View 1: Login Form -->
-        <div id="viewLogin" class="auth-view">
-          <div id="loginError" class="alert-box error hidden"></div>
-          
-          <div id="g_id_onload"
-               data-client_id="401674766048-lofabuacl8s0f91siit3uh5glptfe7jt.apps.googleusercontent.com"
-               data-context="signin"
-               data-ux_mode="popup"
-               data-callback="handleGoogleCredentialResponse"
-               data-auto_prompt="false">
-          </div>
-          <div class="g_id_signin"
-               data-type="standard"
-               data-shape="rectangular"
-               data-theme="outline"
-               data-text="signin_with"
-               data-size="large"
-               data-logo_alignment="left"
-               style="display: flex; justify-content: center; margin-bottom: 28px; padding-bottom: 8px;">
-          </div>
-          
-          <div style="display: flex; align-items: center; text-align: center; margin-top: 0; margin-bottom: 20px; color: #cbd5e1; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
-            <hr style="flex: 1; border: none; border-top: 1px solid rgba(255,255,255,0.15);">
-            <span style="padding: 0 14px; white-space: nowrap;">or sign in with email</span>
-            <hr style="flex: 1; border: none; border-top: 1px solid rgba(255,255,255,0.15);">
-          </div>
-
-          <form id="loginForm">
-            <div class="form-group">
-              <label for="loginEmail">Work Email</label>
-              <input id="loginEmail" type="email" required autocomplete="username" placeholder="name@company.com" />
-            </div>
-            <div class="form-group">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <label for="loginPassword">Password</label>
-                <a id="linkToForgotPassword" style="font-size: 12px; color: var(--accent); cursor: pointer; font-weight: 600; text-decoration: none;">Forgot password?</a>
+            <!-- View 1: Login Form -->
+            <div id="viewLogin" class="auth-view">
+              <div id="loginError" class="alert-box error hidden"></div>
+              
+              <div id="g_id_onload"
+                   data-client_id="401674766048-lofabuacl8s0f91siit3uh5glptfe7jt.apps.googleusercontent.com"
+                   data-context="signin"
+                   data-ux_mode="popup"
+                   data-callback="handleGoogleCredentialResponse"
+                   data-auto_prompt="false">
               </div>
-              <input id="loginPassword" type="password" required autocomplete="current-password" placeholder="••••••••" />
-            </div>
-            <button id="loginSubmitBtn" type="submit" class="primary-action" style="width: 100%; margin-top: 8px;">Sign In</button>
-            <button id="demoLoginBtn" type="button" class="secondary-action" style="width: 100%; margin-top: 12px; background: #f0fdf4; border: 1.5px solid #16a34a; color: #15803d; font-weight: 700; letter-spacing: 0.01em; transition: all 0.2s ease;" onmouseover="this.style.background='#dcfce7'; this.style.borderColor='#15803d';" onmouseout="this.style.background='#f0fdf4'; this.style.borderColor='#16a34a';">🎯 Try Demo</button>
-          </form>
-          <div class="auth-footer-links">
-            <div>Don't have an account? <a id="linkToRegister">Create workspace</a></div>
-            <div><a id="linkToVerifyEmail">Verify 6-digit OTP</a></div>
-          </div>
-        </div>
+              <div class="g_id_signin"
+                   data-type="standard"
+                   data-shape="rectangular"
+                   data-theme="outline"
+                   data-text="signin_with"
+                   data-size="large"
+                   data-logo_alignment="left"
+                   style="display: flex; justify-content: center; margin-bottom: 28px; padding-bottom: 8px;">
+              </div>
+              
+              <div style="display: flex; align-items: center; text-align: center; margin-top: 0; margin-bottom: 20px; color: #cbd5e1; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+                <hr style="flex: 1; border: none; border-top: 1px solid rgba(255,255,255,0.15);">
+                <span style="padding: 0 14px; white-space: nowrap;">or sign in with email</span>
+                <hr style="flex: 1; border: none; border-top: 1px solid rgba(255,255,255,0.15);">
+              </div>
 
-        <!-- View 2: Register Form -->
-        <div id="viewRegister" class="auth-view hidden">
-          <div id="registerError" class="alert-box error hidden"></div>
-          <form id="registerForm">
-            <div class="form-group">
-              <label>Workspace Type</label>
-              <div class="segmented-control">
-                <label id="labelTypeCompany" class="active">
-                  <input type="radio" name="workspaceType" id="typeCompany" value="company" checked />
-                  <span>🏢 Company</span>
-                </label>
-                <label id="labelTypeIndividual">
-                  <input type="radio" name="workspaceType" id="typeIndividual" value="individual" />
-                  <span>👤 Individual</span>
-                </label>
+              <form id="loginForm">
+                <div class="form-group">
+                  <label for="loginEmail">Work Email</label>
+                  <input id="loginEmail" type="email" required autocomplete="username" placeholder="name@company.com" />
+                </div>
+                <div class="form-group">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label for="loginPassword">Password</label>
+                    <a id="linkToForgotPassword" style="font-size: 12px; color: var(--accent); cursor: pointer; font-weight: 600; text-decoration: none;">Forgot password?</a>
+                  </div>
+                  <input id="loginPassword" type="password" required autocomplete="current-password" placeholder="••••••••" />
+                </div>
+                <button id="loginSubmitBtn" type="submit" class="primary-action" style="width: 100%; margin-top: 8px;">Sign In</button>
+                <button id="demoLoginBtn" type="button" class="secondary-action" style="width: 100%; margin-top: 12px; background: #f0fdf4; border: 1.5px solid #16a34a; color: #15803d; font-weight: 700; letter-spacing: 0.01em; transition: all 0.2s ease;" onmouseover="this.style.background='#dcfce7'; this.style.borderColor='#15803d';" onmouseout="this.style.background='#f0fdf4'; this.style.borderColor='#16a34a';">🎯 Try Demo</button>
+              </form>
+              <div class="auth-footer-links">
+                <div>Don't have an account? <a id="linkToRegister">Create workspace</a></div>
+                <div><a id="linkToVerifyEmail">Verify 6-digit OTP</a></div>
               </div>
             </div>
-            <div class="form-group">
-              <label for="registerWorkspaceName">Workspace Name</label>
-              <input id="registerWorkspaceName" type="text" required placeholder="e.g. Acme Capital or Sarah's Workspace" />
-            </div>
-            <div class="form-group">
-              <label for="registerEmail">Work Email</label>
-              <input id="registerEmail" type="email" required autocomplete="email" placeholder="name@company.com" />
-            </div>
-            <div class="form-group">
-              <label for="registerPassword">Password</label>
-              <input id="registerPassword" type="password" required minlength="8" autocomplete="new-password" placeholder="Min 8 characters" />
-            </div>
-            <button id="registerSubmitBtn" type="submit" class="primary-action" style="width: 100%; margin-top: 8px;">Create Account & Workspace</button>
-          </form>
-          <div class="auth-footer-links">
-            <div>Already have an account? <a id="linkToLoginFromRegister">Sign in</a></div>
-          </div>
-        </div>
 
-        <!-- View 3: Email Verification -->
-        <div id="viewVerifyEmail" class="auth-view hidden">
-          <div id="verifyMessage" class="alert-box hidden"></div>
-          <div style="text-align: center; margin-bottom: 16px;">
-            <span style="font-size: 36px; display: block; margin-bottom: 8px;">📧</span>
-            <p style="font-size: 14px; color: var(--muted); margin: 0;">
-              We sent a 6-digit OTP to <strong id="verifyEmailDisplay" style="color: var(--ink);">your email</strong>.
-            </p>
-          </div>
-          <form id="verifyEmailForm">
-            <div class="form-group">
-              <label for="verifyTokenInput">6-Digit OTP</label>
-              <input id="verifyTokenInput" type="text" required placeholder="123456" maxlength="6" style="text-align: center; letter-spacing: 4px; font-size: 18px;" />
+            <!-- View 2: Register Form -->
+            <div id="viewRegister" class="auth-view hidden">
+              <div id="registerError" class="alert-box error hidden"></div>
+              <form id="registerForm">
+                <div class="form-group">
+                  <label>Workspace Type</label>
+                  <div class="segmented-control">
+                    <label id="labelTypeCompany" class="active">
+                      <input type="radio" name="workspaceType" id="typeCompany" value="company" checked />
+                      <span>🏢 Company</span>
+                    </label>
+                    <label id="labelTypeIndividual">
+                      <input type="radio" name="workspaceType" id="typeIndividual" value="individual" />
+                      <span>👤 Individual</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="registerWorkspaceName">Workspace Name</label>
+                  <input id="registerWorkspaceName" type="text" required placeholder="e.g. Acme Capital or Sarah's Workspace" />
+                </div>
+                <div class="form-group">
+                  <label for="registerEmail">Work Email</label>
+                  <input id="registerEmail" type="email" required autocomplete="email" placeholder="name@company.com" />
+                </div>
+                <div class="form-group">
+                  <label for="registerPassword">Password</label>
+                  <input id="registerPassword" type="password" required minlength="8" autocomplete="new-password" placeholder="Min 8 characters" />
+                </div>
+                <button id="registerSubmitBtn" type="submit" class="primary-action" style="width: 100%; margin-top: 8px;">Create Account & Workspace</button>
+              </form>
+              <div class="auth-footer-links">
+                <div>Already have an account? <a id="linkToLoginFromRegister">Sign in</a></div>
+              </div>
             </div>
-            <button id="verifyTokenSubmitBtn" type="submit" class="primary-action" style="width: 100%;">Verify OTP</button>
-          </form>
-          <div class="auth-footer-links">
-            <div><a id="linkToLoginFromVerify">Back to Sign In</a></div>
-          </div>
-        </div>
 
-        <!-- View 4: Forgot Password Request -->
-        <div id="viewForgotPassword" class="auth-view hidden">
-          <div id="forgotPasswordMessage" class="alert-box hidden"></div>
-          <form id="forgotPasswordForm">
-            <div class="form-group">
-              <label for="forgotPasswordEmail">Account Email</label>
-              <input id="forgotPasswordEmail" type="email" required placeholder="name@company.com" />
+            <!-- View 3: Email Verification -->
+            <div id="viewVerifyEmail" class="auth-view hidden">
+              <div id="verifyMessage" class="alert-box hidden"></div>
+              <div style="text-align: center; margin-bottom: 16px;">
+                <span style="font-size: 36px; display: block; margin-bottom: 8px;">📧</span>
+                <p style="font-size: 14px; color: var(--muted); margin: 0;">
+                  We sent a 6-digit OTP to <strong id="verifyEmailDisplay" style="color: var(--ink);">your email</strong>.
+                </p>
+              </div>
+              <form id="verifyEmailForm">
+                <div class="form-group">
+                  <label for="verifyTokenInput">6-Digit OTP</label>
+                  <input id="verifyTokenInput" type="text" required placeholder="123456" maxlength="6" style="text-align: center; letter-spacing: 4px; font-size: 18px;" />
+                </div>
+                <button id="verifyTokenSubmitBtn" type="submit" class="primary-action" style="width: 100%;">Verify OTP</button>
+              </form>
+              <div class="auth-footer-links">
+                <div><a id="linkToLoginFromVerify">Back to Sign In</a></div>
+              </div>
             </div>
-            <button id="forgotPasswordSubmitBtn" type="submit" class="primary-action" style="width: 100%;">Send Reset Token</button>
-          </form>
-          <div class="auth-footer-links">
-            <div><a id="linkToResetWithToken">Already have a token? Reset password</a></div>
-            <div><a id="linkToLoginFromForgot">Back to Sign In</a></div>
-          </div>
-        </div>
 
-        <!-- View 5: Reset Password Confirm -->
-        <div id="viewResetPassword" class="auth-view hidden">
-          <div id="resetPasswordMessage" class="alert-box hidden"></div>
-          <form id="resetPasswordForm">
-            <div class="form-group">
-              <label for="resetTokenInput">Reset Token</label>
-              <input id="resetTokenInput" type="text" required placeholder="Paste reset token here..." />
+            <!-- View 4: Forgot Password Request -->
+            <div id="viewForgotPassword" class="auth-view hidden">
+              <div id="forgotPasswordMessage" class="alert-box hidden"></div>
+              <form id="forgotPasswordForm">
+                <div class="form-group">
+                  <label for="forgotPasswordEmail">Account Email</label>
+                  <input id="forgotPasswordEmail" type="email" required placeholder="name@company.com" />
+                </div>
+                <button id="forgotPasswordSubmitBtn" type="submit" class="primary-action" style="width: 100%;">Send Reset Token</button>
+              </form>
+              <div class="auth-footer-links">
+                <div><a id="linkToResetWithToken">Already have a token? Reset password</a></div>
+                <div><a id="linkToLoginFromForgot">Back to Sign In</a></div>
+              </div>
             </div>
-            <div class="form-group">
-              <label for="resetNewPassword">New Password</label>
-              <input id="resetNewPassword" type="password" required minlength="8" placeholder="New password (min 8 chars)" />
-            </div>
-            <div class="form-group">
-              <label for="resetConfirmPassword">Confirm New Password</label>
-              <input id="resetConfirmPassword" type="password" required minlength="8" placeholder="Confirm new password" />
-            </div>
-            <button id="resetPasswordSubmitBtn" type="submit" class="primary-action" style="width: 100%;">Update Password</button>
-          </form>
-          <div class="auth-footer-links">
-            <div><a id="linkToLoginFromReset">Back to Sign In</a></div>
-          </div>
-        </div>
 
-        <!-- View 6: Accept Workspace Invite -->
-        <div id="viewInviteAccept" class="auth-view hidden">
-          <div id="inviteAcceptMessage" class="alert-box hidden"></div>
-          <div style="text-align: center; margin-bottom: 16px;">
-            <span style="font-size: 36px; display: block; margin-bottom: 8px;">🤝</span>
-            <p style="font-size: 14px; color: var(--muted); margin: 0;">You have been invited to collaborate in a Philixa workspace.</p>
-          </div>
-          <form id="acceptInviteForm">
-            <div class="form-group">
-              <label>Invitation Token</label>
-              <input type="text" id="inviteTokenInput" class="input-field" required />
+            <!-- View 5: Reset Password Confirm -->
+            <div id="viewResetPassword" class="auth-view hidden">
+              <div id="resetPasswordMessage" class="alert-box hidden"></div>
+              <form id="resetPasswordForm">
+                <div class="form-group">
+                  <label for="resetTokenInput">Reset Token</label>
+                  <input id="resetTokenInput" type="text" required placeholder="Paste reset token here..." />
+                </div>
+                <div class="form-group">
+                  <label for="resetNewPassword">New Password</label>
+                  <input id="resetNewPassword" type="password" required minlength="8" placeholder="New password (min 8 chars)" />
+                </div>
+                <div class="form-group">
+                  <label for="resetConfirmPassword">Confirm New Password</label>
+                  <input id="resetConfirmPassword" type="password" required minlength="8" placeholder="Confirm new password" />
+                </div>
+                <button id="resetPasswordSubmitBtn" type="submit" class="primary-action" style="width: 100%;">Update Password</button>
+              </form>
+              <div class="auth-footer-links">
+                <div><a id="linkToLoginFromReset">Back to Sign In</a></div>
+              </div>
             </div>
-            <div class="form-group" id="invitePasswordFieldGroup">
-              <label>Set Password (to create account)</label>
-              <input type="password" id="invitePasswordInput" class="input-field" placeholder="Leave blank if you already have an account" />
+
+            <!-- View 6: Accept Workspace Invite -->
+            <div id="viewInviteAccept" class="auth-view hidden">
+              <div id="inviteAcceptMessage" class="alert-box hidden"></div>
+              <div style="text-align: center; margin-bottom: 16px;">
+                <span style="font-size: 36px; display: block; margin-bottom: 8px;">🤝</span>
+                <p style="font-size: 14px; color: var(--muted); margin: 0;">You have been invited to collaborate in a Philixa workspace.</p>
+              </div>
+              <form id="acceptInviteForm">
+                <div class="form-group">
+                  <label for="inviteTokenInput">Invitation Token</label>
+                  <input type="text" id="inviteTokenInput" required />
+                </div>
+                <div class="form-group" id="invitePasswordFieldGroup">
+                  <label for="invitePasswordInput">Set Password (to create account)</label>
+                  <input type="password" id="invitePasswordInput" placeholder="Leave blank if you already have an account" />
+                </div>
+                <button type="submit" id="inviteAcceptSubmitBtn" class="primary-action" style="width: 100%; margin-top: 10px;">
+                  Join Workspace
+                </button>
+              </form>
+              <div class="auth-footer-links">
+                <div><a id="linkToLoginFromInvite">Sign in with different account</a></div>
+              </div>
             </div>
-            <button type="submit" id="inviteAcceptSubmitBtn" class="btn primary full-width" style="margin-top: 10px;">
-              Join Workspace
-            </button>
-          </form>
-          <div class="auth-footer-links">
-            <div><a id="linkToLoginFromInvite">Sign in with different account</a></div>
-          </div>
-        </div>
 
           </div>
         </div>
@@ -696,7 +843,7 @@
     <div class="modal-content members-modal-content">
       <div class="modal-header">
         <div>
-          <h3 id="memberModalTitle" style="display: flex; align-items: center; gap: 8px;">
+          <h3 id="memberModalTitle" style="display: flex; align-items: center; gap: 8px; margin: 0;">
             Workspace Members <span id="memberModalOrgName" class="badge" style="font-size: 12px; font-weight: normal; background: var(--bg); border: 1px solid var(--line);"></span>
           </h3>
         </div>
@@ -755,7 +902,7 @@
   <div id="settingsModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 id="settingsModalTitle">Notification Preferences</h3>
+        <h3 id="settingsModalTitle" style="margin: 0;">Notification Preferences</h3>
         <button id="closeSettingsBtn" class="close-btn" type="button" title="Close settings">&times;</button>
       </div>
       <div class="modal-body">
@@ -786,7 +933,7 @@
         <hr style="border: 0; border-top: 1px solid var(--line); margin: 20px 0;">
         <div class="danger-zone" style="margin-top: 15px;">
           <h4 style="color: #ff4d4f; margin-bottom: 10px;">Danger Zone</h4>
-          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">
+          <p style="font-size: 13px; color: var(--muted); margin-bottom: 15px;">
             Permanently delete your account and all associated personal data. This action cannot be undone.
           </p>
           <button id="deleteAccountBtn" type="button" class="btn" style="width: 100%; background-color: rgba(255, 77, 79, 0.1); color: #ff4d4f; border: 1px solid rgba(255, 77, 79, 0.3);">Permanently Delete Account</button>
@@ -796,7 +943,7 @@
   </div>
 
   <!-- Application Scripts -->
-  <script src="/static/app.js?v=35"></script>
+  <script src="/static/app.js?v=36"></script>
   <script src="/static/fast-dictation.js?v=1"></script>
   <script src="/static/philixa-voice.js?v=31"></script>
   <script>
@@ -840,35 +987,16 @@
       if (targetPanel) {
         targetPanel.classList.remove('hidden');
       }
+      
+      // Fix 5: Ensure delete client button visibility is re-evaluated
+      if (els.deleteSelectedClientBtn) {
+        const show = !!state.selectedClientId;
+        els.deleteSelectedClientBtn.style.display = show ? "flex" : "none";
+        const divider = document.getElementById("deleteClientDivider");
+        if (divider) divider.style.display = show ? "block" : "none";
+      }
+      updateMetrics();
     });
   </script>
-
-  <!-- Floating Action Button for Copilot -->
-  <button id="openCopilotBtn" class="fab-copilot-btn" type="button" aria-label="Open Portfolio Copilot">
-    <span class="icon" style="font-size: 20px;">✨</span>
-  </button>
-
-  <!-- Copilot Chat Modal -->
-  <div id="copilotModal" class="copilot-modal hidden">
-    <div class="copilot-modal-header">
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <div class="brand-mark" style="width: 32px; height: 32px; font-size: 14px;">✨</div>
-        <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: var(--ink);">Portfolio Copilot</h3>
-      </div>
-      <button id="closeCopilotBtn" class="copilot-close-btn">&times;</button>
-    </div>
-    <div id="copilotMessages" class="copilot-messages">
-      <div class="chat-bubble ai-bubble">
-        Hello! I'm your Portfolio Copilot. Ask me about meetings, client sentiments, or upcoming commitments.
-      </div>
-    </div>
-    <div class="copilot-input-area">
-      <input type="text" id="copilotInput" placeholder="Ask about your portfolio..." autocomplete="off">
-      <button id="sendCopilotBtn" class="copilot-send-btn">
-        <svg fill="currentColor" viewBox="0 0 24 24" width="18" height="18"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>
-      </button>
-    </div>
-  </div>
 </body>
 </html>
-
