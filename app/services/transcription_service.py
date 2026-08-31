@@ -3,8 +3,7 @@ import os
 import torch
 import torchaudio
 
-# Force torchaudio to use soundfile instead of failing on torchcodec
-torchaudio.set_audio_backend("soundfile")
+# torchaudio will automatically fall back to soundfile if torchcodec is uninstalled
 
 try:
     from faster_whisper import WhisperModel
