@@ -592,6 +592,11 @@ textarea:focus {
 @media (max-width: 1023px) {
   .tablet-workbench-tabs {
     display: flex;
+    flex-wrap: wrap;
+  }
+  .tablet-tab-btn {
+    flex: 1 1 calc(50% - 8px);
+    text-align: center;
   }
   .dashboard-layout {
     grid-template-columns: 1fr !important;
