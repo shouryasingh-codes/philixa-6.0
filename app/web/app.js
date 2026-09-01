@@ -2812,8 +2812,8 @@ function bindEvents() {
 
   // Theme Toggle
   els.themeToggleBtn?.addEventListener("click", () => {
-    document.body.classList.toggle("dark-theme");
-    const isDark = document.body.classList.contains("dark-theme");
+    document.documentElement.classList.toggle("dark-theme");
+    const isDark = document.documentElement.classList.contains("dark-theme");
     localStorage.setItem("theme", isDark ? "dark" : "light");
     els.themeToggleBtn.innerHTML = isDark ? '<span class="icon">🌙</span> Toggle Theme' : '<span class="icon">☀️</span> Toggle Theme';
   });
@@ -2982,7 +2982,7 @@ async function init() {
     // Load saved theme
     const savedTheme = localStorage.getItem("theme");
     if (savedTheme === "dark") {
-      document.body.classList.add("dark-theme");
+      document.documentElement.classList.add("dark-theme");
       if (els.themeToggleBtn) {
         els.themeToggleBtn.innerHTML = '<span class="icon">🌙</span> Toggle Theme';
       }
