@@ -2807,7 +2807,16 @@ function bindEvents() {
 
   // Sidebar Toggles
   els.sidebarToggleBtn?.addEventListener("click", () => {
-    document.querySelector(".app-shell").classList.toggle("sidebar-collapsed");
+    if (window.innerWidth <= 980) {
+      document.body.classList.toggle("mobile-sidebar-open");
+    } else {
+      document.querySelector(".app-shell").classList.toggle("sidebar-collapsed");
+    }
+  });
+
+  const mobileBackdrop = document.getElementById("mobileSidebarBackdrop");
+  mobileBackdrop?.addEventListener("click", () => {
+    document.body.classList.remove("mobile-sidebar-open");
   });
 
   // Theme Toggle
