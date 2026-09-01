@@ -2814,6 +2814,10 @@ function bindEvents() {
     }
   });
 
+  document.getElementById("mobileNavToggleBtn")?.addEventListener("click", () => {
+    document.body.classList.toggle("mobile-sidebar-open");
+  });
+
   const mobileBackdrop = document.getElementById("mobileSidebarBackdrop");
   mobileBackdrop?.addEventListener("click", () => {
     document.body.classList.remove("mobile-sidebar-open");
