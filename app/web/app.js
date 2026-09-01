@@ -417,19 +417,10 @@ async function playTTS(text) {
 // AUTH STATE MACHINE & VIEW CONTROLLER
 // =============================================================================
 
-// Reveal the app smoothly after auth check completes (prevents flash of dashboard on reload)
-function revealApp() {
-  if (document.body.style.opacity === '0') {
-    document.body.style.transition = 'opacity 0.18s ease';
-    document.body.style.opacity = '1';
-  }
-}
-
 function showAuthOverlay(viewName) {
   authState.view = viewName;
   if (!els.authModal) return;
   els.authModal.classList.remove("hidden");
-  revealApp();
 
   // Hide all views
   const views = [
@@ -480,7 +471,6 @@ function showAuthOverlay(viewName) {
 function hideAuthOverlay() {
   if (!els.authModal) return;
   els.authModal.classList.add("hidden");
-  revealApp();
 }
 
 function handleSessionExpired() {
