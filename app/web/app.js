@@ -483,6 +483,8 @@ function hideAuthOverlay() {
 }
 
 function handleSessionExpired() {
+  localStorage.setItem("p6_logged_in", "false");
+  document.documentElement.classList.add("not-logged-in");
   authState.status = "unauthenticated";
   authState.user = null;
   authState.activeOrganization = null;
@@ -500,6 +502,8 @@ async function bootstrapSession() {
     const data = await api("/api/v1/auth/me");
     
     if (!data.user.is_verified) {
+      localStorage.setItem("p6_logged_in", "false");
+      document.documentElement.classList.add("not-logged-in");
       authState.status = "unverified";
       authState.user = data.user;
       if (els.verifyEmailDisplay) {
@@ -509,6 +513,10 @@ async function bootstrapSession() {
       return;
     }
 
+    // Auth Success
+    localStorage.setItem("p6_logged_in", "true");
+    document.documentElement.classList.remove("not-logged-in");
+    
     authState.status = "authenticated";
     authState.user = data.user;
     authState.activeOrganization = data.active_organization;
@@ -526,6 +534,11 @@ async function bootstrapSession() {
     }
   } catch (err) {
     console.log("[Auth] Session not active or expired:", err.message);
+    
+    // Auth Failed
+    localStorage.setItem("p6_logged_in", "false");
+    document.documentElement.classList.add("not-logged-in");
+    
     authState.status = "unauthenticated";
     
     // Do not override deep-link auth views (like invite-accept, reset-password) with login
@@ -835,6 +848,8 @@ async function handleLogout() {
   } catch (err) {
     console.warn("Logout request failed:", err);
   }
+  localStorage.setItem("p6_logged_in", "false");
+  document.documentElement.classList.add("not-logged-in");
   authState.status = "unauthenticated";
   authState.user = null;
   authState.activeOrganization = null;
@@ -1724,6 +1739,14 @@ async function refreshAll() {
   await loadCommitments();
   await loadPriorities();
   await loadTeamPerformance();
+
+  // Hide Zoho-style content loader and show actual content
+  const loader = document.getElementById("contentLoader");
+  const content = document.getElementById("dashboardMainContent");
+  if (loader && content) {
+    loader.style.display = "none";
+    content.style.display = "block";
+  }
 }
 
 async function withLoading(button, label, fn) {
