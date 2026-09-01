@@ -10,7 +10,7 @@ let voiceWorkletNode = null;
 let voiceAudioStream = null;
 let conversationHistory = [];
 let silenceTimeout = null;
-const SILENCE_LIMIT_MS = 3000;
+const SILENCE_LIMIT_MS = 4000; // Decreased to 4000ms as requested by the user
 
 // --- DOM Initialization ---
 function initVoice() {
@@ -349,6 +349,39 @@ async function processUserTranscript(transcript) {
     }
 
     await speakAIResponse(aiResponseText);
+    
+    if (data.meeting_id) {
+      console.log("[Philixa Voice] Meeting ID received. Polling for confirmation...", data.meeting_id);
+      
+      const pollInterval = setInterval(async () => {
+        try {
+          const res = await voiceFetchWithAuth(`/api/v1/meeting-notes/${data.meeting_id}`);
+          if (res.ok) {
+            const meeting = await res.json();
+            if (meeting.status === "client_identification_required") {
+              clearInterval(pollInterval);
+              console.log("[Philixa Voice] Client identification required popup triggered.");
+              
+              if (typeof state !== "undefined" && typeof els !== "undefined") {
+                state.pendingConfirmationMeetingId = data.meeting_id;
+                if (els.newClientName) els.newClientName.value = meeting.suggested_name || "";
+                if (els.confirmPanel) els.confirmPanel.classList.remove("hidden");
+                if (typeof window.showToast === "function") {
+                  window.showToast("Please confirm the client name.", true);
+                }
+              }
+            } else if (meeting.status === "processed" || meeting.status === "failed" || meeting.status === "manual_review_required") {
+              clearInterval(pollInterval);
+              if (meeting.status === "processed" && typeof window.refreshAll === "function") {
+                  window.refreshAll();
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Polling error in voice assistant:", e);
+        }
+      }, 2000);
+    }
   } catch (err) {
     console.error("[Philixa Voice] Process error:", err);
     if (typeof window.showToast === "function") {

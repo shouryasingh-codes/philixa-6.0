@@ -20,7 +20,8 @@ Schema:
 - organization_memberships(user_id, organization_id, role) -- Joins users to their organization. role can be 'owner' or 'member'.
 - clients(id, name, industry, status, user_id, organization_id)
 - meetings(id, client_id, meeting_date, summary, organization_id, user_id)
-- commitments(id, meeting_id, description, due_date, status, organization_id, user_id)
+- commitments(id, client_id, description, due_date, status, organization_id, user_id)
+- commitment_meeting_links(id, commitment_id, meeting_id)
 - meeting_evidence(id, meeting_id, chunk_text, embedding)
 
 IMPORTANT RULES FOR SQL:

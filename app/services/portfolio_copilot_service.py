@@ -344,15 +344,27 @@ async def _process_copilot_query(query: str, organization_id: str, user_id: str,
             
     elif final_state["route"] == "vector":
         query_vector = generate_query_embedding(query)
-        stmt = text("""
-            SELECT me.chunk_text, m.summary 
-            FROM meeting_evidence me
-            JOIN meetings m ON me.meeting_id = m.id
-            WHERE m.organization_id = :org_id
-            ORDER BY me.embedding <=> CAST(:vector AS vector)
-            LIMIT 5
-        """)
-        result = await db.execute(stmt, {"org_id": organization_id, "vector": str(query_vector)})
+        
+        if role.lower() == "member":
+            stmt = text("""
+                SELECT me.chunk_text, m.summary 
+                FROM meeting_evidence me
+                JOIN meetings m ON me.meeting_id = m.id
+                WHERE m.organization_id = :org_id AND m.user_id = :user_id
+                ORDER BY me.embedding <=> CAST(:vector AS vector)
+                LIMIT 5
+            """)
+            result = await db.execute(stmt, {"org_id": organization_id, "user_id": user_id, "vector": str(query_vector)})
+        else:
+            stmt = text("""
+                SELECT me.chunk_text, m.summary 
+                FROM meeting_evidence me
+                JOIN meetings m ON me.meeting_id = m.id
+                WHERE m.organization_id = :org_id
+                ORDER BY me.embedding <=> CAST(:vector AS vector)
+                LIMIT 5
+            """)
+            result = await db.execute(stmt, {"org_id": organization_id, "vector": str(query_vector)})
         rows = result.fetchall()
         data = [dict(row._mapping) for row in rows]
         

@@ -5,7 +5,7 @@ import json
 import logging
 from typing import Dict, List, Optional
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -111,6 +111,7 @@ async def speak(
 async def chat_with_assistant(
     request: ChatRequest,
     principal: CurrentPrincipal,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """
@@ -120,5 +121,15 @@ async def chat_with_assistant(
     settings = get_settings()
     assistant = VoiceAssistantService(db, settings)
 
-    response_text = await assistant.chat(request.text, request.conversation_history, principal=principal)
-    return {"response": response_text}
+    response_text, meeting_id = await assistant.chat(
+        request.text, 
+        request.conversation_history, 
+        principal=principal,
+        background_tasks=background_tasks
+    )
+    
+    result = {"response": response_text}
+    if meeting_id is not None:
+        result["meeting_id"] = meeting_id
+        
+    return result
