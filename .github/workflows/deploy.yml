@@ -20,7 +20,9 @@ jobs:
             cd ~/philixa
             git pull origin main
             
-            # Rebuild images if needed and restart all containers (including worker)
+            # Cleanly stop existing containers to avoid the ContainerConfig recreation bug
+            sudo docker-compose down
+            # Rebuild images if needed and restart all containers
             sudo docker-compose up -d --build
             
             # Ensure the iptables port routing is active
