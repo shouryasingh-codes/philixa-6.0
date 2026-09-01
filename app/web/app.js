@@ -417,6 +417,12 @@ async function playTTS(text) {
 // AUTH STATE MACHINE & VIEW CONTROLLER
 // =============================================================================
 
+// Reveal the app after auth check — always called, even on error, to prevent black screen
+function revealApp() {
+  document.body.style.transition = 'opacity 0.15s ease';
+  document.body.style.opacity = '1';
+}
+
 function showAuthOverlay(viewName) {
   authState.view = viewName;
   if (!els.authModal) return;
@@ -2973,7 +2979,12 @@ async function init() {
   updateCopilotTokenBudget(0);
   bindEvents();
   initCopilot();
-  await bootstrapSession();
+  try {
+    await bootstrapSession();
+  } finally {
+    // Always reveal the app — prevents permanent black screen if any error occurs
+    revealApp();
+  }
 }
 
 if (document.readyState === "loading") {
