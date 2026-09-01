@@ -2943,46 +2943,46 @@ function initCopilot() {
 
 // --- App Boot Lifecycle ---
 async function init() {
-  if (els.meetingDate) els.meetingDate.value = todayIso();
-  if (els.meetingDateAudio) els.meetingDateAudio.value = todayIso();
+  try {
+    if (els.meetingDate) els.meetingDate.value = todayIso();
+    if (els.meetingDateAudio) els.meetingDateAudio.value = todayIso();
 
-  // Load saved theme
-  const savedTheme = localStorage.getItem("theme");
-  if (savedTheme === "dark") {
-    document.body.classList.add("dark-theme");
-    if (els.themeToggleBtn) {
-      els.themeToggleBtn.innerHTML = '<span class="icon">🌙</span> Toggle Theme';
+    // Load saved theme
+    const savedTheme = localStorage.getItem("theme");
+    if (savedTheme === "dark") {
+      document.body.classList.add("dark-theme");
+      if (els.themeToggleBtn) {
+        els.themeToggleBtn.innerHTML = '<span class="icon">🌙</span> Toggle Theme';
+      }
     }
-  }
 
-  // Tablet initial panel setup (< 1024px)
-  const syncTabletView = () => {
-    if (window.innerWidth < 1024) {
-      const isDiffActive = els.tabMobileDiffs?.classList.contains("active");
-      if (isDiffActive) {
-        if (els.diffWorkbench) els.diffWorkbench.classList.remove("tablet-hidden");
-        if (els.notePanel) els.notePanel.classList.add("tablet-hidden");
+    // Tablet initial panel setup (< 1024px)
+    const syncTabletView = () => {
+      if (window.innerWidth < 1024) {
+        const isDiffActive = els.tabMobileDiffs?.classList.contains("active");
+        if (isDiffActive) {
+          if (els.diffWorkbench) els.diffWorkbench.classList.remove("tablet-hidden");
+          if (els.notePanel) els.notePanel.classList.add("tablet-hidden");
+        } else {
+          if (els.tabMobileIntake) els.tabMobileIntake.classList.add("active");
+          if (els.diffWorkbench) els.diffWorkbench.classList.add("tablet-hidden");
+          if (els.notePanel) els.notePanel.classList.remove("tablet-hidden");
+        }
       } else {
-        if (els.tabMobileIntake) els.tabMobileIntake.classList.add("active");
-        if (els.diffWorkbench) els.diffWorkbench.classList.add("tablet-hidden");
+        if (els.diffWorkbench) els.diffWorkbench.classList.remove("tablet-hidden");
         if (els.notePanel) els.notePanel.classList.remove("tablet-hidden");
       }
-    } else {
-      if (els.diffWorkbench) els.diffWorkbench.classList.remove("tablet-hidden");
-      if (els.notePanel) els.notePanel.classList.remove("tablet-hidden");
-    }
-  };
+    };
 
-  syncTabletView();
-  window.addEventListener("resize", syncTabletView);
+    syncTabletView();
+    window.addEventListener("resize", syncTabletView);
 
-  updateCopilotTokenBudget(0);
-  bindEvents();
-  initCopilot();
-  try {
+    updateCopilotTokenBudget(0);
+    bindEvents();
+    initCopilot();
     await bootstrapSession();
   } finally {
-    // Always reveal the app — prevents permanent black screen if any error occurs
+    // ALWAYS reveal the app — no matter what error occurs, screen will never stay dark
     revealApp();
   }
 }
