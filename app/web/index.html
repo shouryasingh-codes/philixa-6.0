@@ -15,8 +15,7 @@
   <link rel="stylesheet" href="/static/styles.css?v=1.7" />
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
-    /* Prevent flash: html background matches login page so opacity:0 body shows green, not black */
-    html { background: linear-gradient(135deg, #020617, #064e3b); min-height: 100%; }
+    /* Prevent flash: body starts invisible, revealApp() fades it in after auth check */
     /* Scoped Multi-Tenant & Auth Enhancements */
     .topbar-branding { display: flex; flex-direction: column; }
     .topbar-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
