@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/styles.css?v=1.9" />
+  <link rel="stylesheet" href="/static/styles.css?v=1.10" />
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     /* Prevent flash: body starts invisible, revealApp() fades it in after auth check */
@@ -180,6 +180,63 @@
         </button>
       </div>
 
+      <div class="sidebar-context-actions">
+        <!-- Avatar Dropdown -->
+        <div class="avatar-dropdown-container" id="avatarDropdownContainer">
+          <button id="avatarBtn" class="avatar-btn" type="button" aria-haspopup="menu" aria-expanded="false" title="User Menu">U</button>
+          <div id="avatarMenu" class="avatar-menu hidden" role="menu">
+            <div class="avatar-menu-header">
+              <span id="userNameDisplay" class="user-name-text" style="font-weight: 600; font-size: 13px; color: var(--text);">User</span>
+              <span id="userEmailDisplay" class="user-email-text" title="Logged in user">user@example.com</span>
+            </div>
+            <div class="avatar-menu-body">
+              <button id="manageMembersBtn" type="button" class="avatar-menu-item" data-min-role="admin" role="menuitem">
+                <span class="icon">👥</span> Manage Members
+              </button>
+              <button id="settingsBtn" type="button" class="avatar-menu-item" role="menuitem">
+                <span class="icon">⚙️</span> Preferences
+              </button>
+              <button id="themeToggleBtn" type="button" class="avatar-menu-item" role="menuitem">
+                <span class="icon">🌙</span> Toggle Theme
+              </button>
+              <div class="avatar-menu-divider"></div>
+              <button id="logoutBtn" type="button" class="avatar-menu-item logout-item" role="menuitem">
+                <span class="icon">🚪</span> Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Global Client Filter Selector -->
+        <div style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+          <div class="workspace-selector-wrap" title="Global Client Filter" style="width: 100%;">
+            <span class="workspace-icon">👤</span>
+            <select id="topClientSelect" class="workspace-select" aria-label="Select active client filter" style="width: 100%;">
+              <option value="">@client (All)</option>
+            </select>
+          </div>
+          <button id="deleteSelectedClientBtn" class="topbar-icon-btn danger-hover" type="button" title="Delete Selected Client" style="display: none; padding: 6px; border-radius: 6px; background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.2); cursor: pointer; color: #dc2626; transition: all 0.2s; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <span class="icon" style="font-size: 14px;">🗑️</span>
+          </button>
+        </div>
+
+        <!-- Multi-Tenant Workspace Selector -->
+        <div class="workspace-selector-wrap" title="Current Workspace" style="margin-top: 10px;">
+          <span class="workspace-icon">🏢</span>
+          <select id="workspaceSelect" class="workspace-select" aria-label="Select active workspace" style="width: 100%;">
+            <option value="" disabled selected>Loading...</option>
+          </select>
+        </div>
+
+        <!-- Scope Selector (My vs Team) - Only visible to Owner/Admin -->
+        <div class="workspace-selector-wrap" id="scopeSelectorWrap" title="View Scope" style="display: none; margin-top: 10px;">
+          <span class="workspace-icon">👁️</span>
+          <select id="scopeSelect" class="workspace-select" aria-label="Select view scope" style="width: 100%;">
+            <option value="team" selected>Team Workspace</option>
+            <option value="me">My Workspace</option>
+          </select>
+        </div>
+      </div>
 
       <!-- Main Navigation -->
       <nav class="nav-list" aria-label="Dashboard sections">
@@ -198,66 +255,14 @@
           <span class="topbar-plan-badge" id="topbarPlanBadge">Free</span>
         </div>
         <div class="topbar-actions">
-          <!-- Global Client Filter Selector -->
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <div class="workspace-selector-wrap" title="Global Client Filter">
-              <span class="workspace-icon">👤</span>
-              <select id="topClientSelect" class="workspace-select" aria-label="Select active client filter">
-                <option value="">@client (All)</option>
-              </select>
-            </div>
-            <button id="deleteSelectedClientBtn" class="topbar-icon-btn danger-hover" type="button" title="Delete Selected Client" style="display: none; padding: 6px; border-radius: 6px; background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.2); cursor: pointer; color: #dc2626; transition: all 0.2s; display: flex; align-items: center; justify-content: center;">
-              <span class="icon" style="font-size: 14px;">🗑️</span>
-            </button>
-          </div>
 
-          <!-- Multi-Tenant Workspace Selector -->
-          <div class="workspace-selector-wrap" title="Current Workspace">
-            <span class="workspace-icon">🏢</span>
-            <select id="workspaceSelect" class="workspace-select" aria-label="Select active workspace">
-              <option value="" disabled selected>Loading...</option>
-            </select>
-          </div>
-
-          <!-- Scope Selector (My vs Team) - Only visible to Owner/Admin -->
-          <div class="workspace-selector-wrap" id="scopeSelectorWrap" title="View Scope" style="display: none;">
-            <span class="workspace-icon">👁️</span>
-            <select id="scopeSelect" class="workspace-select" aria-label="Select view scope">
-              <option value="team" selected>Team Workspace</option>
-              <option value="me">My Workspace</option>
-            </select>
-          </div>
 
           <!-- Copilot Toggle -->
           <button id="topbarCopilotBtn" class="topbar-btn" type="button" title="Open AI Copilot (Cmd+Shift+L)" aria-label="Open AI Copilot">
             <span class="icon">✨</span> Copilot
           </button>
 
-          <!-- Avatar Dropdown -->
-          <div class="avatar-dropdown-container" id="avatarDropdownContainer">
-            <button id="avatarBtn" class="avatar-btn" type="button" aria-haspopup="menu" aria-expanded="false" title="User Menu">U</button>
-            <div id="avatarMenu" class="avatar-menu hidden" role="menu">
-              <div class="avatar-menu-header">
-                <span id="userNameDisplay" class="user-name-text" style="font-weight: 600; font-size: 13px; color: var(--text);">User</span>
-                <span id="userEmailDisplay" class="user-email-text" title="Logged in user">user@example.com</span>
-              </div>
-              <div class="avatar-menu-body">
-                <button id="manageMembersBtn" type="button" class="avatar-menu-item" data-min-role="admin" role="menuitem">
-                  <span class="icon">👥</span> Manage Members
-                </button>
-                <button id="settingsBtn" type="button" class="avatar-menu-item" role="menuitem">
-                  <span class="icon">⚙️</span> Preferences
-                </button>
-                <button id="themeToggleBtn" type="button" class="avatar-menu-item" role="menuitem">
-                  <span class="icon">🌙</span> Toggle Theme
-                </button>
-                <div class="avatar-menu-divider"></div>
-                <button id="logoutBtn" type="button" class="avatar-menu-item logout-item" role="menuitem">
-                  <span class="icon">🚪</span> Sign Out
-                </button>
-              </div>
-            </div>
-          </div>
+
         </div>
       </header>
 
