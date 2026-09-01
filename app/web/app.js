@@ -1733,12 +1733,18 @@ async function loadMetrics() {
 }
 
 async function refreshAll() {
-  await checkHealth();
-  await loadMetrics();
-  await loadClients();
-  await loadCommitments();
-  await loadPriorities();
-  await loadTeamPerformance();
+  try {
+    await Promise.all([
+      checkHealth(),
+      loadMetrics(),
+      loadClients(),
+      loadCommitments(),
+      loadPriorities(),
+      loadTeamPerformance()
+    ]);
+  } catch (err) {
+    console.warn("Failed during refreshAll:", err);
+  }
 
   // Hide Zoho-style content loader and show actual content
   const loader = document.getElementById("contentLoader");
