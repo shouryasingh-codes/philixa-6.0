@@ -419,8 +419,11 @@ async function playTTS(text) {
 
 // Reveal the app after auth check — always called, even on error, to prevent black screen
 function revealApp() {
-  document.body.style.transition = 'opacity 0.15s ease';
-  document.body.style.opacity = '1';
+  const loader = document.getElementById('initialLoader');
+  if (loader) {
+    loader.style.opacity = '0';
+    setTimeout(() => loader.remove(), 300);
+  }
 }
 
 function showAuthOverlay(viewName) {
