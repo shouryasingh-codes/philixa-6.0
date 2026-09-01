@@ -1452,6 +1452,17 @@ th:last-child {
     margin-top: 8px;
   }
 
+  .tabs-header {
+    width: 100% !important;
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px !important;
+  }
+  .tab-btn {
+    flex-shrink: 0 !important;
+  }
+
   html, body {
     overflow-x: hidden;
     max-width: 100vw;
