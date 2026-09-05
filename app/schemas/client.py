@@ -126,6 +126,8 @@ class ClientCreateRequest(BaseModel):
     products_interested: list[str] | None = None
     rolling_summary: str | None = None
     relationship_notes: str | None = None
+    email: str | None = None
+    whatsapp_phone: str | None = None
 
 
 class ClientResponse(BaseModel):
@@ -139,7 +141,20 @@ class ClientResponse(BaseModel):
     products_interested: list[str] = []
     rolling_summary: str | None = ""
     relationship_notes: str | None = ""
+    email: str | None = None
+    whatsapp_phone: str | None = None
     is_active: bool = True
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
+
+class CommunicationLogRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: int
+    client_id: int
+    channel: str
+    message_content: str
+    status: str
+    error_message: str | None = None
+    created_at: datetime

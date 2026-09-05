@@ -51,6 +51,8 @@ class Meeting(Base):
     audio_file_path = synonym("audio_path")
     audio_duration_seconds: Mapped[int] = mapped_column(Integer, default=0)
     suggested_client_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    suggested_client_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    suggested_client_whatsapp_phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     source_type: Mapped[str] = mapped_column(
         String(40), default=MeetingSourceType.PASTED_NOTE.value, nullable=False
     )

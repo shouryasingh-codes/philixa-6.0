@@ -61,18 +61,22 @@ class LocalHeuristicProvider(AIProvider):
     ) -> ExtractionResult:
         sentences = _split_sentences(raw_notes)
         client_name, client_confidence = _extract_client_name(raw_notes)
+        client_email = _extract_email(raw_notes)
+        client_whatsapp_phone = _extract_whatsapp_phone(raw_notes)
         products_owned = _extract_products(sentences)
         concerns = _extract_concerns(sentences)
         commitments = _extract_commitments(sentences, meeting_date)
         summary = _make_summary(client_name, sentences, concerns, commitments)
         key_points = _key_points(sentences)
 
-        identification_status = "identified" if client_name else "client_identification_required"
+        identification_status = "identified" if client_name else "unknown"
         payload = {
             "client_identification": {
                 "status": identification_status,
                 "matched_client_id": None,
                 "suggested_client_name": client_name,
+                "suggested_client_email": client_email,
+                "suggested_client_whatsapp_phone": client_whatsapp_phone,
                 "confidence": client_confidence,
                 "requires_confirmation": not bool(client_name),
             },
@@ -211,6 +215,8 @@ class GroqProvider(AIProvider):
             "Your ONLY job is to translate this transcript into clean, professional English, correcting any phonetic mistakes based on the business context. "
             "CRITICAL: Preserve Indian names accurately using standard English spelling. Do NOT anglicize names (e.g., if the phonetic Hindi is 'दक्स', write 'Daksh', not 'Dex'). "
             "CRITICAL: Ensure ALL named entities (like competitor banks, companies, people) mentioned in the notes are preserved in the English translation. Do not summarize or omit anything. "
+            "CRITICAL: Correct any numerical formatting errors made by STT. For example, if a phone number sequence is misformatted as time (e.g., '106' misformatted as '01:06', or '9196 01:06 2 152'), reconstruct the continuous phone number (e.g. '9196 106 2 152'). "
+            "CRITICAL: If an email address is dictated with spaces or phonetic words like 'at the rate', 'dot', combine them into a valid email string without spaces (e.g. 'raj sharma 3937 at the rate gmail dot com' becomes 'rajsharma3937@gmail.com'). "
             "Return ONLY the translated English text, nothing else."
         )
         
@@ -362,6 +368,8 @@ class GeminiProvider(AIProvider):
             "Your ONLY job is to translate this transcript into clean, professional English, correcting any phonetic mistakes based on the business context. "
             "CRITICAL: Preserve Indian names accurately using standard English spelling. Do NOT anglicize names (e.g., if the phonetic Hindi is 'दक्स', write 'Daksh', not 'Dex'). "
             "CRITICAL: Ensure ALL named entities (like competitor banks, companies, people) mentioned in the notes are preserved in the English translation. Do not summarize or omit anything. "
+            "CRITICAL: Correct any numerical formatting errors made by STT. For example, if a phone number sequence is misformatted as time (e.g., '106' misformatted as '01:06', or '9196 01:06 2 152'), reconstruct the continuous phone number (e.g. '9196 106 2 152'). "
+            "CRITICAL: If an email address is dictated with spaces or phonetic words like 'at the rate', 'dot', combine them into a valid email string without spaces (e.g. 'raj sharma 3937 at the rate gmail dot com' becomes 'rajsharma3937@gmail.com'). "
             "Return ONLY the translated English text, nothing else."
         )
         url = self._build_url(self.model_name)
@@ -503,6 +511,24 @@ def _extract_client_name(raw_notes: str) -> tuple[str | None, float]:
             if parts:
                 return " ".join(parts), 0.92 if len(parts) >= 2 else 0.82
     return None, 0.0
+
+
+def _extract_email(raw_notes: str) -> str | None:
+    match = re.search(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", raw_notes, flags=re.I)
+    return match.group(0) if match else None
+
+
+def _extract_whatsapp_phone(raw_notes: str) -> str | None:
+    """Extract a phone number only when it is explicitly labelled as mobile or WhatsApp."""
+    match = re.search(
+        r"\b(?:whatsapp|mobile|phone|number)\s*(?:number)?\s*(?:is|:|-)?\s*(\+?\d[\d\s()-]{7,}\d)",
+        raw_notes,
+        flags=re.I,
+    )
+    if not match:
+        return None
+    value = re.sub(r"[\s()-]", "", match.group(1))
+    return value if 8 <= len(value.lstrip("+")) <= 15 else None
 
 
 def _extract_concerns(sentences: list[str]) -> list[dict[str, Any]]:

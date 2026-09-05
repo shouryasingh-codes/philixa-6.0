@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/styles.css?v=1.14" />
+  <link rel="stylesheet" href="/static/styles.css?v=1.15" />
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     /* Prevent flash: body starts invisible, revealApp() fades it in after auth check */
@@ -215,6 +215,9 @@
               <option value="">@client (All)</option>
             </select>
           </div>
+          <button id="viewClientProfileBtn" class="topbar-icon-btn" type="button" title="View Client Profile" style="display: none; padding: 6px; border-radius: 6px; background: rgba(15, 118, 110, 0.1); border: 1px solid rgba(15, 118, 110, 0.2); cursor: pointer; color: #0f766e; transition: all 0.2s; align-items: center; justify-content: center; flex-shrink: 0;">
+            <span class="icon" style="font-size: 14px;">📝</span>
+          </button>
           <button id="deleteSelectedClientBtn" class="topbar-icon-btn danger-hover" type="button" title="Delete Selected Client" style="display: none; padding: 6px; border-radius: 6px; background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.2); cursor: pointer; color: #dc2626; transition: all 0.2s; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
             <span class="icon" style="font-size: 14px;">🗑️</span>
           </button>
@@ -464,6 +467,8 @@
                 <option value="">Select existing client</option>
               </select>
               <input id="newClientName" type="text" placeholder="Or create new client name" />
+              <input id="newClientEmail" type="email" placeholder="Email (optional)" />
+              <input id="newClientPhone" type="text" placeholder="Phone (optional)" />
               <button id="confirmClient" type="button">Confirm client</button>
             </div>
           </div>
@@ -980,8 +985,43 @@
     </div>
   </div>
 
+  <div id="clientProfileModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="clientProfileModalTitle">
+    <div class="modal-content" style="max-width: 600px;">
+      <div class="modal-header">
+        <h3 id="clientProfileModalTitle" style="margin: 0;">Client Profile</h3>
+        <button id="closeClientProfileBtn" class="close-btn" type="button" title="Close profile">&times;</button>
+      </div>
+      <div class="modal-body">
+        
+        <div class="profile-section" style="margin-bottom: 20px;">
+          <h4 style="margin-bottom: 10px; color: var(--ink); border-bottom: 1px solid var(--line); padding-bottom: 5px;">Contact Info</h4>
+          <div class="form-row" style="margin-bottom: 15px;">
+            <label>WhatsApp Number
+              <input type="text" id="profileWhatsapp" placeholder="+919876543210" style="width: 100%; margin-top: 5px; padding: 8px; border-radius: 6px; border: 1px solid var(--line);" />
+            </label>
+          </div>
+          <div class="form-row" style="margin-bottom: 15px;">
+            <label>Email Address
+              <input type="email" id="profileEmail" placeholder="client@example.com" style="width: 100%; margin-top: 5px; padding: 8px; border-radius: 6px; border: 1px solid var(--line);" />
+            </label>
+          </div>
+          <button id="saveClientContactBtn" type="button" class="btn" style="width: 100%;">Save Contact Info</button>
+          <div id="profileContactMsg" class="alert-box hidden" style="margin-top: 10px;"></div>
+        </div>
+
+        <div class="profile-section">
+          <h4 style="margin-bottom: 10px; color: var(--ink); border-bottom: 1px solid var(--line); padding-bottom: 5px;">Communication History</h4>
+          <div id="communicationFeed" class="communication-feed" style="max-height: 300px; overflow-y: auto; padding-right: 5px;">
+            <div class="empty-state">Loading history...</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
   <!-- Application Scripts -->
-  <script src="/static/app.js?v=43"></script>
+  <script src="/static/app.js?v=45"></script>
   <script src="/static/fast-dictation.js?v=1"></script>
   <script src="/static/philixa-voice.js?v=35"></script>
   <script>
@@ -1030,6 +1070,9 @@
       if (els.deleteSelectedClientBtn) {
         const show = !!state.selectedClientId;
         els.deleteSelectedClientBtn.style.display = show ? "flex" : "none";
+        if (els.viewClientProfileBtn) {
+          els.viewClientProfileBtn.style.display = show ? "flex" : "none";
+        }
         const divider = document.getElementById("deleteClientDivider");
         if (divider) divider.style.display = show ? "block" : "none";
       }

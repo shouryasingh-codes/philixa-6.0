@@ -61,6 +61,8 @@ class ClientRepository:
             products_interested_json=products_interested_json,
             rolling_summary=data.get("rolling_summary", ""),
             relationship_notes=data.get("relationship_notes", ""),
+            email=data.get("email"),
+            whatsapp_phone=data.get("whatsapp_phone"),
             is_active=data.get("is_active", True),
         )
         db.add(client)
@@ -86,6 +88,10 @@ class ClientRepository:
             client.rolling_summary = data["rolling_summary"]
         if "relationship_notes" in data:
             client.relationship_notes = data["relationship_notes"]
+        if "email" in data:
+            client.email = data["email"]
+        if "whatsapp_phone" in data:
+            client.whatsapp_phone = data["whatsapp_phone"]
         if "is_active" in data:
             client.is_active = data["is_active"]
         db.add(client)

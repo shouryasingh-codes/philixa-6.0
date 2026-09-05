@@ -57,6 +57,8 @@ class ClientIdentificationRead(BaseModel):
     status: str
     matched_client_id: int | None
     suggested_client_name: str | None
+    suggested_client_email: str | None = None
+    suggested_client_whatsapp_phone: str | None = None
     confidence: float
     requires_confirmation: bool
 

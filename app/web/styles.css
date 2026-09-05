@@ -1081,7 +1081,7 @@ textarea:focus {
 
 .confirm-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) auto;
   gap: 10px;
   margin-top: 10px;
 }
@@ -2694,4 +2694,55 @@ body[data-sidecar-open="true"] .fab-copilot-btn {
 }
 
 #deleteSelectedClientBtn:hover { opacity: 1 !important; background: rgba(220, 38, 38, 0.1) !important; }
+
+/* Communication History Feed Styles */
+.communication-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.comm-log-item {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  position: relative;
+}
+.comm-log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.comm-log-channel {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.comm-log-channel.whatsapp { color: #25D366; }
+.comm-log-channel.email { color: #ea4335; }
+
+.comm-log-status {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.comm-log-status.sent { background: #dcfce7; color: #166534; }
+.comm-log-status.delivered { background: #cffafe; color: #164e63; }
+.comm-log-status.read { background: #bfdbfe; color: #1e3a8a; }
+.comm-log-status.failed { background: #fee2e2; color: #991b1b; }
+.comm-log-status.pending { background: #fef9c3; color: #854d0e; }
+
+.comm-log-content {
+  font-size: 14px;
+  color: var(--ink);
+  white-space: pre-wrap;
+  background: var(--bg);
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+}
 

@@ -63,6 +63,23 @@ async def whatsapp_webhook(
                         
                         status_enum = status_map.get(new_status, DeliveryStatus.UNKNOWN)
                         
+                        # Extract detailed error message if failed
+                        error_msg = None
+                        if new_status == "failed":
+                            errors = status_obj.get("errors", [])
+                            if errors:
+                                err = errors[0]
+                                code = err.get("code", "")
+                                title = err.get("title", "Unknown WhatsApp error")
+                                details = err.get("error_data", {}).get("details", "")
+                                
+                                error_msg = title
+                                if code:
+                                    error_msg += f" (Code: {code})"
+                                if details:
+                                    error_msg += f" - {details}"
+                        
+                        # 1. Check NotificationDelivery
                         stmt = select(NotificationDelivery).where(
                             NotificationDelivery.provider_message_id == provider_message_id
                         )
@@ -71,12 +88,20 @@ async def whatsapp_webhook(
                         
                         if delivery:
                             delivery.status = status_enum
-                            if new_status == "failed":
-                                errors = status_obj.get("errors", [])
-                                if errors:
-                                    delivery.error_message = errors[0].get("title", "Unknown WhatsApp error")
+                            if error_msg:
+                                delivery.error_message = error_msg
+                            logger.info(f"Updated NotificationDelivery {delivery.id} to {status_enum}")
                             
-                            logger.info(f"Updated delivery {delivery.id} to {status_enum}")
+                        # 2. Check CommunicationLog using Repository
+                        from app.repositories.communication_repository import CommunicationRepository
+                        comm_log = await CommunicationRepository().update_status_by_provider_id(
+                            db=db,
+                            provider_message_id=provider_message_id,
+                            status=new_status,
+                            error_message=error_msg
+                        )
+                        if comm_log:
+                            logger.info(f"Updated CommunicationLog {comm_log.id} to {status_enum}")
             
             await db.commit()
             return {"status": "success"}

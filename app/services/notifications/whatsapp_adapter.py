@@ -66,7 +66,18 @@ class WhatsAppAdapter(NotificationAdapter):
                     "metadata_payload": response_data
                 }
             else:
-                error_msg = response_data.get("error", {}).get("message", "Unknown error")
+                error_obj = response_data.get("error", {})
+                error_code = error_obj.get("code", "")
+                error_title = error_obj.get("message", "Unknown error")
+                error_details = error_obj.get("error_data", {}).get("details", "")
+                
+                # Format: "Message (Code) - Details"
+                error_msg = error_title
+                if error_code:
+                    error_msg += f" (Code: {error_code})"
+                if error_details:
+                    error_msg += f" - {error_details}"
+                    
                 logger.error(f"Failed to send WhatsApp message. Code: {response.status_code}, Error: {error_msg}")
                 return {
                     "provider_message_id": f"err_{uuid.uuid4().hex}",

@@ -95,6 +95,72 @@ def test_unknown_client_requires_confirmation_then_updates_memory(
     assert confirm_payload["pending_commitments"][0]["description"] == "Call client back"
 
 
+def test_confirmation_saves_the_whatsapp_phone_for_a_new_client(
+    client_app: TestClient, api_headers: dict[str, str]
+) -> None:
+    processed = client_app.post(
+        "/api/v1/meeting-notes/process",
+        headers=api_headers,
+        json={
+            "raw_notes": "Customer interested in home loan. Wants callback Friday.",
+            "meeting_date": "2026-06-19",
+        },
+    )
+    assert processed.status_code == 200
+
+    confirmed = client_app.post(
+        f"/api/v1/meeting-notes/{processed.json()['meeting_id']}/confirm-client",
+        headers=api_headers,
+        json={
+            "new_client_name": "Amit Verma",
+            "new_client_whatsapp_phone": "+919876543210",
+        },
+    )
+    assert confirmed.status_code == 200
+
+    client = client_app.get(
+        f"/api/v1/clients/{confirmed.json()['client_id']}", headers=api_headers
+    )
+    assert client.status_code == 200
+    assert client.json()["whatsapp_phone"] == "+919876543210"
+
+
+def test_confirmation_saves_a_manually_provided_phone_for_an_existing_client(
+    client_app: TestClient, api_headers: dict[str, str]
+) -> None:
+    initial = client_app.post(
+        "/api/v1/meeting-notes/process",
+        headers=api_headers,
+        json={
+            "raw_notes": "Met Rajesh Sharma today. Interested in business loan.",
+            "meeting_date": "2026-06-19",
+        },
+    )
+    unresolved = client_app.post(
+        "/api/v1/meeting-notes/process",
+        headers=api_headers,
+        json={
+            "raw_notes": "Customer wants a callback Friday.",
+            "meeting_date": "2026-06-20",
+        },
+    )
+
+    confirmed = client_app.post(
+        f"/api/v1/meeting-notes/{unresolved.json()['meeting_id']}/confirm-client",
+        headers=api_headers,
+        json={
+            "client_id": initial.json()["client_id"],
+            "new_client_whatsapp_phone": "+919876543210",
+        },
+    )
+    assert confirmed.status_code == 200
+
+    client = client_app.get(
+        f"/api/v1/clients/{initial.json()['client_id']}", headers=api_headers
+    )
+    assert client.json()["whatsapp_phone"] == "+919876543210"
+
+
 def test_vague_due_date_is_not_invented(
     client_app: TestClient, api_headers: dict[str, str]
 ) -> None:

@@ -124,10 +124,20 @@ class MeetingProcessingService:
         )
         meeting.client_identification_status = client_status
         meeting.suggested_client_name = client_info.get("suggested_client_name")
+        meeting.suggested_client_email = client_info.get("suggested_client_email")
+        meeting.suggested_client_whatsapp_phone = client_info.get("suggested_client_whatsapp_phone")
         meeting.client_identification_confidence = float(
             client_info.get("confidence") or 0.0
         )
         db.add(meeting)
+        # Temporarily store the email for the confirmation popup
+        if not client:
+            extracted_email = client_info.get("suggested_client_email")
+            if extracted_email:
+                meeting.suggested_client_email = extracted_email
+            extracted_phone = client_info.get("suggested_client_whatsapp_phone")
+            if extracted_phone:
+                meeting.suggested_client_whatsapp_phone = extracted_phone
 
         # Step 5: Upsert commitments and refresh client memory.
         created: list = []
@@ -139,6 +149,13 @@ class MeetingProcessingService:
             client.products_interested_json = self._merge_string_list_field(
                 client.products_interested_json, extraction.get("products_interested") or []
             )
+            # Save extracted email to existing client (only if not already set)
+            extracted_email = client_info.get("suggested_client_email")
+            if extracted_email and not client.email:
+                client.email = extracted_email
+            extracted_phone = client_info.get("suggested_client_whatsapp_phone")
+            if extracted_phone and not client.whatsapp_phone:
+                client.whatsapp_phone = extracted_phone
             created, updated = await self.commitments.upsert_commitments(
                 db,
                 client_id=client.id,
@@ -183,6 +200,8 @@ class MeetingProcessingService:
         meeting_id: int,
         client_id: int | None = None,
         new_client_name: str | None = None,
+        new_client_email: str | None = None,
+        new_client_whatsapp_phone: str | None = None,
         principal: Principal | None = None,
     ) -> dict[str, Any] | None:
         if principal is not None:
@@ -206,6 +225,10 @@ class MeetingProcessingService:
 
             if not client:
                 raise ValueError("Client not found.")
+            if new_client_email:
+                client.email = new_client_email
+            if new_client_whatsapp_phone:
+                client.whatsapp_phone = new_client_whatsapp_phone
             client_status = "identified"
         elif new_client_name:
             client = Client(
@@ -213,6 +236,10 @@ class MeetingProcessingService:
                 user_id=meeting.user_id,
                 name=new_client_name,
                 normalized_name=self._normalize_client_name(new_client_name),
+                email=new_client_email or meeting.suggested_client_email,
+                whatsapp_phone=(
+                    new_client_whatsapp_phone or meeting.suggested_client_whatsapp_phone
+                ),
             )
             db.add(client)
             await db.flush()
@@ -291,6 +318,8 @@ class MeetingProcessingService:
                     "status": "unknown",
                     "matched_client_id": None,
                     "suggested_client_name": None,
+                    "suggested_client_email": None,
+                    "suggested_client_whatsapp_phone": None,
                     "confidence": 0.0,
                     "requires_confirmation": False,
                 },
@@ -371,6 +400,8 @@ class MeetingProcessingService:
                     if client
                     else client_identification.get("suggested_client_name")
                 ),
+                "suggested_client_email": client_identification.get("suggested_client_email"),
+                "suggested_client_whatsapp_phone": client_identification.get("suggested_client_whatsapp_phone"),
                 "confidence": float(client_identification.get("confidence") or 0.0),
                 "requires_confirmation": client is None,
             },

@@ -37,6 +37,8 @@ class Client(Base):
     products_interested_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
     rolling_summary: Mapped[str] = mapped_column(Text, default="", nullable=False)
     relationship_notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    whatsapp_phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(

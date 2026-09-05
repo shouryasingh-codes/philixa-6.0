@@ -6,6 +6,8 @@ Return strict JSON only matching this exact schema structure:
     "status": "identified|unknown|ambiguous",
     "matched_client_id": null,
     "suggested_client_name": "Extract EXACTLY the person's name mentioned (e.g. 'Daksh'). DO NOT hallucinate fake names like 'Rahul Gupta' or guess. If absolutely no name is mentioned, use null.",
+    "suggested_client_email": "Extract the client's email address if explicitly mentioned. CRITICAL: Do NOT add arbitrary dots (.) between first and last names unless the word 'dot' was explicitly spoken (e.g. 'shouryasingh@gmail.com', not 'shourya.singh@gmail.com'). If no email is mentioned, use null.",
+    "suggested_client_whatsapp_phone": "Extract the client's WhatsApp/mobile number only if explicitly mentioned. Return it in international E.164 format when the country code is clear (e.g. '+919876543210'); otherwise use the exact digits provided. If no number is mentioned, use null.",
     "confidence": 0.9,
     "requires_confirmation": false
   },

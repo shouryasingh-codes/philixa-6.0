@@ -15,6 +15,7 @@ from app.models.follow_up_task import FollowUpTask
 from app.models.meeting import Meeting
 from app.models.meeting_evidence import MeetingEvidence
 from app.models.notification import NotificationDelivery, NotificationPreference
+from app.models.communication_log import CommunicationLog
 from app.models.organization import Organization
 from app.models.organization_membership import OrganizationMembership
 from app.models.risk_signal import RiskSignal
@@ -28,6 +29,7 @@ __all__ = [
     "Commitment",
     "CommitmentMeetingLink",
     "CommitmentStatus",
+    "CommunicationLog",
     "EmailVerificationToken",
     "FollowUpTask",
     "Meeting",

@@ -88,9 +88,10 @@ class DeepgramTranscriptionSession(LiveTranscriptionSession):
         self.dg_connection.on(LiveTranscriptionEvents.Close, on_close)
 
         options = LiveOptions(
-            model="nova-2",
+            model="nova-3",
             language="hi", # Use Hindi model for perfect Hinglish transcription
             smart_format=True,
+            endpointing=300, # Fix for nova-3 timeout: Force finalization on 300ms pause
             encoding="linear16",
             channels=1,
             sample_rate=self.sample_rate,
@@ -102,6 +103,19 @@ class DeepgramTranscriptionSession(LiveTranscriptionSession):
         if not success:
             logger.error("Failed to connect to Deepgram")
             raise RuntimeError("Deepgram connection failed")
+
+        # Start a background keepalive task to prevent net0001 timeout during silence
+        self.keepalive_task = asyncio.create_task(self._keepalive_loop())
+
+    async def _keepalive_loop(self) -> None:
+        while not self.is_finished:
+            await asyncio.sleep(5)
+            if not self.is_finished:
+                try:
+                    if hasattr(self.dg_connection, 'keep_alive'):
+                        await self.dg_connection.keep_alive()
+                except Exception as e:
+                    logger.debug(f"Deepgram keepalive error: {e}")
 
     async def add_chunk(self, pcm_bytes: bytes) -> None:
         if not hasattr(self, 'raw_audio_buffer'):
@@ -117,6 +131,9 @@ class DeepgramTranscriptionSession(LiveTranscriptionSession):
     async def finish(self) -> str:
         self.is_finished = True
         try:
+            # Force Deepgram to flush the final buffer by sending empty bytes
+            await self.dg_connection.send(b'')
+            await asyncio.sleep(0.5)
             await self.dg_connection.finish()
         except Exception as e:
             logger.error(f"Error closing Deepgram connection: {e}")

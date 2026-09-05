@@ -50,6 +50,8 @@ class ClientConfirmationRequest(BaseModel):
 
     client_id: int | None = Field(default=None, gt=0)
     new_client_name: str | None = Field(default=None, min_length=1, max_length=120)
+    new_client_email: str | None = Field(default=None, max_length=255)
+    new_client_whatsapp_phone: str | None = Field(default=None, max_length=20)
 
     @field_validator("new_client_name")
     @classmethod

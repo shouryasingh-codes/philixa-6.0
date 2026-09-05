@@ -27,13 +27,25 @@ class AIRoutingService:
         """
         
         # Pre-processing: LLM Translation Layer to normalize Hinglish to English
+        clean_notes = raw_notes
         try:
             trans_provider = get_ai_provider(self.settings.ai_economy_provider, self.settings)
-            logger.info("Starting LLM pre-processing translation layer...")
+            logger.info("Starting LLM pre-processing translation layer (Economy)...")
             clean_notes = await asyncio.to_thread(trans_provider.translate_transcript, raw_notes)
+            
+            if not clean_notes or len(clean_notes.strip()) < 5:
+                raise ValueError("Economy translation returned empty or invalid string.")
         except Exception as e:
-            logger.warning(f"Translation layer failed: {e}. Falling back to raw notes.")
-            clean_notes = raw_notes
+            logger.warning(f"Economy translation failed: {e}. Escalating to Review Provider for translation.")
+            try:
+                review_provider = get_ai_provider(self.settings.ai_review_provider, self.settings)
+                logger.info("Starting LLM pre-processing translation layer (Review)...")
+                clean_notes = await asyncio.to_thread(review_provider.translate_transcript, raw_notes)
+                if not clean_notes or len(clean_notes.strip()) < 5:
+                    raise ValueError("Review translation returned empty or invalid string.")
+            except Exception as e2:
+                logger.warning(f"Review translation failed: {e2}. Falling back to raw notes.")
+                clean_notes = raw_notes
 
         # Attempt 1: Economy Model
         try:

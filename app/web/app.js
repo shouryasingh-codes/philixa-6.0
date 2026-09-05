@@ -140,8 +140,19 @@ const els = {
   healthText: document.querySelector("#healthText"),
   clientCount: document.querySelector("#clientCount"),
   pendingCount: document.querySelector("#pendingCount"),
+  // UI Filters
   topClientSelect: document.querySelector("#topClientSelect"),
+  viewClientProfileBtn: document.querySelector("#viewClientProfileBtn"),
   deleteSelectedClientBtn: document.querySelector("#deleteSelectedClientBtn"),
+  
+  // Client Profile Modal
+  clientProfileModal: document.querySelector("#clientProfileModal"),
+  closeClientProfileBtn: document.querySelector("#closeClientProfileBtn"),
+  profileWhatsapp: document.querySelector("#profileWhatsapp"),
+  profileEmail: document.querySelector("#profileEmail"),
+  saveClientContactBtn: document.querySelector("#saveClientContactBtn"),
+  profileContactMsg: document.querySelector("#profileContactMsg"),
+  communicationFeed: document.querySelector("#communicationFeed"),
   rawNotes: document.querySelector("#rawNotes"),
   meetingDate: document.querySelector("#meetingDate"),
   knownClient: document.querySelector("#knownClient"),
@@ -164,6 +175,8 @@ const els = {
   confirmPanel: document.querySelector("#confirmPanel"),
   confirmClientSelect: document.querySelector("#confirmClientSelect"),
   newClientName: document.querySelector("#newClientName"),
+  newClientEmail: document.querySelector("#newClientEmail"),
+  newClientPhone: document.querySelector("#newClientPhone"),
   confirmClient: document.querySelector("#confirmClient"),
   loadSelectedMemory: document.querySelector("#loadSelectedMemory"),
   memoryContent: document.querySelector("#memoryContent"),
@@ -1114,7 +1127,11 @@ function renderClientOptions() {
     els.topClientSelect.value = state.selectedClientId || "";
   }
   if (els.deleteSelectedClientBtn) {
-    els.deleteSelectedClientBtn.style.display = state.selectedClientId ? "block" : "none";
+    const show = state.selectedClientId ? "flex" : "none";
+    els.deleteSelectedClientBtn.style.display = show;
+    if (els.viewClientProfileBtn) {
+      els.viewClientProfileBtn.style.display = show;
+    }
   }
 }
 
@@ -1259,6 +1276,10 @@ function renderProcessResult(payload) {
     if (els.confirmPanel) els.confirmPanel.classList.remove("hidden");
     const suggestedName = payload.extraction?.client_identification?.suggested_client_name || "";
     if (els.newClientName) els.newClientName.value = suggestedName;
+    const suggestedEmail = payload.extraction?.client_identification?.suggested_client_email || "";
+    if (els.newClientEmail) els.newClientEmail.value = suggestedEmail;
+    const suggestedPhone = payload.extraction?.client_identification?.suggested_client_whatsapp_phone || "";
+    if (els.newClientPhone) els.newClientPhone.value = suggestedPhone;
   } else {
     state.pendingConfirmationMeetingId = null;
     if (els.confirmPanel) els.confirmPanel.classList.add("hidden");
@@ -1804,6 +1825,8 @@ async function confirmClient() {
   }
   const existingClientId = els.confirmClientSelect?.value;
   const newClientName = els.newClientName?.value.trim();
+  const newClientEmail = els.newClientEmail?.value.trim();
+  const newClientPhone = els.newClientPhone?.value.trim();
   if (!existingClientId && !newClientName) {
     showToast("Select a client or enter a new name.", true);
     return;
@@ -1813,9 +1836,13 @@ async function confirmClient() {
     body: JSON.stringify({
       client_id: existingClientId ? Number(existingClientId) : undefined,
       new_client_name: newClientName || undefined,
+      new_client_email: newClientEmail || undefined,
+      new_client_whatsapp_phone: newClientPhone || undefined,
     }),
   });
   if (els.newClientName) els.newClientName.value = "";
+  if (els.newClientEmail) els.newClientEmail.value = "";
+  if (els.newClientPhone) els.newClientPhone.value = "";
   if (els.confirmPanel) els.confirmPanel.classList.add("hidden");
   
   await refreshAll();
@@ -1893,6 +1920,8 @@ async function saveTranscript() {
         clearInterval(pollInterval);
         state.pendingConfirmationMeetingId = meetingId;
         if (els.newClientName) els.newClientName.value = meeting.suggested_name || "";
+        if (els.newClientEmail) els.newClientEmail.value = meeting.suggested_email || "";
+        if (els.newClientPhone) els.newClientPhone.value = meeting.suggested_whatsapp_phone || "";
         if (els.confirmPanel) els.confirmPanel.classList.remove("hidden");
         await refreshAll();
         showToast("Client identification required.");
@@ -1984,6 +2013,8 @@ async function processAudio() {
 
           state.pendingConfirmationMeetingId = meetingId;
           if (els.newClientName) els.newClientName.value = meeting.suggested_name || "";
+          if (els.newClientEmail) els.newClientEmail.value = meeting.suggested_email || "";
+          if (els.newClientPhone) els.newClientPhone.value = meeting.suggested_whatsapp_phone || "";
           if (els.confirmPanel) els.confirmPanel.classList.remove("hidden");
           await refreshAll();
         } else if (meeting.status === "manual_review_required" || meeting.status === "failed") {
@@ -2324,6 +2355,9 @@ function bindEvents() {
     if (els.deleteSelectedClientBtn) {
       const show = !!state.selectedClientId;
       els.deleteSelectedClientBtn.style.display = show ? "flex" : "none";
+      if (els.viewClientProfileBtn) {
+        els.viewClientProfileBtn.style.display = show ? "flex" : "none";
+      }
       const divider = document.getElementById("deleteClientDivider");
       if (divider) divider.style.display = show ? "block" : "none";
     }
@@ -3082,3 +3116,115 @@ async function handleGoogleCredentialResponse(response) {
   }
 }
 window.handleGoogleCredentialResponse = handleGoogleCredentialResponse;
+
+// --- Client Profile Logic ---
+let currentProfileClientId = null;
+
+function openClientProfile() {
+  if (!state.selectedClientId) return;
+  currentProfileClientId = state.selectedClientId;
+  
+  if (els.clientProfileModal) els.clientProfileModal.classList.remove("hidden");
+  
+  const client = state.clients.find(c => c.id === currentProfileClientId);
+  if (client) {
+    document.getElementById("clientProfileModalTitle").textContent = client.name + " - Profile";
+  }
+  
+  fetchClientDetails(currentProfileClientId);
+  fetchClientCommunications(currentProfileClientId);
+}
+
+function closeClientProfile() {
+  if (els.clientProfileModal) els.clientProfileModal.classList.add("hidden");
+  currentProfileClientId = null;
+}
+
+async function fetchClientDetails(clientId) {
+  try {
+    const res = await api(`/api/v1/clients/${clientId}`);
+    if (els.profileWhatsapp) els.profileWhatsapp.value = res.whatsapp_phone || "";
+    if (els.profileEmail) els.profileEmail.value = res.email || "";
+  } catch (err) {
+    console.error("Failed to fetch client details", err);
+  }
+}
+
+async function fetchClientCommunications(clientId) {
+  if (!els.communicationFeed) return;
+  els.communicationFeed.innerHTML = '<div class="empty-state">Loading history...</div>';
+  try {
+    const logs = await api(`/api/v1/clients/${clientId}/communications`);
+    if (!logs || logs.length === 0) {
+      els.communicationFeed.innerHTML = '<div class="empty-state">No communication history found.</div>';
+      return;
+    }
+    
+    els.communicationFeed.innerHTML = logs.map(log => {
+      const date = new Date(log.created_at).toLocaleString();
+      return `
+        <div class="comm-log-item">
+          <div class="comm-log-header">
+            <span class="comm-log-channel ${log.channel}">${log.channel}</span>
+            <span>${date}</span>
+            <span class="comm-log-status ${log.status}">${log.status}</span>
+          </div>
+          <div class="comm-log-content">${escapeHtml(log.message_content)}</div>
+          ${log.error_message ? `<div style="color:#dc2626; font-size:12px; margin-top:5px;">Error: ${escapeHtml(log.error_message)}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    els.communicationFeed.innerHTML = '<div class="empty-state" style="color:#dc2626;">Failed to load history.</div>';
+    console.error(err);
+  }
+}
+
+async function saveClientContactInfo() {
+  if (!currentProfileClientId) return;
+  const payload = {
+    whatsapp_phone: els.profileWhatsapp.value.trim() || null,
+    email: els.profileEmail.value.trim() || null
+  };
+  
+  try {
+    els.saveClientContactBtn.disabled = true;
+    els.saveClientContactBtn.textContent = "Saving...";
+    
+    await api(`/api/v1/clients/${currentProfileClientId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload)
+    });
+    
+    showToast("Contact info updated successfully.");
+    if (els.profileContactMsg) els.profileContactMsg.classList.add("hidden");
+    
+    // Update local state if needed
+    const client = state.clients.find(c => c.id === currentProfileClientId);
+    if (client) {
+      client.whatsapp_phone = payload.whatsapp_phone;
+      client.email = payload.email;
+    }
+  } catch (err) {
+    if (els.profileContactMsg) {
+      els.profileContactMsg.textContent = err.message || "Failed to update contact info.";
+      els.profileContactMsg.classList.remove("hidden");
+      els.profileContactMsg.classList.add("error");
+    }
+  } finally {
+    els.saveClientContactBtn.disabled = false;
+    els.saveClientContactBtn.textContent = "Save Contact Info";
+  }
+}
+
+els.viewClientProfileBtn?.addEventListener("click", openClientProfile);
+els.closeClientProfileBtn?.addEventListener("click", closeClientProfile);
+els.saveClientContactBtn?.addEventListener("click", saveClientContactInfo);
+
+// Update visibility logic for View Profile Button
+els.topClientSelect?.addEventListener("change", (e) => {
+    const show = !!state.selectedClientId;
+    if (els.viewClientProfileBtn) {
+        els.viewClientProfileBtn.style.display = show ? "flex" : "none";
+    }
+});

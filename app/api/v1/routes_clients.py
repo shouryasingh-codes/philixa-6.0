@@ -13,7 +13,7 @@ from app.models.meeting import Meeting
 from app.repositories.client_repository import ClientRepository
 from app.repositories.meeting_repository import MeetingRepository
 from app.schemas.ask_client import AskClientRequest, AskClientResponse
-from app.schemas.client import ClientCreateRequest, ClientListItem, ClientMemoryResponse, ClientResponse, MeetingRead
+from app.schemas.client import ClientCreateRequest, ClientListItem, ClientMemoryResponse, ClientResponse, MeetingRead, CommunicationLogRead
 from app.services.ask_client_service import AskClientService
 from app.services.json_utils import from_json
 from app.services.meeting_processing_service import meeting_to_dict
@@ -44,6 +44,8 @@ async def create_client(
         "products_interested": from_json(client.products_interested_json, []),
         "rolling_summary": client.rolling_summary,
         "relationship_notes": client.relationship_notes,
+        "email": client.email,
+        "whatsapp_phone": client.whatsapp_phone,
         "is_active": client.is_active,
         "created_at": client.created_at,
         "updated_at": client.updated_at,
@@ -117,6 +119,8 @@ async def get_client(
         "products_interested": from_json(client.products_interested_json, []),
         "rolling_summary": client.rolling_summary,
         "relationship_notes": client.relationship_notes,
+        "email": client.email,
+        "whatsapp_phone": client.whatsapp_phone,
         "is_active": client.is_active,
         "created_at": client.created_at,
         "updated_at": client.updated_at,
@@ -145,6 +149,8 @@ async def update_client(
         "products_interested": from_json(client.products_interested_json, []),
         "rolling_summary": client.rolling_summary,
         "relationship_notes": client.relationship_notes,
+        "email": client.email,
+        "whatsapp_phone": client.whatsapp_phone,
         "is_active": client.is_active,
         "created_at": client.created_at,
         "updated_at": client.updated_at,
@@ -188,6 +194,31 @@ async def get_client_meetings(
     meetings = await MeetingRepository().list(db, principal, client_id=client_id)
     return [meeting_to_dict(meeting) for meeting in meetings]
 
+
+@router.get("/{client_id}/communications", response_model=list[CommunicationLogRead])
+async def get_client_communications(
+    client_id: int,
+    principal: CurrentPrincipal,
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    client = await ClientRepository().get_by_id(db, principal, client_id)
+    if not client:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found.")
+    
+    from app.repositories.communication_repository import CommunicationRepository
+    logs = await CommunicationRepository().list_by_client_id(db, principal, client_id)
+    return [
+        {
+            "id": log.id,
+            "client_id": log.client_id,
+            "channel": log.channel.value,
+            "message_content": log.message_content,
+            "status": log.status.value,
+            "error_message": log.error_message,
+            "created_at": log.created_at,
+        }
+        for log in logs
+    ]
 
 @router.delete("/{client_id}")
 async def delete_client(

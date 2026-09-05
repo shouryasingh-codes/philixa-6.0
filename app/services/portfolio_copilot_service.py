@@ -8,11 +8,16 @@ from typing import TypedDict, Annotated, Literal
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 import litellm
+import redis
 from langgraph.graph import StateGraph, END
 
 from app.core.config import get_settings
 from app.ai.prompts_copilot import PLANNER_SYSTEM_PROMPT, SQL_GENERATOR_PROMPT, SYNTHESIZER_SYSTEM_PROMPT
 from app.services.embedding_service import generate_query_embedding
+from app.core.redis import get_redis_client
+from app.services.reminder_service import ReminderService
+from app.models.client import Client
+from app.core.auth import Principal
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -59,6 +64,8 @@ class GraphState(TypedDict):
     sql_query: str
     sql_error: str
     db_result: str
+    action_client_name: str
+    action_instruction: str
     final_answer: str
 
 
@@ -229,17 +236,24 @@ async def planner_node(state: GraphState) -> GraphState:
     try:
         route_data = json.loads(result_str)
         route = route_data.get("route", "vector")
-        if route not in {"sql", "vector"}:
+        if route not in {"sql", "vector", "action"}:
             logger.warning("Planner returned unsupported route %r; using vector search", route)
             route = "vector"
+            
+        client_name = route_data.get("client_name", "")
+        instruction = route_data.get("instruction", "")
     except Exception:
         route = "vector"
+        client_name = ""
+        instruction = ""
     
-    return {"route": route}
+    return {"route": route, "action_client_name": client_name, "action_instruction": instruction}
 
-def route_query(state: GraphState) -> Literal["sql_generator_node", "semantic_node"]:
+def route_query(state: GraphState) -> Literal["sql_generator_node", "semantic_node", "action_node"]:
     if state.get("route") == "sql":
         return "sql_generator_node"
+    elif state.get("route") == "action":
+        return "action_node"
     return "semantic_node"
 
 async def sql_generator_node(state: GraphState) -> GraphState:
@@ -273,22 +287,28 @@ async def synthesizer_node(state: GraphState) -> GraphState:
     logger.info("--- SYNTHESIZER NODE ---")
     return {"final_answer": "Synthesizing output..."}
 
+async def action_node(state: GraphState) -> GraphState:
+    logger.info("--- ACTION NODE ---")
+    return {"final_answer": "Executing action..."}
+
 # Compile Graph
 workflow = StateGraph(GraphState)
 workflow.add_node("planner_node", planner_node)
 workflow.add_node("sql_generator_node", sql_generator_node)
 workflow.add_node("semantic_node", semantic_node)
+workflow.add_node("action_node", action_node)
 workflow.add_node("synthesizer_node", synthesizer_node)
 
 workflow.set_entry_point("planner_node")
 workflow.add_conditional_edges("planner_node", route_query)
 workflow.add_edge("sql_generator_node", "synthesizer_node")
 workflow.add_edge("semantic_node", "synthesizer_node")
+workflow.add_edge("action_node", END)
 workflow.add_edge("synthesizer_node", END)
 
 app_graph = workflow.compile()
 
-async def _process_copilot_query(query: str, organization_id: str, user_id: str, role: str, db: AsyncSession) -> dict:
+async def _process_copilot_query(query: str, organization_id: str, user_id: str, role: str, db: AsyncSession, client_name: str | None = None) -> dict:
     if _is_greeting(query):
         return {
             "answer": "Hi! Ask me about clients, meeting notes, concerns, or upcoming commitments.",
@@ -300,9 +320,46 @@ async def _process_copilot_query(query: str, organization_id: str, user_id: str,
     if meeting_date:
         return await _lookup_meetings_for_date(meeting_date, organization_id, user_id, role, db)
 
-    client_name = _extract_client_lookup_name(query)
     if client_name:
         return await _lookup_client_profile(client_name, organization_id, user_id, role, db)
+
+    extracted_name = _extract_client_lookup_name(query)
+    if extracted_name:
+        return await _lookup_client_profile(extracted_name, organization_id, user_id, role, db)
+
+    # Check for confirmation intent first (e.g., "yes", "send it", "haan bhej do")
+    normalized_query = query.strip().lower()
+    confirmation_words = ["yes", "send", "haan", "bhej do", "yep", "confirm", "sure"]
+    rejection_words = ["no", "cancel", "stop", "mat bhej", "reject"]
+
+    redis = await get_redis_client()
+    redis_key = f"pending_reminder_copilot:{user_id}"
+
+    if any(w == normalized_query for w in confirmation_words) or any(w in normalized_query for w in ["bhej do", "send it", "yes send"]):
+        pending_data_str = await redis.get(redis_key)
+        if pending_data_str:
+            try:
+                pending_data = json.loads(pending_data_str)
+                result = await ReminderService().dispatch_client_reminder(
+                    pending_data, 
+                    db=db, 
+                    user_id=user_id, 
+                    organization_id=organization_id
+                )
+                await redis.delete(redis_key)
+                return {
+                    "answer": result["message"],
+                    "source_type": "action",
+                    "data": None
+                }
+            except Exception as e:
+                logger.error(f"Failed to dispatch pending reminder: {e}")
+                return {"answer": "There was an error sending the message.", "source_type": "error"}
+    
+    if any(w == normalized_query for w in rejection_words) or any(w in normalized_query for w in ["cancel", "mat bhej", "stop"]):
+        if await redis.exists(redis_key):
+            await redis.delete(redis_key)
+            return {"answer": "Okay, I have cancelled the message.", "source_type": "action"}
 
     initial_state = {
         "query": query,
@@ -320,11 +377,52 @@ async def _process_copilot_query(query: str, organization_id: str, user_id: str,
     final_state = await app_graph.ainvoke(initial_state)
     
     # Execute SQL or Vector DB Operations outside the graph
-    if final_state["route"] == "sql" and final_state.get("sql_query"):
+    if final_state["route"] == "action":
         try:
+            result = await ReminderService().draft_client_reminder(
+                db=db,
+                organization_id=organization_id,
+                user_id=user_id,
+                role=role,
+                client_name=final_state.get("action_client_name", ""),
+                instruction=final_state.get("action_instruction", query),
+                channel=ReminderService._resolve_channel(query),
+            )
+            
+            if result.get("status") == "success" and "draft_data" in result:
+                await redis.setex(
+                    redis_key,
+                    300, # 5 minutes TTL
+                    json.dumps(result["draft_data"])
+                )
+            
+            return {
+                "answer": result["message"],
+                "source_type": "action",
+                "data": None
+            }
+        except Exception:
+            logger.exception("Portfolio copilot action route failed")
+            return {
+                "answer": "Sorry, I couldn't draft the reminder right now.",
+                "source_type": "error",
+                "data": None
+            }
+            
+    elif final_state["route"] == "sql" and final_state.get("sql_query"):
+        try:
+            logger.info(f"GENERATED SQL QUERY: {final_state['sql_query']}")
             result = await db.execute(text(final_state["sql_query"]))
-            rows = result.fetchall()
-            data = [dict(row._mapping) for row in rows]
+            await db.commit()
+            
+            if result.returns_rows:
+                rows = result.fetchall()
+                data = [dict(row._mapping) for row in rows]
+            else:
+                if result.rowcount == 0:
+                    data = [{"status": "error", "message": "No matching records found to update."}]
+                else:
+                    data = [{"status": "success", "message": f"Database updated successfully. Affected {result.rowcount} rows."}]
             
             synth_prompt = SYNTHESIZER_SYSTEM_PROMPT.format(data=json.dumps(data, default=str))
             synth_resp = await _complete_with_retry(
@@ -384,14 +482,13 @@ async def _process_copilot_query(query: str, organization_id: str, user_id: str,
     }
 
 
-async def process_copilot_query(query: str, organization_id: str, user_id: str, role: str, db: AsyncSession) -> dict:
-    """Wrapper that prevents catastrophic errors from crashing the route."""
+async def process_copilot_query(query: str, organization_id: str, user_id: str, role: str, db: AsyncSession, client_name: str | None = None) -> dict:
     try:
-        return await _process_copilot_query(query, organization_id, user_id, role, db)
-    except Exception as exc:
-        logger.exception("Catastrophic error in Copilot pipeline")
+        return await _process_copilot_query(query, organization_id, user_id, role, db, client_name=client_name)
+    except Exception as e:
+        logger.error(f"Portfolio Copilot Error: {e}", exc_info=True)
         return {
-            "answer": "Copilot encountered an error while processing your request.",
-            "source_type": "error",
+            "answer": "I couldn't retrieve your portfolio data right now. Please try again in a moment.",
+            "source_type": "unavailable",
             "data": None,
         }

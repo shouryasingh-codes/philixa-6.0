@@ -111,6 +111,14 @@ class ClientIdentificationExtraction(BaseModel):
         default=None,
         description="The exact name of the client mentioned in the meeting, if any."
     )
+    suggested_client_email: Optional[str] = Field(
+        default=None,
+        description="The client's email address, only when explicitly mentioned."
+    )
+    suggested_client_whatsapp_phone: Optional[str] = Field(
+        default=None,
+        description="The client's WhatsApp number, only when explicitly mentioned."
+    )
     confidence: float = Field(
         default=0.5,
         ge=0.0,

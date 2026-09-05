@@ -104,6 +104,8 @@ async def confirm_client(
             meeting_id=meeting_id,
             client_id=request.client_id,
             new_client_name=request.new_client_name,
+            new_client_email=request.new_client_email,
+            new_client_whatsapp_phone=request.new_client_whatsapp_phone,
             principal=principal,
         )
     except ValueError as exc:
@@ -167,6 +169,8 @@ async def get_meeting(
         "client_id": meeting.client_id,
         "client_identification_status": meeting.client_identification_status,
         "suggested_name": getattr(meeting, "suggested_client_name", "") or "",
+        "suggested_email": getattr(meeting, "suggested_client_email", "") or "",
+        "suggested_whatsapp_phone": getattr(meeting, "suggested_client_whatsapp_phone", "") or "",
         "summary": meeting.summary,
         "key_discussion_points": from_json(meeting.key_discussion_points_json, []),
         "concerns": from_json(meeting.concerns_json, []),
