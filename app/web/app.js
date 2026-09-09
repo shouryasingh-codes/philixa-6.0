@@ -206,6 +206,8 @@ const els = {
   askClientBtn: document.querySelector("#askClientBtn"),
   askClientResult: document.querySelector("#askClientResult"),
   themeToggleBtn: document.querySelector("#themeToggleBtn"),
+  sidebarToggleBtn: document.querySelector("#sidebarToggleBtn"),
+  logoToggleBtn: document.querySelector("#logoToggleBtn"),
   settingsBtn: document.querySelector("#settingsBtn"),
   settingsModal: document.querySelector("#settingsModal"),
   closeSettingsBtn: document.querySelector("#closeSettingsBtn"),
@@ -2840,13 +2842,15 @@ function bindEvents() {
   els.tabFastDictationBtn?.addEventListener("click", () => switchTab("tabFastDictationBtn", "viewFastDictation"));
 
   // Sidebar Toggles
-  els.sidebarToggleBtn?.addEventListener("click", () => {
+  const handleSidebarToggle = () => {
     if (window.innerWidth <= 980) {
       document.body.classList.toggle("mobile-sidebar-open");
     } else {
-      document.querySelector(".app-shell").classList.toggle("sidebar-collapsed");
+      document.querySelector(".app-shell")?.classList.toggle("sidebar-collapsed");
     }
-  });
+  };
+  els.sidebarToggleBtn?.addEventListener("click", handleSidebarToggle);
+  els.logoToggleBtn?.addEventListener("click", handleSidebarToggle);
 
   document.getElementById("mobileNavToggleBtn")?.addEventListener("click", () => {
     document.body.classList.toggle("mobile-sidebar-open");
