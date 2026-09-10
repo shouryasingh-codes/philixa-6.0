@@ -2185,6 +2185,22 @@ function connectLiveWebSocket(ticket, sampleRate, diarize = false) {
         if (statusEl) statusEl.textContent = "⏳ Processing audio...";
         return;
       }
+      // Server auto-stopped due to idle timeout (no audio for 2 minutes)
+      if (data.action === "timeout") {
+        if (liveWs) liveWs.close(1000, "Idle timeout");
+        liveWs = null;
+        updateLiveUI("stopped");
+        showToast(`⏱️ ${data.error || "Recording auto-stopped: no audio detected."}`, true);
+        return;
+      }
+      // Server blocked this action (e.g. demo account restriction)
+      if (data.action === "error") {
+        if (liveWs) liveWs.close(1000, "Server error");
+        liveWs = null;
+        updateLiveUI("stopped");
+        showToast(`🚫 ${data.error || "An error occurred."}`, true);
+        return;
+      }
       if (data.action === "stopped") {
         if (liveWs) liveWs.close(1000, "Clean close after stop");
         liveWs = null;

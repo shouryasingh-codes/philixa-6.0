@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import CurrentPrincipal
+from app.core.rate_limit import limiter
 from app.database.session import get_db
 from app.models.client import Client
 from app.models.commitment import Commitment
@@ -197,10 +198,25 @@ async def get_team_performance(
         raise HTTPException(status_code=500, detail=error_msg)
 
 @router.post("/copilot/ask", response_model=CopilotResponse)
+@limiter.limit("20/minute")
 async def ask_portfolio_copilot(
-    request: CopilotRequest,
+    request: Request,
+    copilot_request: CopilotRequest,
     principal: CurrentPrincipal,
     db: AsyncSession = Depends(get_db),
 ) -> CopilotResponse:
-    result = await process_copilot_query(request.query, principal.organization_id, principal.user_id, principal.role, db)
+    # Demo guest limit: max 5 Copilot queries per day tracked in Redis.
+    if principal.user.email.startswith("demo_guest_"):
+        from app.core.redis import get_redis_client
+        redis = await get_redis_client()
+        key = f"philixa:demo_copilot:{principal.user_id}"
+        count = await redis.incr(key)
+        if count == 1:
+            await redis.expire(key, 86400)  # 24-hour TTL on first use
+        if count > 5:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Demo limit reached (Max 5 Copilot queries). Please create a free Philixa account to continue!",
+            )
+    result = await process_copilot_query(copilot_request.query, principal.organization_id, principal.user_id, principal.role, db)
     return CopilotResponse(**result)

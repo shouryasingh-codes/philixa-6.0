@@ -8,6 +8,10 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+
+from app.core.rate_limit import limiter
 
 from app.api.v1.routes_audio import router as audio_router
 from app.api.v1.routes_auth import router as auth_router, ws_ticket_router
@@ -46,6 +50,10 @@ app = FastAPI(
     description="PHILIXA 6.0 Multi-Tenant SaaS Authentication & Copilot System.",
     lifespan=lifespan,
 )
+
+# Register SlowAPI limiter and 429 handler
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10MB
 

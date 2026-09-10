@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 import json
@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import CurrentPrincipal, Principal
 from app.core.config import get_settings
 from app.core.dependencies import get_email_adapter, get_notification_adapter
+from app.core.rate_limit import limiter
 from app.services.notifications.email_adapter import EmailAdapter
 from app.core.security import (
     create_access_token,
@@ -313,6 +314,7 @@ async def verify_email(
 
 
 @router.post("/login", response_model=LoginResponse)
+@limiter.limit("5/minute")
 async def login(
     payload: LoginRequest,
     request: Request,

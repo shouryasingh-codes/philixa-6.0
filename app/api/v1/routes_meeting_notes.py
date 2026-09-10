@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Annotated
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai.provider import AIExtractionError
 from app.core.arq import get_arq_pool
 from app.core.dependencies import CurrentPrincipal
+from app.core.rate_limit import limiter
 from app.database.session import get_db
 from app.models.commitment import Commitment, CommitmentMeetingLink
 from app.models.enums import MeetingStatus
@@ -35,8 +36,10 @@ router = APIRouter(
 
 
 @router.post("/process", response_model=MeetingNoteProcessResponse)
+@limiter.limit("10/minute")
 async def process_meeting_note(
-    request: Annotated[
+    request: Request,
+    body: Annotated[
         MeetingNoteProcessRequest,
         Body(
             openapi_examples={
@@ -69,7 +72,7 @@ async def process_meeting_note(
             )
             
     try:
-        return await MeetingProcessingService().process_notes(db, request, principal=principal)
+        return await MeetingProcessingService().process_notes(db, body, principal=principal)
     except AIExtractionError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

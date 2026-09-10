@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 import json
 import logging
 import os
+import time
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect, status
@@ -34,6 +35,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/live", tags=["Live Transcription"])
 
 SAMPLE_RATE = 16000
+# Idle timeout: if no audio bytes received within this window, auto-stop.
+IDLE_TIMEOUT_SECONDS = 120  # 2 minutes
 
 
 async def _resolve_redis_client() -> Any:
@@ -185,6 +188,15 @@ async def live_transcribe(
         f"org={principal.organization_id}, role={principal.role}. Sample rate: {sample_rate}Hz"
     )
 
+    # Block demo guest users — they are limited to Meeting Notes upload.
+    if principal.user.email.startswith("demo_guest_"):
+        await websocket.send_json({
+            "action": "error",
+            "error": "Demo accounts cannot use live recording. Please upload a meeting transcript instead, or create a free Philixa account.",
+        })
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
     # Fetch tenant-scoped client names for Whisper prompt injection
     client_names: List[str] = []
     async with AsyncSessionLocal() as db:
@@ -215,14 +227,33 @@ async def live_transcribe(
 
     total_bytes_received = 0
     finalized = False
+    last_audio_time = time.monotonic()  # Track last audio activity for idle timeout
 
     try:
         while True:
-            message = await websocket.receive()
+            try:
+                message = await asyncio.wait_for(
+                    websocket.receive(),
+                    timeout=IDLE_TIMEOUT_SECONDS,
+                )
+            except asyncio.TimeoutError:
+                logger.warning(
+                    f"Live WebSocket idle timeout ({IDLE_TIMEOUT_SECONDS}s) for user={principal.user_id}. "
+                    "Auto-stopping session."
+                )
+                if not finalized:
+                    finalized = True
+                    await websocket.send_json({
+                        "action": "timeout",
+                        "error": f"No audio detected for {IDLE_TIMEOUT_SECONDS // 60} minute(s). Recording auto-stopped.",
+                        "is_final": True,
+                    })
+                break
 
             if "bytes" in message:
                 chunk = message["bytes"]
                 total_bytes_received += len(chunk)
+                last_audio_time = time.monotonic()  # Reset idle timer on each audio chunk
                 await session.add_chunk(chunk)
 
             elif "text" in message:
