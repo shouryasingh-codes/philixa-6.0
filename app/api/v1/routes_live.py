@@ -188,22 +188,32 @@ async def live_transcribe(
         f"org={principal.organization_id}, role={principal.role}. Sample rate: {sample_rate}Hz"
     )
 
-    # Block demo guest users — they are limited to Meeting Notes upload.
-    if principal.user.email.startswith("demo_guest_"):
-        await websocket.send_json({
-            "action": "error",
-            "error": "Demo accounts cannot use live recording. Please upload a meeting transcript instead, or create a free Philixa account.",
-        })
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-        return
+    try:
+        # Block demo guest users — they are limited to Meeting Notes upload.
+        if principal.user.email and principal.user.email.startswith("demo_guest_"):
+            await websocket.send_json({
+                "action": "error",
+                "error": "Demo accounts cannot use live recording. Please upload a meeting transcript instead, or create a free Philixa account.",
+            })
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
 
-    # Fetch tenant-scoped client names for Whisper prompt injection
-    client_names: List[str] = []
-    async with AsyncSessionLocal() as db:
-        client_repo = ClientRepository()
-        clients = await client_repo.list(db, principal)
-        client_names = [c.name for c in clients if c.name]
-    logger.info(f"Loaded {len(client_names)} tenant-scoped client names for prompt injection (org={principal.organization_id}).")
+        # Fetch tenant-scoped client names for Whisper prompt injection
+        client_names: List[str] = []
+        async with AsyncSessionLocal() as db:
+            client_repo = ClientRepository()
+            clients = await client_repo.list(db, principal)
+            client_names = [c.name for c in clients if c.name]
+        logger.info(f"Loaded {len(client_names)} tenant-scoped client names for prompt injection (org={principal.organization_id}).")
+
+    except Exception as setup_exc:
+        logger.error(f"[VOICE SETUP ERROR] user={principal.user_id}: {setup_exc!r}", exc_info=True)
+        try:
+            await websocket.send_json({"action": "error", "error": f"Setup failed: {setup_exc}"})
+        except Exception:
+            pass
+        await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
+        return
 
     # Initialize Strategy based on configuration
     from app.services.live_strategies import LocalTranscriptionSession, DeepgramTranscriptionSession
