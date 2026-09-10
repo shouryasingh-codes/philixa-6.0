@@ -934,6 +934,75 @@
       .modal-content { border-radius: 20px 20px 0 0; }
     }
 
+    /* ===== MOBILE BOTTOM NAV BAR ===== */
+    .mfd-bottom-nav {
+      display: none; /* hidden on desktop */
+    }
+
+    @media (max-width: 768px) {
+      /* Bottom nav bar */
+      .mfd-bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        height: 60px;
+        background: var(--mfd-panel);
+        border-top: 1px solid var(--mfd-line);
+        z-index: 500;
+        backdrop-filter: blur(12px);
+      }
+      .mfd-bnav-btn {
+        flex: 1;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        gap: 3px;
+        background: transparent; border: none;
+        color: var(--mfd-mut);
+        font-family: inherit; cursor: pointer;
+        padding: 6px 4px;
+        transition: color 0.15s;
+        font-size: 10px; font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+      .mfd-bnav-btn.active { color: var(--mfd-teal); }
+      .mfd-bnav-btn:active { transform: scale(0.94); }
+      .mfd-bnav-icon { font-size: 20px; line-height: 1; }
+      .mfd-bnav-label { font-size: 10px; }
+
+      /* Add bottom padding to main so content isn't hidden behind nav bar */
+      .mfd-main { padding-bottom: 72px !important; }
+
+      /* Tab sections: hide all on mobile, show only active */
+      .mfd-tab-section { display: none; }
+      .mfd-tab-section.active { display: block; }
+
+      /* Fix oval mic — enforce square dimensions */
+      .mfd-mic {
+        width: 76px !important; height: 76px !important;
+        min-width: 76px; min-height: 76px;
+        flex-shrink: 0; align-self: center;
+      }
+      .mfd-halo {
+        width: 100px !important; height: 100px !important;
+      }
+
+      /* Compact hero on mobile */
+      .mfd-hero {
+        padding: 20px 16px 18px;
+        border-radius: 16px;
+      }
+      .mfd-hero h3 { font-size: 15px; margin-top: 12px; }
+      .mfd-hero p { font-size: 12px; margin-top: 4px; }
+
+      /* Daily priorities — stack on mobile */
+      #mfdPrioritySection > div[style*="grid"] {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 16px !important;
+      }
+    }
+
+
 
     /* ===== DYNAMIC OVERRIDES for app.js-injected content ===== */
     /* brief-card (injected by loadMemory) */
@@ -1181,8 +1250,31 @@
         <p>Loading Workspace...</p>
       </div>
 
+      <!-- ===== MOBILE BOTTOM NAV (only visible on phone) ===== -->
+      <nav class="mfd-bottom-nav" id="mfdBottomNav" aria-label="Mobile navigation">
+        <button class="mfd-bnav-btn active" data-tab="home" type="button">
+          <span class="mfd-bnav-icon">🏠</span>
+          <span class="mfd-bnav-label">Home</span>
+        </button>
+        <button class="mfd-bnav-btn" data-tab="notes" type="button">
+          <span class="mfd-bnav-icon">📝</span>
+          <span class="mfd-bnav-label">Notes</span>
+        </button>
+        <button class="mfd-bnav-btn" data-tab="today" type="button">
+          <span class="mfd-bnav-icon">☀️</span>
+          <span class="mfd-bnav-label">Today</span>
+        </button>
+        <button class="mfd-bnav-btn" data-tab="memory" type="button">
+          <span class="mfd-bnav-icon">🧠</span>
+          <span class="mfd-bnav-label">Memory</span>
+        </button>
+      </nav>
+
       <!-- Dashboard content (shown after login) -->
       <div id="mfdDashboard">
+
+        <!-- ===== MOBILE TAB: HOME ===== -->
+        <div class="mfd-tab-section" data-tab="home">
 
         <!-- Greeting -->
         <div class="mfd-greet">
@@ -1221,6 +1313,11 @@
           <p>Speak in Hinglish — I'll write the note, commitments &amp; risks myself</p>
           <div id="philixaVoiceStatus" class="mfd-live-status" style="display:none;"></div>
         </div>
+
+        </div><!-- end home tab -->
+
+        <!-- ===== MOBILE TAB: NOTES ===== -->
+        <div class="mfd-tab-section" data-tab="notes">
 
         <!-- 2-column: Intake + Review -->
         <div class="mfd-cols">
@@ -1368,6 +1465,11 @@
           </section>
         </div>
 
+        </div><!-- end notes tab -->
+
+        <!-- ===== MOBILE TAB: TODAY ===== -->
+        <div class="mfd-tab-section" data-tab="today">
+
         <!-- Today's Work / Priorities + Risk -->
         <section class="mfd-card" id="mfdPrioritySection" style="margin-bottom:18px;">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
@@ -1391,6 +1493,11 @@
             </div>
           </div>
         </section>
+
+        </div><!-- end today tab -->
+
+        <!-- ===== MOBILE TAB: MEMORY ===== -->
+        <div class="mfd-tab-section" data-tab="memory">
 
         <!-- Client Memory + Commitments tabs -->
         <div id="mfdMemorySection" style="margin-bottom:18px;">
@@ -1472,6 +1579,8 @@
             </table>
           </div>
         </section>
+
+        </div><!-- end memory tab -->
 
       </div><!-- end mfdDashboard -->
       </main>
