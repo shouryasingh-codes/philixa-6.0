@@ -208,22 +208,35 @@ async def live_transcribe(
     # Initialize Strategy based on configuration
     from app.services.live_strategies import LocalTranscriptionSession, DeepgramTranscriptionSession
 
-    if settings.transcription_mode == "cloud" and settings.deepgram_api_key:
-        logger.info("Using Deepgram Cloud Transcription Strategy")
-        session = DeepgramTranscriptionSession(
-            api_key=settings.deepgram_api_key,
-            sample_rate=sample_rate,
-            diarize=diarize,
-        )
-        await session.initialize()
-    else:
-        logger.info("Using Local Whisper Transcription Strategy")
-        session = LocalTranscriptionSession(
-            client_names=client_names,
-            sample_rate=sample_rate,
-            diarize=diarize,
-        )
-        await session.initialize()
+    session = None
+    try:
+        if settings.transcription_mode == "cloud" and settings.deepgram_api_key:
+            logger.info("Using Deepgram Cloud Transcription Strategy")
+            session = DeepgramTranscriptionSession(
+                api_key=settings.deepgram_api_key,
+                sample_rate=sample_rate,
+                diarize=diarize,
+            )
+            await session.initialize()
+        else:
+            logger.info("Using Local Whisper Transcription Strategy")
+            session = LocalTranscriptionSession(
+                client_names=client_names,
+                sample_rate=sample_rate,
+                diarize=diarize,
+            )
+            await session.initialize()
+    except Exception as init_exc:
+        logger.error(f"Transcription session init FAILED for user={principal.user_id}: {init_exc!r}", exc_info=True)
+        try:
+            await websocket.send_json({
+                "action": "error",
+                "error": f"Voice service unavailable: {str(init_exc)}. Please try again.",
+            })
+        except Exception:
+            pass
+        await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
+        return
 
     total_bytes_received = 0
     finalized = False
