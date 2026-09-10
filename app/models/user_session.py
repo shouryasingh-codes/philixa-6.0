@@ -23,7 +23,7 @@ def utc_now() -> datetime:
 class UserSession(Base, TimestampMixin):
     __tablename__ = "user_sessions"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id: Mapped[str] = mapped_column(String(50), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
     organization_id: Mapped[str] = mapped_column(
         String, ForeignKey("organizations.id", ondelete="CASCADE"), index=True, nullable=False
