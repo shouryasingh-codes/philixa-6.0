@@ -2859,9 +2859,10 @@ function bindEvents() {
 
   // Sidebar Toggles
   const handleSidebarToggle = () => {
-    if (window.innerWidth <= 980) {
+    if (window.innerWidth <= 768) {
       document.body.classList.toggle("mobile-sidebar-open");
     } else {
+      document.querySelector(".mfd-layout")?.classList.toggle("sidebar-collapsed");
       document.querySelector(".app-shell")?.classList.toggle("sidebar-collapsed");
     }
   };
@@ -2872,8 +2873,15 @@ function bindEvents() {
     document.body.classList.toggle("mobile-sidebar-open");
   });
 
-  const mobileBackdrop = document.getElementById("mobileSidebarBackdrop");
-  mobileBackdrop?.addEventListener("click", () => {
+  // Ensure mobile backdrop exists and dismisses sidebar on tap
+  let mobileBackdrop = document.getElementById("mobileSidebarBackdrop");
+  if (!mobileBackdrop) {
+    mobileBackdrop = document.createElement("div");
+    mobileBackdrop.id = "mobileSidebarBackdrop";
+    mobileBackdrop.className = "mobile-backdrop";
+    document.body.appendChild(mobileBackdrop);
+  }
+  mobileBackdrop.addEventListener("click", () => {
     document.body.classList.remove("mobile-sidebar-open");
   });
 

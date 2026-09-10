@@ -757,13 +757,183 @@
       .auth-left-panel { display: none; }
       .auth-right-panel { max-width: 100%; border-left: none; padding: 24px; }
     }
-    @media (max-width: 768px) {
-      .mfd-layout { grid-template-columns: 1fr; }
-      .mfd-sidebar { display: none; }
-      .mfd-kpis { grid-template-columns: repeat(2,1fr); }
-      .mfd-cols { grid-template-columns: 1fr; }
-      .mfd-facts { grid-template-columns: 1fr; }
+
+    /* ===== HAMBURGER BUTTON ===== */
+    .mfd-hamburger-btn {
+      display: none;
+      align-items: center; justify-content: center;
+      width: 38px; height: 38px;
+      border: 1px solid var(--mfd-line);
+      background: var(--mfd-panel);
+      border-radius: 9px;
+      color: var(--mfd-txt);
+      cursor: pointer;
+      flex-shrink: 0;
+      padding: 0;
     }
+    .mfd-hamburger-btn:hover { border-color: var(--mfd-teal); }
+
+    /* ===== MOBILE BACKDROP ===== */
+    .mobile-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 999;
+      opacity: 0; visibility: hidden;
+      transition: opacity 0.3s, visibility 0.3s;
+      backdrop-filter: blur(2px);
+    }
+    body.mobile-sidebar-open .mobile-backdrop {
+      opacity: 1; visibility: visible;
+    }
+
+    /* ===== TABLET (≤ 768px) ===== */
+    @media (max-width: 768px) {
+      html, body { overflow-x: hidden; max-width: 100vw; }
+
+      /* Hamburger shows, sidebar hides behind off-canvas */
+      .mfd-hamburger-btn { display: flex; }
+
+      .mfd-layout {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* Off-canvas sidebar */
+      .mfd-sidebar {
+        position: fixed !important;
+        left: -280px;
+        top: 0; bottom: 0;
+        width: 260px !important;
+        z-index: 1000;
+        transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 4px 0 32px rgba(0,0,0,0.25);
+        height: 100vh !important;
+      }
+      body.mobile-sidebar-open .mfd-sidebar {
+        left: 0 !important;
+      }
+
+      /* Topbar adjustments */
+      .mfd-topbar {
+        padding: 10px 14px;
+        gap: 10px;
+      }
+      /* Hide workspace chip on mobile — it's in sidebar */
+      .mfd-topbar .mfd-chip { display: none; }
+      /* Shrink Copilot button text on mobile */
+      #topbarCopilotBtn { padding: 8px 10px; font-size: 12px; }
+
+      /* Main content padding */
+      .mfd-main { padding: 16px 14px; }
+
+      /* KPIs: 2-column on tablet */
+      .mfd-kpis { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+
+      /* Cards: single column */
+      .mfd-cols { grid-template-columns: 1fr; }
+      .mfd-facts { grid-template-columns: 1fr 1fr; gap: 8px; }
+
+      /* Greet heading */
+      .mfd-greet h2 { font-size: 18px; }
+      .mfd-greet p { font-size: 12.5px; }
+
+      /* Hero voice widget */
+      .mfd-hero { padding: 24px 16px 20px; border-radius: 16px; }
+      .mfd-mic { width: 80px; height: 80px; }
+      .mfd-mic svg { width: 32px; height: 32px; }
+
+      /* Live btns */
+      .mfd-live-btns { flex-direction: column; }
+      .mfd-live-btn { width: 100%; justify-content: center; }
+
+      /* Form rows */
+      .mfd-form-row { flex-direction: column; align-items: stretch; }
+      .mfd-process-btn { margin-left: 0; width: 100%; justify-content: center; }
+
+      /* Diff footer */
+      .mfd-diff-footer { flex-direction: column; }
+      .mfd-discard-btn, .mfd-sync-btn { width: 100%; justify-content: center; }
+
+      /* Invite form */
+      .invite-form-row { grid-template-columns: 1fr; }
+
+      /* Tables — allow scroll */
+      .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .mfd-commit-table, .mfd-team-table { min-width: 480px; }
+
+      /* Toast */
+      #toast { white-space: normal; text-align: center; max-width: calc(100vw - 32px); font-size: 12.5px; padding: 10px 16px; }
+
+      /* Modals */
+      .modal { padding: 12px; align-items: flex-end; }
+      .modal-content { border-radius: 18px 18px 12px 12px; max-width: 100%; }
+      .modal-body { padding: 18px; }
+
+      /* Auth card */
+      .auth-card { padding: 28px 20px; }
+      .auth-card-header h2 { font-size: 22px; }
+      .auth-right-panel { padding: 16px; }
+
+      /* Existing styles.css components that also need to collapse */
+      .dashboard-layout,
+      .grid-layout,
+      .bottom-layout,
+      .metric-grid,
+      .form-row,
+      .brief-grid,
+      .day4-grid {
+        grid-template-columns: 1fr !important;
+      }
+      .verdict-strip { grid-template-columns: 1fr 1fr; }
+
+      /* Copilot sidecar full-screen */
+      .copilot-sidecar {
+        position: fixed !important;
+        width: 100% !important;
+        right: -100% !important;
+        top: 0; bottom: 0;
+        z-index: 1001;
+        transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      body[data-sidecar-open="true"] .copilot-sidecar { right: 0 !important; }
+    }
+
+    /* ===== PHONE (≤ 480px) ===== */
+    @media (max-width: 480px) {
+      .mfd-topbar { padding: 8px 12px; gap: 8px; }
+      #topbarCopilotBtn span { display: none; } /* hide "Copilot" text, keep icon */
+
+      .mfd-main { padding: 12px 10px; }
+
+      /* KPIs: 2x2 still */
+      .mfd-kpis { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+      .mfd-kpi { padding: 11px 12px; border-radius: 12px; }
+      .mfd-kpi .kv { font-size: 20px; }
+
+      .mfd-hero { padding: 20px 14px 18px; border-radius: 14px; }
+      .mfd-hero h3 { font-size: 15px; margin-top: 14px; }
+      .mfd-mic { width: 72px; height: 72px; }
+
+      .mfd-card { padding: 14px; border-radius: 14px; }
+      .mfd-card h4 { font-size: 13.5px; }
+
+      .mfd-facts { grid-template-columns: 1fr; }
+      .verdict-strip { grid-template-columns: 1fr; }
+
+      /* Tabs wrap to 2-col grid */
+      .mfd-tabs-header { flex-wrap: wrap; }
+      .mfd-tab-btn { flex: 1 1 calc(50% - 4px); font-size: 11.5px; padding: 8px 6px; }
+
+      /* Avatar menu width */
+      .avatar-menu { width: 200px; right: 0; }
+
+      .auth-card { padding: 22px 16px; border-radius: 18px; }
+      .auth-card-header h2 { font-size: 20px; }
+
+      /* Modal full bottom sheet */
+      .modal { padding: 0; align-items: flex-end; }
+      .modal-content { border-radius: 20px 20px 0 0; }
+    }
+
 
     /* ===== DYNAMIC OVERRIDES for app.js-injected content ===== */
     /* brief-card (injected by loadMemory) */
@@ -954,6 +1124,13 @@
       <!-- ===== TOPBAR ===== -->
       <div id="mfdTopbar" class="mfd-topbar">
 
+        <!-- Mobile hamburger — only visible on phone -->
+        <button id="mobileNavToggleBtn" class="mfd-hamburger-btn" type="button" aria-label="Open navigation menu" title="Menu">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="3" y1="5" x2="17" y2="5"/><line x1="3" y1="10" x2="17" y2="10"/><line x1="3" y1="15" x2="17" y2="15"/>
+          </svg>
+        </button>
+
         <!-- Workspace selector -->
         <div class="mfd-chip" title="Active Workspace">
           🏢 <select id="workspaceSelect" class="mfd-ws-select" aria-label="Select active workspace">
@@ -994,6 +1171,7 @@
           </div>
         </div>
       </div>
+
 
       <main class="mfd-main">
 
