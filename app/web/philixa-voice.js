@@ -250,6 +250,16 @@ async function startVoiceListening() {
           return;
         }
 
+        if (data.action === "error") {
+          console.error("[Philixa Voice] Server error:", data.error);
+          if (typeof window.showToast === "function") {
+            window.showToast(data.error, true);
+          }
+          cleanupAudioResources();
+          setVoiceState("idle");
+          return;
+        }
+
         if (data.action === "stopped") {
           if (data.confirmed && data.confirmed.trim()) {
             const transcript = data.confirmed.trim();
@@ -272,7 +282,7 @@ async function startVoiceListening() {
       if (event.code === 1008) {
         console.error("[Philixa Voice] Policy violation (1008):", event.reason);
         if (typeof window.showToast === "function") {
-          window.showToast(`Voice auth failed: ${event.reason || "Session expired"}`, true);
+          window.showToast(event.reason || "Voice auth failed: Session expired", true);
         }
         cleanupAudioResources();
         setVoiceState("idle");
