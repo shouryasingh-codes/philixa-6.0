@@ -2888,14 +2888,11 @@ function bindEvents() {
   // ===== MOBILE BOTTOM NAV TAB SWITCHING =====
   const setupMobileBottomNav = () => {
     const bnavBtns = document.querySelectorAll(".mfd-bnav-btn");
-    const tabSections = document.querySelectorAll(".mfd-tab-section");
 
     const switchMobileTab = (tabName) => {
-      // Only apply on mobile
-      if (window.innerWidth > 768) return;
+      const tabSections = document.querySelectorAll(".mfd-tab-section");
       bnavBtns.forEach(b => b.classList.toggle("active", b.dataset.tab === tabName));
       tabSections.forEach(s => s.classList.toggle("active", s.dataset.tab === tabName));
-      // Scroll to top of content
       document.querySelector(".mfd-main")?.scrollTo({ top: 0, behavior: "smooth" });
     };
 
@@ -2903,19 +2900,13 @@ function bindEvents() {
       btn.addEventListener("click", () => switchMobileTab(btn.dataset.tab));
     });
 
-    // Activate home tab on mobile by default
-    if (window.innerWidth <= 768) {
-      switchMobileTab("home");
-    }
-
-    // On resize: if going back to desktop, show all sections
+    // On resize to desktop: remove active class so all sections show normally
     window.addEventListener("resize", () => {
       if (window.innerWidth > 768) {
-        tabSections.forEach(s => s.classList.remove("active"));
-      } else {
-        const activeBtn = document.querySelector(".mfd-bnav-btn.active");
-        if (activeBtn) switchMobileTab(activeBtn.dataset.tab);
-        else switchMobileTab("home");
+        document.querySelectorAll(".mfd-tab-section").forEach(s => {
+          // On desktop, all sections should be visible (no active hiding)
+          s.style.display = "";
+        });
       }
     });
   };
