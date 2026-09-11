@@ -195,7 +195,10 @@ async def live_transcribe(
                 "action": "error",
                 "error": "Demo accounts cannot use live recording. Please upload a meeting transcript instead, or create a free Philixa account.",
             })
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            await websocket.close(
+                code=status.WS_1008_POLICY_VIOLATION,
+                reason="Demo accounts cannot use live recording."
+            )
             return
 
         # Fetch tenant-scoped client names for Whisper prompt injection

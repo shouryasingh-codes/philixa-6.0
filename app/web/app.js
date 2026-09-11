@@ -2863,11 +2863,10 @@ function bindEvents() {
       document.body.classList.toggle("mobile-sidebar-open");
     } else {
       document.querySelector(".mfd-layout")?.classList.toggle("sidebar-collapsed");
-      document.querySelector(".app-shell")?.classList.toggle("sidebar-collapsed");
     }
   };
-  els.sidebarToggleBtn?.addEventListener("click", handleSidebarToggle);
-  els.logoToggleBtn?.addEventListener("click", handleSidebarToggle);
+  document.getElementById("sidebarToggleBtn")?.addEventListener("click", handleSidebarToggle);
+  document.getElementById("logoToggleBtn")?.addEventListener("click", handleSidebarToggle);
 
   document.getElementById("mobileNavToggleBtn")?.addEventListener("click", () => {
     document.body.classList.toggle("mobile-sidebar-open");
