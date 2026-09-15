@@ -189,17 +189,6 @@ async def live_transcribe(
     )
 
     try:
-        # Block demo guest users — they are limited to Meeting Notes upload.
-        if principal.user.email and principal.user.email.startswith("demo_guest_"):
-            await websocket.send_json({
-                "action": "error",
-                "error": "Demo accounts cannot use live recording. Please upload a meeting transcript instead, or create a free Philixa account.",
-            })
-            await websocket.close(
-                code=status.WS_1008_POLICY_VIOLATION,
-                reason="Demo accounts cannot use live recording."
-            )
-            return
 
         # Fetch tenant-scoped client names for Whisper prompt injection
         client_names: List[str] = []
