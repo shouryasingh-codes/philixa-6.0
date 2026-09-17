@@ -2,6 +2,89 @@
 // PHILIXA 6.0: Voice Assistant Continuous Loop & Live Audio Streaming
 // Multi-Tenant Authenticated WebSocket & Secure Voice Service Integration
 // =============================================================================
+// VAPI FEATURE FLAG: If meta tag voice-gateway-provider="vapi" is present,
+// the Vapi Web SDK is used instead of the legacy WebSocket+Whisper pipeline.
+// To rollback: change meta tag value to "legacy_live" or remove it entirely.
+// =============================================================================
+
+// --- Vapi Web SDK Integration (Side-by-Side, Non-Destructive) ---
+const _vapiMeta = document.querySelector('meta[name="voice-gateway-provider"]');
+const _useVapi = _vapiMeta && _vapiMeta.getAttribute("content") === "vapi";
+const VAPI_PUBLIC_KEY = "974781c3-0fb7-4189-8de2-111dc187d794";
+const VAPI_ASSISTANT_ID = "6763d0ce-bc3f-4c06-818a-27c515d9fec9"; // Riley assistant ID from dashboard
+
+let _vapiInstance = null; // Holds the Vapi SDK instance when active
+
+if (_useVapi) {
+  // Dynamically load Vapi Web SDK (no npm install needed)
+  const vapiScript = document.createElement("script");
+  vapiScript.src = "https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/dist/vapi.js";
+  vapiScript.onload = () => {
+    console.log("[Philixa Vapi] SDK loaded. Vapi mode active.");
+    // SDK exposes window.Vapi constructor
+    if (typeof window.Vapi === "function") {
+      _vapiInstance = new window.Vapi(VAPI_PUBLIC_KEY);
+
+      // Mirror Vapi call state to Philixa UI states
+      _vapiInstance.on("call-start", () => {
+        console.log("[Philixa Vapi] Call started.");
+        setVoiceState("listening");
+      });
+
+      _vapiInstance.on("speech-start", () => {
+        setVoiceState("speaking");
+      });
+
+      _vapiInstance.on("speech-end", () => {
+        setVoiceState("listening");
+      });
+
+      _vapiInstance.on("call-end", () => {
+        console.log("[Philixa Vapi] Call ended.");
+        setVoiceState("idle");
+      });
+
+      _vapiInstance.on("error", (err) => {
+        console.error("[Philixa Vapi] Error:", err);
+        if (typeof window.showToast === "function") {
+          window.showToast("Voice connection error. Please try again.", true);
+        }
+        setVoiceState("idle");
+      });
+
+      // Override the mic button click handler for Vapi mode
+      const fabBtn = document.getElementById("philixaVoiceBtn");
+      if (fabBtn) {
+        fabBtn.removeEventListener("click", handleVoiceClick);
+        fabBtn.addEventListener("click", async () => {
+          if (voiceState === "idle") {
+            try {
+              setVoiceState("thinking"); // Show connecting state
+              await _vapiInstance.start(VAPI_ASSISTANT_ID);
+            } catch (e) {
+              console.error("[Philixa Vapi] Failed to start call:", e);
+              if (typeof window.showToast === "function") {
+                window.showToast("Could not connect to Vapi. Check your internet.", true);
+              }
+              setVoiceState("idle");
+            }
+          } else {
+            // Stop ongoing call
+            _vapiInstance.stop();
+            setVoiceState("idle");
+          }
+        });
+      }
+    } else {
+      console.error("[Philixa Vapi] window.Vapi constructor not found after SDK load.");
+    }
+  };
+  vapiScript.onerror = () => {
+    console.error("[Philixa Vapi] Failed to load Vapi SDK from CDN. Falling back to legacy mode.");
+  };
+  document.head.appendChild(vapiScript);
+}
+// --- End of Vapi Integration Block ---
 
 let voiceState = "idle";
 let voiceWs = null;
