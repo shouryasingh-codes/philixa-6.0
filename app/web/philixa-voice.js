@@ -16,67 +16,82 @@ const VAPI_ASSISTANT_ID = "6763d0ce-bc3f-4c06-818a-27c515d9fec9"; // Riley assis
 let _vapiInstance = null; // Holds the Vapi SDK instance when active
 
 if (_useVapi) {
-  // Dynamically load Vapi Web SDK (no npm install needed)
+  // Load official Vapi HTML Script Tag SDK (exposes window.vapiSDK)
   const vapiScript = document.createElement("script");
-  vapiScript.src = "https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/dist/vapi.js";
+  vapiScript.src = "https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js";
+  vapiScript.defer = true;
   vapiScript.onload = () => {
     console.log("[Philixa Vapi] SDK loaded. Vapi mode active.");
-    // SDK exposes window.Vapi constructor
-    if (typeof window.Vapi === "function") {
-      _vapiInstance = new window.Vapi(VAPI_PUBLIC_KEY);
+    if (typeof window.vapiSDK === "undefined") {
+      console.error("[Philixa Vapi] vapiSDK not found after SDK load.");
+      return;
+    }
 
-      // Mirror Vapi call state to Philixa UI states
-      _vapiInstance.on("call-start", () => {
-        console.log("[Philixa Vapi] Call started.");
-        setVoiceState("listening");
-      });
+    // Initialize Vapi with invisible built-in button (we use our own mic button)
+    _vapiInstance = window.vapiSDK.run({
+      apiKey: VAPI_PUBLIC_KEY,
+      assistant: VAPI_ASSISTANT_ID,
+      config: {
+        position: "bottom-right",
+        offset: "0px",
+        width: "1px",
+        height: "1px",
+        idle:    { color: "transparent", type: "pill", title: "", subtitle: "", icon: "" },
+        loading: { color: "transparent", type: "pill", title: "", subtitle: "", icon: "" },
+        active:  { color: "transparent", type: "pill", title: "", subtitle: "", icon: "" },
+      }
+    });
 
-      _vapiInstance.on("speech-start", () => {
-        setVoiceState("speaking");
-      });
+    console.log("[Philixa Vapi] Instance created successfully.");
 
-      _vapiInstance.on("speech-end", () => {
-        setVoiceState("listening");
-      });
+    // Mirror Vapi call state to Philixa UI states
+    _vapiInstance.on("call-start", () => {
+      console.log("[Philixa Vapi] Call started.");
+      setVoiceState("listening");
+    });
 
-      _vapiInstance.on("call-end", () => {
-        console.log("[Philixa Vapi] Call ended.");
-        setVoiceState("idle");
-      });
+    _vapiInstance.on("speech-start", () => {
+      setVoiceState("speaking");
+    });
 
-      _vapiInstance.on("error", (err) => {
-        console.error("[Philixa Vapi] Error:", err);
-        if (typeof window.showToast === "function") {
-          window.showToast("Voice connection error. Please try again.", true);
-        }
-        setVoiceState("idle");
-      });
+    _vapiInstance.on("speech-end", () => {
+      setVoiceState("listening");
+    });
 
-      // Override the mic button click handler for Vapi mode
-      const fabBtn = document.getElementById("philixaVoiceBtn");
-      if (fabBtn) {
-        fabBtn.removeEventListener("click", handleVoiceClick);
-        fabBtn.addEventListener("click", async () => {
-          if (voiceState === "idle") {
-            try {
-              setVoiceState("thinking"); // Show connecting state
-              await _vapiInstance.start(VAPI_ASSISTANT_ID);
-            } catch (e) {
-              console.error("[Philixa Vapi] Failed to start call:", e);
-              if (typeof window.showToast === "function") {
-                window.showToast("Could not connect to Vapi. Check your internet.", true);
-              }
-              setVoiceState("idle");
+    _vapiInstance.on("call-end", () => {
+      console.log("[Philixa Vapi] Call ended.");
+      setVoiceState("idle");
+    });
+
+    _vapiInstance.on("error", (err) => {
+      console.error("[Philixa Vapi] Error:", err);
+      if (typeof window.showToast === "function") {
+        window.showToast("Voice connection error. Please try again.", true);
+      }
+      setVoiceState("idle");
+    });
+
+    // Override the mic button click handler for Vapi mode
+    const fabBtn = document.getElementById("philixaVoiceBtn");
+    if (fabBtn) {
+      fabBtn.removeEventListener("click", handleVoiceClick);
+      fabBtn.addEventListener("click", async () => {
+        if (voiceState === "idle") {
+          try {
+            setVoiceState("thinking");
+            _vapiInstance.start(VAPI_ASSISTANT_ID);
+          } catch (e) {
+            console.error("[Philixa Vapi] Failed to start call:", e);
+            if (typeof window.showToast === "function") {
+              window.showToast("Could not connect to Vapi. Check your internet.", true);
             }
-          } else {
-            // Stop ongoing call
-            _vapiInstance.stop();
             setVoiceState("idle");
           }
-        });
-      }
-    } else {
-      console.error("[Philixa Vapi] window.Vapi constructor not found after SDK load.");
+        } else {
+          _vapiInstance.stop();
+          setVoiceState("idle");
+        }
+      });
     }
   };
   vapiScript.onerror = () => {
