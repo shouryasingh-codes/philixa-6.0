@@ -68,6 +68,11 @@ class Settings:
     deepgram_api_key: str = ""
     sarvam_api_key: str = ""
     enable_audio_upload: bool = False
+    voice_gateway_provider: str = "dual"
+    vapi_api_key: str = ""
+    vapi_webhook_secret: str = ""
+    vapi_custom_llm_secret: str = ""
+    vapi_custom_llm_url: str = "http://localhost:8000/api/v1/vapi/chat/completions"
 
     # Milestone 2 Auth & Security Additions
     jwt_secret: str = ""
@@ -197,6 +202,11 @@ def get_settings() -> Settings:
         deepgram_api_key=os.getenv("PHILIXA_DEEPGRAM_API_KEY", "").strip(),
         sarvam_api_key=os.getenv("PHILIXA_SARVAM_API_KEY", "").strip(),
         enable_audio_upload=bool(_env_int("PHILIXA_ENABLE_AUDIO_UPLOAD", 0)),
+        voice_gateway_provider=os.getenv("VOICE_GATEWAY_PROVIDER", os.getenv("PHILIXA_VOICE_GATEWAY_PROVIDER", "dual")).strip(),
+        vapi_api_key=os.getenv("VAPI_API_KEY", os.getenv("PHILIXA_VAPI_API_KEY", "")).strip(),
+        vapi_webhook_secret=os.getenv("VAPI_WEBHOOK_SECRET", os.getenv("PHILIXA_VAPI_WEBHOOK_SECRET", "")).strip(),
+        vapi_custom_llm_secret=os.getenv("VAPI_CUSTOM_LLM_SECRET", os.getenv("PHILIXA_VAPI_CUSTOM_LLM_SECRET", "")).strip(),
+        vapi_custom_llm_url=os.getenv("VAPI_CUSTOM_LLM_URL", os.getenv("PHILIXA_VAPI_CUSTOM_LLM_URL", "http://localhost:8000/api/v1/vapi/chat/completions")).strip(),
         # Milestone 2 Auth & Security Additions
         jwt_secret=os.getenv("PHILIXA_JWT_SECRET", os.getenv("JWT_SECRET", "super-secret-test-key-minimum-32-chars-long-12345")),
         jwt_algorithm=os.getenv("PHILIXA_JWT_ALGORITHM", "HS256"),

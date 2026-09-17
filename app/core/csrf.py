@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import secrets
 from typing import Callable
@@ -29,6 +29,13 @@ CSRF_EXEMPT_PATHS = {
     "/docs",
     "/redoc",
     "/openapi.json",
+    # Vapi Integration
+    "/api/v1/vapi/chat/completions",
+    "/api/v1/vapi/webhook",
+    "/api/v1/vapi/assistants/inbound",
+    "/vapi/chat/completions",
+    "/vapi/webhook",
+    "/vapi/assistants/inbound",
 }
 
 
@@ -74,6 +81,8 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
         # Check exemption
         is_exempt = (
             path in CSRF_EXEMPT_PATHS
+            or path.startswith("/api/v1/vapi")
+            or path.startswith("/vapi")
             or any(path.startswith(prefix) for prefix in ["/static", "/docs", "/redoc", "/openapi.json"])
         )
 
@@ -101,5 +110,3 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
             set_csrf_cookie(response)
 
         return response
-
-
