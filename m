@@ -1,1 +1,0 @@
-# Hi👋 Let me show you Philixa 6.0

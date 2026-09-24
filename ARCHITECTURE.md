@@ -17,7 +17,7 @@
 
 <br/>
 
-**[ [🌐 Web App](http://localhost:8000) ] · [ [📖 API Docs (Swagger)](http://localhost:8000/docs) ] · [ [📚 ReDoc Reference](http://localhost:8000/redoc) ] · [ [🗄️ MinIO Console](http://localhost:9001) ] · [ [🏗 System Architecture](#-system-architecture) ] · [ [🚀 Quickstart](#-quickstart--deployment-guide) ] · [ [💬 WhatsApp Webhook](#29-notification-preferences--whatsapp-webhooks) ]**
+**[ [🌐 Local Web App](http://localhost:8000) ] · [ [📖 Local API Docs (Swagger)](http://localhost:8000/docs) ] · [ [📚 Local ReDoc Reference](http://localhost:8000/redoc) ] · [ [🗄️ Local MinIO Console](http://localhost:9001) ] · [ [🏗 System Architecture](#-system-architecture) ] · [ [🚀 Quickstart](#-quickstart--deployment-guide) ] · [ [💬 WhatsApp Webhook](#29-notification-preferences--whatsapp-webhooks) ]**
 
 </div>
 
