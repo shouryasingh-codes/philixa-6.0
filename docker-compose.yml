@@ -34,6 +34,8 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
+    # Fixed credentials are intentionally for local development only.
+    # Use a secret-managed configuration for any shared or production deployment.
     environment:
       MINIO_ROOT_USER: philixa_minio
       MINIO_ROOT_PASSWORD: philixa_secret

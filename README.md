@@ -1,204 +1,99 @@
 <div align="center">
 
-# 🚀 PHILIXA 6.0
-### The Agentic AI-First CRM for Relationship Managers & Wealth Advisors
+# PHILIXA 6.0
+### An AI-assisted CRM workbench for relationship managers and wealth advisors
 
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL_+_pgvector-316192?style=for-the-badge&logo=postgresql)](https://github.com/pgvector/pgvector)
 [![LangGraph](https://img.shields.io/badge/AI-LangGraph-blueviolet?style=for-the-badge)](https://langchain-ai.github.io/langgraph/)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
-**Turn voice notes, meeting audio & raw text into structured CRM data, commitments & proactive briefings — with zero manual data entry.**
+**PHILIXA turns meeting notes, voice input, and audio into reviewable CRM updates, commitments, client context, and follow-up drafts.**
 
-[Live Demo](http://localhost:8000) · [API Docs](http://localhost:8000/docs) · [Architecture](#-system-architecture) · [Quickstart](#-quickstart)
+[Project site](https://philixa.me) · [Run locally](#run-locally) · [Architecture](ARCHITECTURE.md) · [Project notes](PROJECT.md) · [Repository](https://github.com/shouryasingh-codes/philixa-6.0)
 
 </div>
 
 ---
 
-## Why Philixa?
+## Portfolio quick view
 
-Traditional CRMs force Relationship Managers and Wealth Advisors to become data-entry clerks. Philixa 6.0 flips that:
+**The problem:** Relationship teams lose context between meetings and spend too much time transcribing notes, updating records, and preparing follow-ups.
 
-- **4 ways to capture** → Paste notes, upload audio/video (≤10 MB), live browser recording, or fast dictation
-- **AI does the heavy lifting** → Extracts clients, commitments, risks, products & talking points
-- **Human-in-the-loop** → Review & edit before anything is saved
-- **Voice + Copilot** → Talk or type in English / Hinglish; schedule WhatsApp/Email reminders
-- **Enterprise ready** → Multi-tenant, RBAC, hardened auth, rate limiting, audit logs
+**The workflow:** Capture text, a recording, or a browser voice note → transcribe and extract clients, commitments, risks, products, and talking points → review and edit the proposed changes → sync approved updates → ask the copilot for grounded client context or draft a reminder.
 
-Built for Private Wealth, Corporate Banking and B2B Relationship teams.
+**The build:** A FastAPI service and vanilla-JS workbench backed by PostgreSQL + pgvector, Redis/ARQ workers, MinIO object storage, LangGraph routing, transcription providers, and optional WhatsApp/email adapters. The implementation includes tenant-scoped RBAC, JWT/CSRF protections, rate limits, audit logging, background jobs, and a Vapi-compatible voice gateway.
 
----
+**The important boundary:** AI proposes structured changes; a human reviews and confirms client creation and extracted updates before they are persisted. This reduces repetitive entry without claiming that data entry or operational review disappears.
 
-## ✨ Key Features
+**View it:** Visit the [PHILIXA project site](https://philixa.me) for the public showcase. The local app and API documentation are available through the setup below; they are not external demo links.
 
-### 🎙️ Multi-Modal Capture
-- **4 Intake Modes**: Paste notes, drag-drop audio/MP4 (≤10 MB), live browser PCM streaming, or fast Web Speech dictation (en-IN + Android fix)
-- **Audio DSP Pipeline**: FFmpeg + linear resampling + Deepgram Nova-3 (Hinglish) + faster-whisper large-v3-turbo
-- **Speaker Diarization**: Solo mode or full PyAnnote meeting mode
+![PHILIXA dashboard preview](app/web/premium_dashboard.jpg)
 
-### 🧠 AI Intelligence
-- **Structured Extraction**: Clients, commitments, risks, products owned vs interested, talking points
-- **LangGraph Copilot**: Natural language → safe SQL + pgvector RAG + action routing
-- **Client Memory Dossier**: Pre-meeting brief + Ask-Client Q&A with citations
+## Why PHILIXA?
 
-### 🗣️ Philixa Brain Voice Assistant + Reminders
-- **Speak to send reminders**: Just say  
-  *“WhatsApp Vikram that I’ll call him tomorrow”* or  
-  *“Email Priya the mutual fund comparison”*
-- Philixa drafts the message → you confirm (“Yes send it” / “Haan bhej do”) → sends via WhatsApp + Email
-- 6-intent engine: Query, Save Meeting, **Send Reminder**, Confirm, Reject, Chat
-- Sarvam AI `bulbul:v3` Hinglish TTS + Deepgram fallback
-- 4000 ms silence auto-stop + 10-turn memory + hands-free conversation
+- **Four intake modes:** paste notes, upload audio/video up to 10 MB, record in the browser, or dictate with Web Speech.
+- **Review-first extraction:** source quotes, inline edits, category filters, transcript correction, and batch sync make the proposed CRM changes inspectable.
+- **Grounded copilot:** LangGraph routes questions and actions through tenant-scoped SQL and pgvector retrieval.
+- **Follow-up assistance:** voice or text can draft WhatsApp/email reminders; sending remains confirmation-based.
+- **Operational foundations:** workspace isolation, Owner/Admin/Member RBAC, secure cookies, CSRF protection, rate limiting, audit logs, and ARQ jobs.
 
-### 🖥️ Modern Workbench UI
-- **60/40 Diff Review Workbench**: Category filters, inline edit, source quotes, batch sync
-- **Hero Voice Hub**: Rotating halo + pulse mic + time-of-day greeting
-- **Persistent Copilot Sidecar**: Token budget meter + grounded client context
-- Dark/Light theme, mobile bottom nav, keyboard shortcuts, WCAG AAA
+## Run locally
 
-### 🛡️ Enterprise Security & Multi-Tenancy
-- Workspaces with Owner / Admin / Member RBAC
-- HttpOnly JWT + single-flight refresh + double-submit CSRF
-- SlowAPI rate limiting + 10 MB payload guard + demo quotas
-- Google One-Tap SSO + cascade delete + audit logs
-
-### ⚡ Background & Notifications
-- ARQ workers for transcription, embeddings, rules engine
-- Daily morning briefs + overdue commitment sweeps
-- Meta WhatsApp Cloud API + quiet hours + delivery webhooks
-- Simulated adapter for offline testing
-
----
-
-## 🏗 System Architecture (High Level)
-
-```
-SPA (Vanilla JS)  →  FastAPI Gateway (Auth + Rate Limit + CSRF)
-                         ↓
-              ┌──────────┼──────────┐
-              │          │          │
-         PostgreSQL   Redis      MinIO
-         + pgvector   (ARQ)     (Audio)
-              │          │
-         LangGraph   ARQ Worker
-         Copilot     (Whisper, Embeddings, Rules, Cron)
-```
-
-Full detailed architecture, Mermaid diagrams, 50-endpoint catalog, database models and config matrix → see `/docs` (or original detailed README).
-
----
-
-## 🚀 Quickstart
-
-### Option 1 – Docker Compose (Recommended)
+The repository's recommended development path uses Docker Compose. It starts the app, PostgreSQL with pgvector, Redis, MinIO, and an ARQ worker.
 
 ```bash
 git clone https://github.com/shouryasingh-codes/philixa-6.0.git
 cd philixa-6.0
 cp .env.example .env
-# Add your PHILIXA_GROQ_API_KEY (and optional Deepgram / Sarvam / WhatsApp keys)
-
+# Add the AI key(s) needed for the features you want to exercise.
 docker compose up -d --build
 ```
 
-Open → [http://localhost:8000](http://localhost:8000)
+Open the **local** app at [http://localhost:8000](http://localhost:8000). Local API references are available at [http://localhost:8000/docs](http://localhost:8000/docs) and [http://localhost:8000/redoc](http://localhost:8000/redoc).
 
-Click **“Try Demo Workspace”** for instant access (pre-seeded clients + data).
+For a non-Docker setup, see the Python, PostgreSQL 16 + pgvector, Redis 7, FFmpeg, and MinIO requirements in [ARCHITECTURE.md](ARCHITECTURE.md). The full environment variable list is in [`.env.example`](.env.example).
 
-### Option 2 – Local Development
+> **Development-only credentials:** Compose uses the example MinIO account `philixa_minio` / `philixa_secret` and the placeholder PostgreSQL password from `.env.example`. Do not reuse these credentials in a shared or production environment.
 
-Requires Python 3.12+, PostgreSQL 16 + pgvector, Redis 7, FFmpeg, MinIO.
+### Local service links
 
-```bash
-python -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env
-alembic upgrade head
+| Service | Local URL | Purpose |
+| --- | --- | --- |
+| Web app | [localhost:8000](http://localhost:8000) | CRM workbench |
+| Swagger | [localhost:8000/docs](http://localhost:8000/docs) | Interactive local API docs |
+| ReDoc | [localhost:8000/redoc](http://localhost:8000/redoc) | Local API reference |
+| MinIO console | [localhost:9001](http://localhost:9001) | Local object-storage console |
+| Health check | [localhost:8000/health](http://localhost:8000/health) | Local service health |
 
-# Terminal 1
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+## Technical deep dive
 
-# Terminal 2
-arq app.worker.WorkerSettings
-```
+- [ARCHITECTURE.md](ARCHITECTURE.md) covers the system topology, ingestion/audio pipeline, LangGraph copilot, HITL policies, endpoint catalog, security controls, and deployment notes.
+- [PROJECT.md](PROJECT.md) documents the isolated Vapi voice-gateway integration and its interface contracts.
+- [tests/](tests/) contains unit, integration, and end-to-end coverage organized by test scope.
 
----
-
-## 🔑 Essential Environment Variables
-
-| Variable | Purpose |
-|----------|---------|
-| `PHILIXA_GROQ_API_KEY` | Primary LLM (required) |
-| `PHILIXA_DATABASE_URL` | PostgreSQL connection |
-| `PHILIXA_REDIS_URL` | Cache + ARQ |
-| `PHILIXA_JWT_SECRET` | ≥32 char secret |
-| `PHILIXA_ENABLE_AUDIO_UPLOAD` | `1` to enable audio features |
-| `PHILIXA_SARVAM_API_KEY` | Hinglish TTS (optional) |
-| `WHATSAPP_*` | Meta Cloud API (optional) |
-
-See `.env.example` for the full list (69+ settings).
-
----
-
-## 📖 Documentation & Portals
-
-| Resource | URL |
-|----------|-----|
-| Web App | http://localhost:8000 |
-| Swagger API | http://localhost:8000/docs |
-| ReDoc | http://localhost:8000/redoc |
-| MinIO Console | http://localhost:9001 (`philixa_minio` / `philixa_secret`) |
-| Health | http://localhost:8000/health |
-
----
-
-## 🧪 Testing
+## Validation and tests
 
 ```bash
-pytest                          # Full suite
-pytest tests/unit/              # Unit
-pytest tests/integration/       # Integration
-pytest tests/e2e/               # End-to-end
+pytest
 ```
 
----
+Run focused suites while developing with `pytest tests/unit/`, `pytest tests/integration/`, or `pytest tests/e2e/`.
 
-## 🗺 Roadmap
+## Roadmap
 
-- [x] Multi-tenant + RBAC + hardened security
-- [x] Multi-modal intake + HITL review
-- [x] LangGraph Copilot + Voice Assistant
-- [x] ARQ background jobs + cron sweeps
+- [x] Multi-tenant workspaces, RBAC, and hardened security
+- [x] Multi-modal intake with human-in-the-loop review
+- [x] LangGraph copilot and voice assistant
+- [x] ARQ background jobs and scheduled sweeps
 - [ ] React / Next.js frontend
 - [ ] Stripe billing
 - [ ] Kubernetes Helm charts
 
----
+## Contact and hiring
 
-## 🤝 Contributing
+PHILIXA is an open-source portfolio project by [Shourya Singh](https://github.com/shouryasingh-codes). For collaboration, implementation work, or hiring conversations, use the [GitHub profile](https://github.com/shouryasingh-codes) or open a [repository issue](https://github.com/shouryasingh-codes/philixa-6.0/issues) with the context you would like to discuss.
 
-1. Fork the repo
-2. Create your branch (`git checkout -b feature/AmazingFeature`)
-3. Commit (`git commit -m 'feat: Add AmazingFeature'`)
-4. Push and open a Pull Request
+## License
 
-See `CONTRIBUTING.md` (coming soon) for detailed guidelines.
-
----
-
-## 📄 License
-
-Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
-
----
-
-<div align="center">
-
-**Built with ❤️ for Relationship Managers who hate data entry**
-
-[Report Bug](https://github.com/shouryasingh-codes/philixa-6.0/issues) · [Request Feature](https://github.com/shouryasingh-codes/philixa-6.0/issues)
-
-</div>
-```
+Distributed under the [MIT License](LICENSE).
